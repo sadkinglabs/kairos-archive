@@ -1,0 +1,46 @@
+---
+import "../styles/global.css";
+import { loadRegistry } from "../data/registry";
+interface Props { title: string; description?: string; canonical?: string; image?: string | null }
+const { title, description = "Search, card pages and full history for Sorcery: Contested Realm, built on the Sorcery Card Registry.", canonical, image } = Astro.props;
+const { source } = await loadRegistry();
+const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archive`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    {canonical && <link rel="canonical" href={new URL(canonical, Astro.site)} />}
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    {image && <meta property="og:image" content={image} />}
+    <meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%237a3e1d'/%3E%3Ctext x='32' y='42' font-size='30' text-anchor='middle' fill='white' font-family='serif'%3EK%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="site">
+      <div class="inner">
+        <a class="brand" href="/">Kairos Archive</a>
+        <form action="/search" method="get" role="search">
+          <input type="search" name="q" placeholder='search cards: "polar bears", t:minion e:water, r:genesis' aria-label="Search" />
+          <button type="submit">Search</button>
+        </form>
+        <nav>
+          <a href="/sets">Sets</a><a href="/changes">Changes</a><a href="/syntax">Syntax</a><a href="/about">About</a>
+        </nav>
+      </div>
+    </header>
+    <main><slot /></main>
+    <footer class="site">
+      <div class="inner">
+        Card names, text and images © <a href="https://sorcerytcg.com">Erik's Curiosa</a>, shown with credit for archive, identification and site function.
+        Identifiers, structure and history: Kairos Archive, free for any use (<a href="/usage">usage</a>).
+        Data: <a href="https://api.kairosarchive.net/versions.json">Sorcery Card Registry</a> release <code>{source.tag}</code> ·
+        <a href="https://github.com/sadkinglabs/sorcery-registry">registry source</a> · <a href="https://github.com/sadkinglabs/kairos-archive">site source</a>
+      </div>
+    </footer>
+  </body>
+</html>

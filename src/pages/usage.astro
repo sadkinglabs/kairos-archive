@@ -1,0 +1,20 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Usage" canonical="/usage">
+  <h1>Using Kairos Archive</h1>
+  <p>Kairos Archive (this site and <code>api.kairosarchive.net</code>) is a stable-identifier registry for <em>Sorcery: Contested Realm</em> cards and printings. This page says what you may do with it, what belongs to whom, and what we ask of automated clients. No keys, no signup. The canonical text lives in the registry repository as <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/docs/usage.md">docs/usage.md</a>.</p>
+  <h2>What Kairos Archive created, and how it is licensed</h2>
+  <p>Everything the registry adds on top of the official data is free for any use, including commercial use, without permission: the identifiers and the guarantee that they never change; the record structure and histories; the derived fields and addresses; the schema; the documented data corrections; the code. Identifiers, structure and derived data are released under <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 1.0</a>; code under the MIT licence. Attribution is requested, not required: “Identifiers and structure: Kairos Archive (kairosarchive.net)”.</p>
+  <h2>What belongs to Erik's Curiosa</h2>
+  <p>Card names, rules text, typelines, flavour text, artist credits, set and product names, and every card image are © <a href="https://sorcerytcg.com">Erik's Curiosa</a> and are used here with credit. The registry republishes the card data the official public API already serves, restructured for stability, and hosts card images itself as that API's own guidance asks. Both are displayed and served as part of the archive's function: keeping the record, matching printings to identifiers, and showing what an identifier refers to. This page says nothing about commercial use of Erik's Curiosa's content, either way, because that is not ours to grant or to withhold.</p>
+  <h2>Practical requests</h2>
+  <ul>
+    <li><strong>Fetch in bulk, not object by object.</strong> <code>registry.json</code> or the <code>index/</code> lists; please do not crawl the object tree.</li>
+    <li><strong>Cache what you fetch.</strong> Release roots are immutable; poll <code>versions.json</code> (hourly is plenty) to learn of a new release.</li>
+    <li><strong>Hotlinking images is allowed</strong>, with credit to Erik's Curiosa. Image addresses are permanent.</li>
+    <li><strong>Automated clients must send a <code>User-Agent</code></strong> naming the project and a contact; requests with none are blocked at the edge. Browsers send one automatically.</li>
+    <li><strong>Availability is best effort.</strong> Every release is mirrored on GitHub.</li>
+  </ul>
+  <p>Kairos Archive may link printings to third-party sellers, including through affiliate programmes; such links are ordinary outbound links, disclosed where they appear.</p>
+</Base>

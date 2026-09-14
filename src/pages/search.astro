@@ -1,0 +1,93 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Search" canonical="/search">
+  <h1 id="heading">Search</h1>
+  <div id="errors" class="notice" hidden></div>
+  <div class="chips">
+    <label>Show <select id="unique"><option value="cards">one per card</option><option value="prints">every printing</option><option value="art">one per artwork</option></select></label>
+    <label>Sort <select id="sort"><option value="">name</option><option value="cost">cost</option><option value="power">power</option><option value="atk">attack</option><option value="def">defense</option><option value="life">life</option><option value="set">set</option><option value="date">release date</option><option value="rarity">rarity</option><option value="type">type</option></select></label>
+    <label>Order <select id="order"><option value="">default</option><option value="asc">ascending</option><option value="desc">descending</option></select></label>
+    <span id="count" class="muted"></span>
+  </div>
+  <div id="results" class="grid"></div>
+  <section id="rules-group" hidden>
+    <h2>Appears in rules text</h2>
+    <p class="muted">These cards do not match by name, but their rules text contains your words.</p>
+    <div id="rules-results" class="grid"></div>
+  </section>
+  <script>
+    import { search, directLookup } from "../search";
+    import type { SearchData } from "../search";
+
+    interface Payload extends SearchData { tag: string; slug_history: { slug: string; printing_id: string }[] }
+    const IMAGE_BASE = "https://api.kairosarchive.net/images";
+    const slugify = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "card";
+    const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+    let payload: Payload | null = null;
+    async function data(): Promise<Payload> {
+      payload ??= await (await fetch("/data/search.json")).json();
+      return payload!;
+    }
+
+    function tile(cardName: string, codexId: string, printing: { printing_id: string; image_hash: string | null; image_status: string; set_name: string; finish: string | null } | null, sub: string) {
+      const href = `/cards/${codexId}/${slugify(cardName)}`;
+      const img = printing && printing.image_hash && printing.image_status !== "missing"
+        ? `<img class="card-img" src="${IMAGE_BASE}/${printing.printing_id}.${printing.image_hash}.small.webp" width="146" height="204" alt="" loading="lazy">`
+        : `<div class="placeholder">${escapeHtml(cardName)}</div>`;
+      return `<a class="tile" href="${href}">${img}<div class="name">${escapeHtml(cardName)}</div><div class="sub">${escapeHtml(sub)}</div></a>`;
+    }
+    function escapeHtml(s: string) { return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!); }
+
+    async function run() {
+      const params = new URLSearchParams(location.search);
+      const q = (params.get("q") ?? "").trim();
+      const box = document.querySelector<HTMLInputElement>('header input[name="q"]');
+      if (box) box.value = q;
+      $("heading").textContent = q ? `Search: ${q}` : "Search";
+      document.title = q ? `${q} · Kairos Archive` : "Search · Kairos Archive";
+      if (!q) return;
+      const jump = directLookup(q);
+      const d = await data();
+      if (jump) {
+        if (jump.kind === "card") { const c = d.cards.find((x) => x.codex_id === jump.value); if (c) { location.replace(`/cards/${c.codex_id}/${slugify(c.name)}`); return; } }
+        if (jump.kind === "printing") { if (d.printings.some((p) => p.printing_id === jump.value)) { location.replace(`/printings/${jump.value}`); return; } }
+        if (jump.kind === "slug") {
+          const slug = jump.value.replace(/-r$/, "");
+          const owner = d.slug_history.find((r) => r.slug === slug)?.printing_id ?? d.printings.find((p) => p.slug === slug)?.printing_id;
+          if (owner) { location.replace(`/printings/${owner}`); return; }
+        }
+      }
+      const result = search(q, d, d.slug_history);
+      const errors = $("errors");
+      errors.hidden = result.errors.length === 0;
+      errors.innerHTML = result.errors.map((e) => `<div>${escapeHtml(e)} — see the <a href="/syntax">syntax</a>.</div>`).join("");
+      ($("unique") as HTMLSelectElement).value = result.options.unique;
+      ($("sort") as HTMLSelectElement).value = result.options.sort ?? "";
+      ($("order") as HTMLSelectElement).value = result.options.order ?? "";
+      $("count").textContent = `${result.total} result${result.total === 1 ? "" : "s"}`;
+      $("results").innerHTML = result.hits.map((h) => tile(h.card.name, h.card.codex_id, h.printing, h.printing ? `${h.printing.set_name} · ${h.printing.finish ?? ""}` : h.card.type ?? "")).join("");
+      const group = $("rules-group");
+      group.hidden = result.rulesTextHits.length === 0;
+      $("rules-results").innerHTML = result.rulesTextHits.map((c) => {
+        const p = d.printings.find((x) => x.printing_id === c.default_printing_id) ?? null;
+        return tile(c.name, c.codex_id, p, c.type ?? "");
+      }).join("");
+    }
+
+    // Chips rewrite the query: the URL is the single source of truth.
+    function rewrite(key: string, value: string) {
+      const params = new URLSearchParams(location.search);
+      let q = (params.get("q") ?? "").replace(new RegExp(`\\s*\\b${key}:\\S+`, "g"), "").trim();
+      if (value) q = `${q} ${key}:${value}`.trim();
+      params.set("q", q);
+      history.replaceState(null, "", `/search?${params.toString()}`);
+      void run();
+    }
+    $("unique").addEventListener("change", (e) => rewrite("unique", (e.target as HTMLSelectElement).value === "cards" ? "" : (e.target as HTMLSelectElement).value));
+    $("sort").addEventListener("change", (e) => rewrite("sort", (e.target as HTMLSelectElement).value));
+    $("order").addEventListener("change", (e) => rewrite("order", (e.target as HTMLSelectElement).value));
+    void run();
+  </script>
+</Base>

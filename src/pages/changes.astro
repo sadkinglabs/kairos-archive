@@ -1,0 +1,18 @@
+---
+import Base from "../layouts/Base.astro";
+import { cardPath, changedFields, formatValue, loadRegistry, views, type Face } from "../data/registry";
+const { registry } = await loadRegistry();
+const v = views(registry);
+const entries: { card: typeof registry.cards[number]; when: string; changed: string[]; before: Face; after: Face }[] = [];
+for (const [id, rows] of v.historyByCard) {
+  for (let i = 1; i < rows.length; i++) entries.push({ card: v.cardById.get(id)!, when: rows[i].valid_from, changed: changedFields(rows[i - 1], rows[i]), before: rows[i - 1], after: rows[i] });
+}
+entries.sort((a, b) => b.when.localeCompare(a.when) || a.card.name.localeCompare(b.card.name));
+---
+<Base title="Changes" canonical="/changes">
+  <h1>Changes</h1>
+  <p class="muted">Every recorded change to a card's gameplay face, newest first. A date is when the registry recorded the change. {entries.length} so far.</p>
+  {entries.length === 0 && <p>No changes recorded yet.</p>}
+  <div class="timeline">{entries.map((e) => <div class="row"><div class="when">{e.when}</div><a href={cardPath(e.card)}><strong>{e.card.name}</strong></a>
+    <ul class="diff">{e.changed.map((f) => <li>{f}: <del>{formatValue(e.before[f as keyof Face])}</del> <ins>{formatValue(e.after[f as keyof Face])}</ins></li>)}</ul></div>)}</div>
+</Base>

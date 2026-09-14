@@ -1,0 +1,41 @@
+---
+import Base from "../../layouts/Base.astro";
+import { cardPath, loadRegistry, printingPath, setPath, views } from "../../data/registry";
+export async function getStaticPaths() {
+  const { registry } = await loadRegistry();
+  return registry.printings.map((printing) => ({ params: { id: printing.printing_id }, props: { printing } }));
+}
+const { printing } = Astro.props;
+const { registry } = await loadRegistry();
+const v = views(registry);
+const card = v.cardById.get(printing.codex_id)!;
+const slugs = v.slugsByPrinting.get(printing.printing_id) ?? [];
+---
+<Base title={`${card.name} (${printing.set_name}, ${printing.finish})`} canonical={printingPath(printing)} image={printing.image_urls?.normal ?? null}>
+  <div class="two">
+    <div>
+      {printing.image_urls ? <img class="card-img" src={printing.image_urls.normal} width="488" height="680" alt={card.name} /> : <div class="placeholder">No image held</div>}
+      {printing.image_urls && <p class="muted"><a href={printing.image_urls.large}>large</a> · <a href={printing.image_urls.original}>original</a>{printing.image_status === "lowres" && " · low-resolution source, upscaled"}</p>}
+      {printing.back?.image_urls && <img class="card-img" src={printing.back.image_urls.normal} width="488" height="680" alt={`${card.name}, back face`} />}
+    </div>
+    <div>
+      <h1>{card.name} <span class="muted">· {printing.set_name} · {printing.product} · {printing.finish}</span></h1>
+      <p><a href={cardPath(card)}>Card page</a> with rules, every printing and the full history.</p>
+      <dl class="facts">
+        <dt>printing_id</dt><dd><code>{printing.printing_id}</code></dd>
+        <dt>codex_id</dt><dd><a href={cardPath(card)}><code>{card.codex_id}</code></a></dd>
+        <dt>Set</dt><dd><a href={setPath(printing)}>{printing.set_name}</a> <span class="muted">({printing.set_code})</span></dd>
+        <dt>Released</dt><dd>{printing.released_at ?? "—"}</dd>
+        <dt>Artist</dt><dd>{printing.artist ?? "—"}</dd>
+        <dt>Typeline</dt><dd>{printing.typeline || "—"}</dd>
+        {printing.flavour_text && <><dt>Flavour</dt><dd>{printing.flavour_text}</dd></>}
+        <dt>Shows current values</dt><dd>{printing.printed_as_current === null ? "unknown" : printing.printed_as_current ? "yes" : "no — printed with older values; see the card's history"}</dd>
+        {printing.retired_at && <><dt>Retired</dt><dd>{printing.retired_at} (removed upstream; the record stays)</dd></>}
+        <dt>Current slug</dt><dd><code>{printing.slug}</code></dd>
+      </dl>
+      {slugs.length > 1 && <><h2>Slug history</h2><ul>{slugs.map((s) => <li><code>{s.slug}</code> <span class="muted">{s.valid_from} → {s.valid_to ?? "now"}</span></li>)}</ul></>}
+      {printing.back && <><h2>Back face</h2><p>Artist {printing.back.artist ?? "—"} · {printing.back.typeline || "—"}</p></>}
+      <p><a href={printing.api_url}>JSON</a> · registry object for this printing</p>
+    </div>
+  </div>
+</Base>

@@ -1,0 +1,23 @@
+---
+import Base from "../layouts/Base.astro";
+import { loadRegistry } from "../data/registry";
+const { registry, source } = await loadRegistry();
+const h = registry.header;
+---
+<Base title="Kairos Archive" canonical="/">
+  <section class="hero">
+    <h1>Kairos Archive</h1>
+    <p class="muted">Every Sorcery: Contested Realm card and printing, with a permanent identifier and its whole history.</p>
+    <form action="/search" method="get" role="search">
+      <input type="search" name="q" placeholder="Polar Bears" autofocus aria-label="Search" />
+      <button type="submit">Search</button>
+    </form>
+    <p class="examples muted">Try
+      <a href="/search?q=t%3Aminion+e%3Awater+cost%3C%3D3">t:minion e:water cost&lt;=3</a>
+      <a href="/search?q=is%3Aerrata">is:errata</a>
+      <a href="/search?q=s%3Agothic+f%3Afoil+unique%3Aprints">s:gothic f:foil unique:prints</a>
+      <a href="/syntax">full syntax</a>
+    </p>
+  </section>
+  <p class="muted" style="text-align:center">{h.cards} cards · {h.printings} printings · {h.sets} sets · {h.card_history - h.cards} recorded changes · registry release <code>{source.tag}</code></p>
+</Base>

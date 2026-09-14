@@ -1,0 +1,20 @@
+---
+import Base from "../../layouts/Base.astro";
+import CardTile from "../../components/CardTile.astro";
+import { loadRegistry, setPath, views } from "../../data/registry";
+export async function getStaticPaths() {
+  const { registry } = await loadRegistry();
+  return registry.sets.map((set) => ({ params: { code: set.set_code ?? "none" }, props: { set } }));
+}
+const { set } = Astro.props;
+const { registry } = await loadRegistry();
+const v = views(registry);
+const members = new Map<string, typeof registry.printings>();
+for (const p of registry.printings) if (p.set_code === set.set_code) members.set(p.codex_id, [...(members.get(p.codex_id) ?? []), p]);
+const cards = [...members.keys()].map((id) => v.cardById.get(id)!).sort((a, b) => a.name.localeCompare(b.name));
+---
+<Base title={set.set_name} canonical={setPath(set)}>
+  <h1>{set.set_name} <span class="muted">· {set.set_code}</span></h1>
+  <p class="muted">{set.cards} cards, {set.printings} printings, first released {set.released_at ?? "—"}. Ordered by name: the official data has no collector numbers. <a href={`/search?q=s%3A${set.set_code}+unique%3Aprints`}>Every printing as a search</a>.</p>
+  <div class="grid">{cards.map((c) => <CardTile card={c} printing={members.get(c.codex_id)![0]} />)}</div>
+</Base>

@@ -1,0 +1,12 @@
+---
+import type { RegistryCard, RegistryPrinting } from "../data/registry";
+import { cardPath } from "../data/registry";
+interface Props { card: RegistryCard; printing: RegistryPrinting | null }
+const { card, printing } = Astro.props;
+const urls = printing?.image_urls ?? card.image_urls;
+---
+<a class="tile" href={cardPath(card)}>
+  {urls ? <img class="card-img" src={urls.small} width="146" height="204" alt={card.name} loading="lazy" /> : <div class="placeholder">{card.name}</div>}
+  <div class="name">{card.name}</div>
+  <div class="sub">{printing ? `${printing.set_name} · ${printing.finish}` : card.type}</div>
+</a>

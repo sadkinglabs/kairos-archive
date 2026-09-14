@@ -1,0 +1,78 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { changedFields, cardPath, formatValue, loadRegistry, printingPath, setPath, slugify, views, FACE_FIELDS, type Face } from "../../../data/registry";
+
+export async function getStaticPaths() {
+  const { registry } = await loadRegistry();
+  return registry.cards.map((card) => ({ params: { id: card.codex_id, slug: slugify(card.name) }, props: { card } }));
+}
+const { card } = Astro.props;
+const { registry } = await loadRegistry();
+const v = views(registry);
+const printings = [...(v.printingsByCard.get(card.codex_id) ?? [])].sort((a, b) => a.printing_id.localeCompare(b.printing_id));
+const defaultPrinting = printings.find((p) => p.printing_id === card.default_printing_id) ?? printings[0] ?? null;
+const history = v.historyByCard.get(card.codex_id) ?? [];
+const names = v.namesByCard.get(card.codex_id) ?? [];
+const thresholds = [["Air", card.thr_air], ["Earth", card.thr_earth], ["Fire", card.thr_fire], ["Water", card.thr_water]].filter(([, n]) => (n as number) > 0);
+const faceRows = (face: Face) => FACE_FIELDS.filter((f) => !["rules_text"].includes(f)).map((f) => [f, formatValue(face[f])]);
+---
+<Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ""} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}>
+  <div class="two">
+    <div>
+      {card.image_urls ? <img class="card-img" src={card.image_urls.normal} width="488" height="680" alt={card.name} /> : <div class="placeholder">No image held for {card.name}</div>}
+      {card.image_urls && <p class="muted"><a href={card.image_urls.large}>large</a> · <a href={card.image_urls.original}>original</a>{card.image_status === "lowres" && " · low-resolution source, upscaled"}</p>}
+      {defaultPrinting?.back?.image_urls && <img class="card-img" src={defaultPrinting.back.image_urls.normal} width="488" height="680" alt={`${card.name}, back face`} />}
+    </div>
+    <div>
+      <h1>{card.name} {card.errata && <span class="badge errata" title="Text or stats changed since printing">errata</span>}</h1>
+      <p class="muted">{card.type}{card.subtypes.length ? ` — ${card.subtypes.join(", ")}` : ""} · {card.rarity ?? "no rarity"} · {card.elements.join(", ")}</p>
+      <dl class="facts">
+        <dt>codex_id</dt><dd><code>{card.codex_id}</code> <button class="copy" data-copy={card.codex_id}>copy</button></dd>
+        {card.cost !== null && <><dt>Cost</dt><dd>{card.cost}</dd></>}
+        {card.attack !== null && <><dt>Attack / Defense</dt><dd>{card.attack} / {card.defense} <span class="muted">(power {card.power})</span></dd></>}
+        {card.life !== null && <><dt>Life</dt><dd>{card.life}</dd></>}
+        {thresholds.length > 0 && <><dt>Thresholds</dt><dd>{thresholds.map(([e, n]) => `${e} ${n}`).join(", ")}</dd></>}
+        {card.keywords.length > 0 && <><dt>Keywords</dt><dd>{card.keywords.join(", ")}</dd></>}
+        {card.umbrellas.length > 0 && <><dt>Umbrellas</dt><dd>{card.umbrellas.join(", ")}</dd></>}
+        <dt>Category</dt><dd>{card.category} <span class="muted">· slot {card.slot ?? "none"}</span></dd>
+      </dl>
+      <h2>Rules</h2>
+      <pre class="rules">{card.rules_text || "—"}</pre>
+      {card.back && <>
+        <h2>Back face</h2>
+        <p class="muted">{card.back.type}{card.back.subtypes.length ? ` — ${card.back.subtypes.join(", ")}` : ""}</p>
+        <pre class="rules">{card.back.rules_text || "—"}</pre>
+        <dl class="facts">{faceRows(card.back).filter(([, val]) => val !== "—").map(([f, val]) => <><dt>{f}</dt><dd>{val}</dd></>)}</dl>
+      </>}
+      <p><a href={card.api_url}>JSON</a> · registry object for this card</p>
+    </div>
+  </div>
+
+  <h2>Printings</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Set</th><th>Product</th><th>Finish</th><th>Artist</th><th>Released</th><th>Shows current values</th><th>printing_id</th><th>Slug</th><th>Image</th></tr></thead>
+    <tbody>{printings.map((p) => <tr>
+      <td><a href={setPath(p)}>{p.set_name}</a></td><td>{p.product}</td><td>{p.finish}</td><td>{p.artist}</td><td>{p.released_at ?? "—"}</td>
+      <td>{p.printed_as_current === null ? "unknown" : p.printed_as_current ? <span class="badge ok">current</span> : <span class="badge">older values</span>}{p.retired_at && <span class="badge">retired {p.retired_at}</span>}</td>
+      <td><a href={printingPath(p)}><code>{p.printing_id}</code></a>{p.printing_id === card.default_printing_id && <span class="badge" title="default printing">default</span>}</td>
+      <td><code>{p.slug}</code></td>
+      <td>{p.image_urls ? <a href={printingPath(p)}><img class="card-img" src={p.image_urls.small} width="73" height="102" alt="" loading="lazy" /></a> : <span class="muted">none</span>}</td>
+    </tr>)}</tbody>
+  </table></div>
+
+  <h2>History</h2>
+  <p class="muted">Every state the card's gameplay face has been in, as the registry recorded it. Dates are <em>recorded on</em>: the sync that detected the change, not necessarily when the publisher made it. The first row stands for everything before the registry began recording.</p>
+  <div class="timeline">
+    {history.map((row, i) => { const prev = i > 0 ? history[i - 1] : null; const changed = prev ? changedFields(prev, row) : []; const backChanged = prev ? changedFields(prev.back, row.back) : []; return (
+      <div class="row">
+        <div class="when">{row.valid_from}{row.valid_to ? ` → ${row.valid_to}` : " → now"}{i === 0 && " · initial record"}</div>
+        {prev ? (changed.length + backChanged.length === 0 ? <div class="muted">no gameplay change</div> :
+          <ul class="diff">{changed.map((f) => <li><strong>{f}</strong>: <del>{formatValue(prev![f as keyof Face])}</del> <ins>{formatValue(row[f as keyof Face])}</ins></li>)}{backChanged.length > 0 && <li><strong>back face</strong>: {backChanged.join(", ")} changed</li>}</ul>)
+        : <div>{row.type} · cost {formatValue(row.cost)} · {formatValue(row.attack)}/{formatValue(row.defense)} · <span class="muted">{row.rules_text.slice(0, 120)}</span></div>}
+      </div>); })}
+    {names.length > 1 && <div class="row"><div class="when">names</div><ul>{names.map((n) => <li>{n.name} <span class="muted">{n.valid_from} → {n.valid_to ?? "now"}</span></li>)}</ul></div>}
+  </div>
+  <script>
+    document.querySelectorAll<HTMLButtonElement>(".copy").forEach((b) => b.addEventListener("click", async () => { await navigator.clipboard.writeText(b.dataset.copy ?? ""); b.textContent = "copied"; setTimeout(() => (b.textContent = "copy"), 1200); }));
+  </script>
+</Base>

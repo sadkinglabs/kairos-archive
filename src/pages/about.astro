@@ -1,0 +1,14 @@
+---
+import Base from "../layouts/Base.astro";
+import { loadRegistry } from "../data/registry";
+const { registry, source } = await loadRegistry();
+---
+<Base title="About" canonical="/about">
+  <h1>About Kairos Archive</h1>
+  <p>Kairos Archive is a search and reference site for <em>Sorcery: Contested Realm</em>, built on the <a href="https://github.com/sadkinglabs/sorcery-registry">Sorcery Card Registry</a>: a registry of permanent identifiers for every card (<code>codex_id</code>, like <code>C000230</code>) and every printing (<code>printing_id</code>, like <code>P000937</code>) that never change or move, with the full history of every card's gameplay text and stats, every rename, and every official slug ever issued.</p>
+  <p>The official API's identifiers are mutable: slugs have changed for entire sets, and its internal ids are regenerated on re-import. The registry keys everything on its own ids, records what changes, and the archive shows it: search with a real syntax, a page per card with every printing and a timeline of changes, a page per printing, and a JSON object behind every page at <a href="https://api.kairosarchive.net/versions.json">api.kairosarchive.net</a>.</p>
+  <p>This build reads registry release <code>{source.tag}</code> (schema {registry.header.schema_version}): {registry.header.cards} cards, {registry.header.printings} printings. Every page is pre-rendered from that one verified release; a new release rebuilds the site.</p>
+  <h2>Credits</h2>
+  <p>Card names, rules text, typelines, flavour text, artist credits and images are © <a href="https://sorcerytcg.com">Erik's Curiosa</a>, shown here with credit for archive, identification and site function, following the guidance published with their <a href="https://api.sorcerytcg.com">public API</a>. The identifiers, structure, histories and code are Kairos Archive's and are free for any use; see <a href="/usage">usage</a>.</p>
+  <p>Data errors: <a href="https://github.com/sadkinglabs/sorcery-registry/issues">open an issue</a> on the registry. Site: <a href="https://github.com/sadkinglabs/kairos-archive">source</a>.</p>
+</Base>

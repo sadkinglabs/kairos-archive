@@ -1,0 +1,12 @@
+---
+import Base from "../../layouts/Base.astro";
+import { loadRegistry, setPath } from "../../data/registry";
+const { registry } = await loadRegistry();
+const sets = [...registry.sets].sort((a, b) => (a.released_at ?? "9999").localeCompare(b.released_at ?? "9999") || (a.set_code ?? "").localeCompare(b.set_code ?? ""));
+---
+<Base title="Sets" canonical="/sets">
+  <h1>Sets</h1>
+  <div class="table-wrap"><table><thead><tr><th>Code</th><th>Set</th><th>First released</th><th>Cards</th><th>Printings</th></tr></thead>
+  <tbody>{sets.map((s) => <tr><td><code>{s.set_code ?? "—"}</code></td><td><a href={setPath(s)}>{s.set_name}</a></td><td>{s.released_at ?? "—"}</td><td>{s.cards}</td><td>{s.printings}</td></tr>)}</tbody></table></div>
+  <p class="muted">Set codes are the official ones (001 Alpha, 002 Beta, 004 Arthurian Legends, 005 Dragonlord, 006 Gothic, 999 Promo); 003 is deliberately unused upstream.</p>
+</Base>
