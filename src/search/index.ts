@@ -5,3 +5,5 @@ export type { Node, Parsed, Options } from "./query";
 export { search, resolveEnum, sortHits } from "./evaluate";
 export type { Hit, SearchResult } from "./evaluate";
 export type { Card, Printing, SearchData, ImageStatus } from "./types";
+export { PAGE_SIZE, pageInfo, paginate } from "./paginate";
+export type { PageInfo } from "./paginate";
