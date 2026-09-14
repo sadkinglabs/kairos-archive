@@ -16,14 +16,22 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
     {canonical && <link rel="canonical" href={new URL(canonical, Astro.site)} />}
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
-    {image && <meta property="og:image" content={image} />}
-    <meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%237a3e1d'/%3E%3Ctext x='32' y='42' font-size='30' text-anchor='middle' fill='white' font-family='serif'%3EK%3C/text%3E%3C/svg%3E" />
+    <meta property="og:image" content={image ?? new URL("/brand/og.png", Astro.site)} />
+    <meta property="og:site_name" content="Kairos Archive" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/png" href="/brand/icon-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/brand/icon-180.png" />
   </head>
   <body>
     <header class="site">
       <div class="inner">
-        <a class="brand" href="/">Kairos Archive</a>
+        <a class="brand" href="/" aria-label="Kairos Archive, home">
+          <picture>
+            <source srcset="/brand/wordmark-dark-560.png" media="(prefers-color-scheme: dark)" />
+            <img src="/brand/wordmark-560.png" alt="Kairos Archive" width="560" height="233" />
+          </picture>
+        </a>
         <form action="/search" method="get" role="search">
           <input type="search" name="q" placeholder='search cards: "polar bears", t:minion e:water, r:genesis' aria-label="Search" />
           <button type="submit">Search</button>
