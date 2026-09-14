@@ -11,13 +11,14 @@ import Base from "../layouts/Base.astro";
     <span id="count" class="muted"></span>
   </div>
   <div id="results" class="grid"></div>
+  <nav id="pager" class="pager" aria-label="Results pages" hidden></nav>
   <section id="rules-group" hidden>
     <h2>Appears in rules text</h2>
     <p class="muted">These cards do not match by name, but their rules text contains your words.</p>
     <div id="rules-results" class="grid"></div>
   </section>
   <script>
-    import { search, directLookup } from "../search";
+    import { search, directLookup, paginate, type PageInfo } from "../search";
     import type { SearchData } from "../search";
 
     interface Payload extends SearchData { tag: string; slug_history: { slug: string; printing_id: string }[] }
@@ -47,7 +48,7 @@ import Base from "../layouts/Base.astro";
       if (box) box.value = q;
       $("heading").textContent = q ? `Search: ${q}` : "Search";
       document.title = q ? `${q} · Kairos Archive` : "Search · Kairos Archive";
-      if (!q) return;
+      if (!q) { $("pager").hidden = true; return; }
       const jump = directLookup(q);
       const d = await data();
       if (jump) {
@@ -66,8 +67,12 @@ import Base from "../layouts/Base.astro";
       ($("unique") as HTMLSelectElement).value = result.options.unique;
       ($("sort") as HTMLSelectElement).value = result.options.sort ?? "";
       ($("order") as HTMLSelectElement).value = result.options.order ?? "";
-      $("count").textContent = `${result.total} result${result.total === 1 ? "" : "s"}`;
-      $("results").innerHTML = result.hits.map((h) => tile(h.card.name, h.card.codex_id, h.printing, h.printing ? `${h.printing.set_name} · ${h.printing.finish ?? ""}` : h.card.type ?? "")).join("");
+      const requestedPage = Number(params.get("page"));
+      const { items: pageHits, info } = paginate(result.hits, requestedPage);
+      $("count").textContent = result.total === 0 ? "0 results"
+        : `Showing ${info.start}–${info.end} of ${result.total} result${result.total === 1 ? "" : "s"}`;
+      $("results").innerHTML = pageHits.map((h) => tile(h.card.name, h.card.codex_id, h.printing, h.printing ? `${h.printing.set_name} · ${h.printing.finish ?? ""}` : h.card.type ?? "")).join("");
+      renderPager(info, params);
       const group = $("rules-group");
       group.hidden = result.rulesTextHits.length === 0;
       $("rules-results").innerHTML = result.rulesTextHits.map((c) => {
@@ -77,17 +82,47 @@ import Base from "../layouts/Base.astro";
     }
 
     // Chips rewrite the query: the URL is the single source of truth.
+    // Changing a filter changes the result set, so it drops any page.
     function rewrite(key: string, value: string) {
       const params = new URLSearchParams(location.search);
       let q = (params.get("q") ?? "").replace(new RegExp(`\\s*\\b${key}:\\S+`, "g"), "").trim();
       if (value) q = `${q} ${key}:${value}`.trim();
       params.set("q", q);
+      params.delete("page");
       history.replaceState(null, "", `/search?${params.toString()}`);
       void run();
     }
     $("unique").addEventListener("change", (e) => rewrite("unique", (e.target as HTMLSelectElement).value === "cards" ? "" : (e.target as HTMLSelectElement).value));
     $("sort").addEventListener("change", (e) => rewrite("sort", (e.target as HTMLSelectElement).value));
     $("order").addEventListener("change", (e) => rewrite("order", (e.target as HTMLSelectElement).value));
+
+    // Pagination: page state lives in ?page=N, same as q. Plain <a href>
+    // links keep it keyboard-accessible and working without JS; the click
+    // handler below upgrades it to an in-place update.
+    function pageHref(params: URLSearchParams, page: number): string {
+      const p = new URLSearchParams(params);
+      if (page <= 1) p.delete("page"); else p.set("page", String(page));
+      return `/search?${p.toString()}`;
+    }
+    function goToPage(page: number) {
+      const params = new URLSearchParams(location.search);
+      if (page <= 1) params.delete("page"); else params.set("page", String(page));
+      history.pushState(null, "", `/search?${params.toString()}`);
+      void run();
+      $("results").scrollIntoView({ block: "start" });
+    }
+    function renderPager(info: PageInfo, params: URLSearchParams) {
+      const pager = $("pager");
+      if (info.totalPages <= 1) { pager.hidden = true; pager.innerHTML = ""; return; }
+      pager.hidden = false;
+      const link = (page: number, label: string) => page < 1 || page > info.totalPages
+        ? `<span class="btn disabled" aria-disabled="true">${label}</span>`
+        : `<a class="btn" href="${pageHref(params, page)}" data-page="${page}">${label}</a>`;
+      pager.innerHTML = `${link(info.page - 1, "Previous")}<span class="muted">Page ${info.page} of ${info.totalPages}</span>${link(info.page + 1, "Next")}`;
+      pager.querySelectorAll<HTMLAnchorElement>("a[data-page]").forEach((a) =>
+        a.addEventListener("click", (e) => { e.preventDefault(); goToPage(Number(a.dataset.page)); }));
+    }
+    window.addEventListener("popstate", () => void run());
     void run();
   </script>
 </Base>
