@@ -17,7 +17,9 @@ function cardRedirects() {
     hooks: {
       "astro:build:done": async ({ dir }) => {
         const { registry } = await loadRegistry();
-        const lines = registry.cards.map((c) => `/cards/${c.codex_id} ${cardPath(c)} 301`);
+        // 302, not 301: the canonical path carries the card's current name and
+        // moves when a card is renamed, and browsers cache a 301 indefinitely.
+        const lines = registry.cards.map((c) => `/cards/${c.codex_id} ${cardPath(c)} 302`);
         await writeFile(new URL("_redirects", dir), lines.join("\n") + "\n");
       },
     },
