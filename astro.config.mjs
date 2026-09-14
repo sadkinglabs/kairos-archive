@@ -1,4 +1,5 @@
 import { defineConfig } from "astro/config";
+import sitemap from "@astrojs/sitemap";
 import { writeFile } from "node:fs/promises";
 import { cardPath, loadRegistry } from "./src/data/registry.ts";
 
@@ -32,5 +33,12 @@ export default defineConfig({
   output: "static",
   trailingSlash: "never",
   build: { format: "file" },
-  integrations: [cardRedirects()],
+  integrations: [
+    cardRedirects(),
+    sitemap({
+      // The 404 page and bare /cards/{id} links (superseded by the
+      // _redirects rules above) aren't destinations worth indexing.
+      filter: (page) => !page.endsWith("/404") && !/\/cards\/[^/]+$/.test(new URL(page).pathname),
+    }),
+  ],
 });
