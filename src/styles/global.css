@@ -46,6 +46,10 @@ pre.rules { white-space: pre-wrap; font: inherit; background: var(--card); borde
 .diff del { background: #ffd9d9; color: #7a1d1d; text-decoration: line-through; }
 .diff ins { background: #d9f3dc; color: #1d5a2a; text-decoration: none; }
 @media (prefers-color-scheme: dark) { .diff del { background: #4a2323; color: #f2b8b8; } .diff ins { background: #1f3f26; color: #b8f2c3; } }
+tr.as-printed-row td { padding-top: 0; }
+details.as-printed summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+details.as-printed[open] summary { color: var(--fg); }
+details.as-printed ul.diff { margin: .5rem 0 .2rem; padding-left: 1.1rem; }
 code { background: var(--badge); padding: .05rem .3rem; border-radius: 4px; font-size: .9em; }
 .muted { color: var(--muted); }
 .copy { font: inherit; padding: 0 .35rem; border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 4px; cursor: pointer; font-size: .8rem; }

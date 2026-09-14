@@ -137,6 +137,19 @@ export function changedFields(before: Face | null, after: Face | null): string[]
   return FACE_FIELDS.filter((f) => JSON.stringify(before[f]) !== JSON.stringify(after[f]));
 }
 
+/** The row in force on a given date: the last row whose valid_from is at
+ * or before it. A date earlier than every row's valid_from gets the
+ * earliest row instead of nothing — the first row stands for everything
+ * before the registry began recording (same convention as the card
+ * page's history timeline). Rows need not be pre-sorted. */
+export function rowInForce<T extends { valid_from: string }>(rows: T[], date: string): T | null {
+  if (rows.length === 0) return null;
+  const sorted = [...rows].sort((a, b) => a.valid_from.localeCompare(b.valid_from));
+  let chosen = sorted[0];
+  for (const row of sorted) if (row.valid_from <= date) chosen = row;
+  return chosen;
+}
+
 export function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (Array.isArray(value)) return value.length ? value.join(", ") : "—";
