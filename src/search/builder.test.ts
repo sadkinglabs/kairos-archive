@@ -81,13 +81,30 @@ describe("elementQuery", () => {
     expect(q([], "all")).toBe("");
     expect(q([], "any")).toBe("");
     expect(q([], "only")).toBe("");
-    expect(q([], "multi")).toBe("is:multi-element");
+    expect(q(["Multi"], "all")).toBe("is:multi-element");
     expect(q([], "mono")).toBe("(is:mono-element or e=None)");
     expect(q(["Water", "Air"], "all")).toBe("e:Water+Air");
     expect(q(["Water", "Air"], "any")).toBe("e:Water,Air");
     expect(q(["Water", "Air"], "only")).toBe("e=Water+Air");
-    expect(q(["Water"], "multi")).toBe("is:multi-element e:Water");
+    expect(q(["Multi", "Water"], "all")).toBe("is:multi-element e:Water");
     expect(q(["Water", "Fire"], "mono")).toBe("e=Water,Fire");
+  });
+  it("reads Multi as a count that narrows, not as an element", () => {
+    // Alone: every card with two or more elements, whichever they are.
+    expect(q(["Multi"], "all")).toBe("is:multi-element");
+    expect(q(["Multi"], "any")).toBe("is:multi-element");
+    expect(q(["Multi"], "only")).toBe("is:multi-element");
+    // With elements: the same question, narrowed to those.
+    expect(q(["Multi", "Water"], "all")).toBe("is:multi-element e:Water");
+    expect(q(["Multi", "Water", "Air"], "all")).toBe("is:multi-element e:Water+Air");
+    expect(q(["Multi", "Water", "Air"], "any")).toBe("is:multi-element e:Water,Air");
+    // The fixture: Witch is the only card with two elements.
+    expect(names(q(["Multi"], "all"))).toEqual(["Witch"]);
+    expect(names(q(["Multi", "Water"], "all"))).toEqual(["Witch"]);
+    expect(names(q(["Multi", "Fire"], "all"))).toEqual([]);
+    // Asking for one element and more than one is answered, not prevented.
+    expect(q(["Multi"], "mono")).toBe("is:multi-element (is:mono-element or e=None)");
+    expect(names(q(["Multi"], "mono"))).toEqual([]);
   });
   it("treats No element as the fifth value, with no rule of its own", () => {
     // Every Artifact and every Avatar carries it, so it is a value like Water
@@ -109,7 +126,7 @@ describe("elementQuery", () => {
     const classifications = ["None", "Air", "Earth", "Fire", "Water"];
     for (let mask = 0; mask < 1 << classifications.length; mask++) {
       const picked = classifications.filter((_, i) => mask & (1 << i));
-      for (const match of ["all", "any", "only", "multi", "mono"] as const) {
+      for (const match of ["all", "any", "only", "mono"] as const) {
         const built = q(picked, match);
         expect(parses(built), built).toEqual([]);
         const expected = CARDS.filter(card => {
@@ -119,7 +136,6 @@ describe("elementQuery", () => {
             case "all": return all;
             case "any": return any;
             case "only": return picked.length === 0 || (all && card.elements.length === picked.length);
-            case "multi": return all && card.elements.filter(value => value !== "None").length >= 2;
             case "mono": return any && card.elements.length === 1;
           }
         }).map(card => card.name).sort();
@@ -140,9 +156,6 @@ describe("elementQuery", () => {
     expect(names(q(["Water", "Air"], "all"))).toEqual(["Witch"]);
     expect(names(q(["Water", "Air"], "any"))).toEqual(["Apprentice Wizard", "Druid", "Polar Bears", "Witch"]);
     expect(names(q(["Water", "Air"], "only"))).toEqual(["Witch"]);
-    expect(names(q([], "multi"))).toEqual(["Witch"]);
-    expect(names(q(["Water"], "multi"))).toEqual(["Witch"]);
-    expect(names(q(["Water", "Fire"], "multi"))).toEqual([]);
     expect(names(q([], "mono"))).toEqual(["Apprentice Wizard", "Broken Site", "Druid", "Polar Bears"]);
     expect(names(q(["Water"], "mono"))).toEqual(["Polar Bears"]);
     expect(names(q(["Water", "Air"], "mono"))).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);

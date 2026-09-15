@@ -49,25 +49,35 @@ export function listTerm(key: string, picked: string[], mode: ListMode): string 
 /** What the Elements picker asks for. One control, because two - which
  * elements, and how many - multiplied into combinations that cannot
  * exist ("exactly Water and Fire" and "exactly one element" at once). */
-export type ElementMatch = "all" | "any" | "only" | "multi" | "mono";
+export type ElementMatch = "all" | "any" | "only" | "mono";
 
 /** No element is a selectable classification, represented by ["None"].
  * It counts as one classification in the picker, but no actual affinity
  * for the existing is:mono-element and is:multi-element flags. */
 export const NO_ELEMENT = "None";
 
+/** Multi is a tick in the same row that is not an element at all: "two or
+ * more elements, whichever they are". It narrows whatever the elements
+ * say rather than replacing it, so Multi alone is every multi-element
+ * card and Multi with Water is the multi-element cards that include
+ * Water - the question that otherwise needs every pair spelled out. */
+export const MULTI = "Multi";
+
 export function elementQuery(key: string, picked: string[], match: ElementMatch): string {
-  const values = picked.map((p) => p.trim()).filter(Boolean);
+  const ticked = picked.map((p) => p.trim()).filter(Boolean);
+  const multi = ticked.includes(MULTI) ? "is:multi-element" : "";
+  const values = ticked.filter((v) => v !== MULTI);
   if (match === "mono") {
     // Commas join exact singleton matches: None or Water, with no additional
     // affinities. With no ticks, include every mono-affinity or None card.
-    return values.length ? `${key}=${quoteList(values.join(","))}` : `(is:mono-element or ${key}=${NO_ELEMENT})`;
+    // With Multi ticked too the answer is nothing, which is the honest
+    // answer to "one element only, and more than one".
+    const mono = values.length ? `${key}=${quoteList(values.join(","))}` : `(is:mono-element or ${key}=${NO_ELEMENT})`;
+    return [multi, mono].filter(Boolean).join(" ");
   }
-  const flag = match === "multi" ? "is:multi-element" : "";
-  if (values.length === 0) return flag;
-  // Multi means at least two actual affinities, including every ticked value.
+  if (values.length === 0) return multi;
   const mode: ListMode = match === "only" ? "=" : match === "any" ? "," : "+";
-  return [flag, listTerm(key, values, mode)].filter(Boolean).join(" ");
+  return [multi, listTerm(key, values, mode)].filter(Boolean).join(" ");
 }
 
 export function buildQuery(base: string, terms: string[]): string {
