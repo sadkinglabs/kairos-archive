@@ -21,7 +21,7 @@ const names = v.namesByCard.get(card.codex_id) ?? [];
 <Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}>
   <div class="card-overview">
     <div class="card-heading"><p class="eyebrow">The card archive</p><h1>{card.name} {card.errata && <span class="badge errata">Errata</span>}</h1><p class="intro">{[card.rarity, card.type, ...card.subtypes, ...card.elements].filter(Boolean).join(' · ')}</p></div>
-    <div class="art-column"><CardArt urls={card.image_urls} status={card.image_status} name={card.name} />{defaultPrinting?.back && <CardArt urls={defaultPrinting.back.image_urls} status={defaultPrinting.image_status} name={`${card.name}, back face`} back />}</div>
+    <div class="art-column"><CardArt urls={card.image_urls} status={card.image_status} name={card.name} type={card.type} />{defaultPrinting?.back && <CardArt urls={defaultPrinting.back.image_urls} status={defaultPrinting.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
     <div class="card-content">
       <FaceFacts face={card} />
       <section id="rules"><h2>Current rules</h2>

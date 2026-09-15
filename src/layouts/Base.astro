@@ -6,7 +6,13 @@ interface Props { title: string; description?: string; canonical?: string; image
 const { title, description = "Search, card pages and full history for Sorcery: Contested Realm, built on the Sorcery Card Registry.", canonical, image } = Astro.props;
 const { source } = await loadRegistry();
 const isHome = Astro.url.pathname === "/";
-const links = [["/sets", "Sets"], ["/changes", "Changes & Errata"], ["/tokens", "Tokens"], ["/syntax", "Search syntax"], ["/docs", "API docs"], ["/about", "About"]];
+// Three groups, ruled apart: what the archive holds, what changed in it,
+// and how to read it.
+const menu: [string, string][][] = [
+  [["/sets", "Sets"], ["/cards", "All Cards"], ["/tokens", "Tokens"]],
+  [["/changes", "Changes & Errata"]],
+  [["/syntax", "Search Syntax"], ["/docs", "API Docs"], ["/about", "About"]],
+];
 const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archive`;
 ---
 <!doctype html>
@@ -37,7 +43,10 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
         </a>
         <details class="site-menu">
           <summary aria-label="Navigation menu"><span class="menu-lines" aria-hidden="true"></span><span class="sr-only">Menu</span></summary>
-          <nav aria-label="Main navigation">{links.map(([href, label]) => <a href={href} aria-current={Astro.url.pathname === href ? 'page' : undefined}>{label}</a>)}</nav>
+          <nav aria-label="Main navigation">{menu.map((group, i) => <>
+            {i > 0 && <hr />}
+            {group.map(([href, label]) => <a href={href} aria-current={Astro.url.pathname === href || Astro.url.pathname.startsWith(`${href}/`) ? 'page' : undefined}>{label}</a>)}
+          </>)}</nav>
         </details>
         {!isHome && <SearchBox />}
       </div>
@@ -203,6 +212,9 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
           if (closeTimer) { clearTimeout(closeTimer); closeTimer = undefined; }
         });
         input.addEventListener("input", () => void onInput());
+        // Search results can update in place, so submission must close the
+        // suggestions even when the browser does not navigate to a new page.
+        input.form?.addEventListener("submit", close);
         input.addEventListener("keydown", (e) => {
           if (e.key === "Escape") { close(); return; }
           if (list.hidden || matches.length === 0) return;

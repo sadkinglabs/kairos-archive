@@ -3,13 +3,15 @@ import Base from '../layouts/Base.astro';
 import SearchBox from '../components/SearchBox.astro';
 import Icon from '../components/Icon.astro';
 import { loadRegistry } from '../data/registry';
-import { KEYS, IS_FLAGS, UNITS } from '../search/keys';
 const { registry } = await loadRegistry();
-const example = (key: string) => KEYS.find(k => k.name === key)!.examples[0];
-const examples = [
-  { label: 'Water minions', query: `${example('type')} ${example('element')}` },
-  { label: 'Foil printings', query: `${example('finish')} unique:${UNITS.find(u => u === 'prints')}` },
-  { label: 'Cards with errata', query: `is:${IS_FLAGS.find(f => f.name === 'errata')!.name}` },
+// Four quiet ways past the box, the way a card search does it: the search
+// is the page, everything else is a link under it.
+const ways = [
+  { label: 'Advanced Search', href: '/advanced' },
+  { label: 'Search Syntax', href: '/syntax' },
+  { label: 'All Sets', href: '/sets' },
+  { label: 'All Cards', href: '/cards' },
+  { label: 'Random Card', href: '/random' },
 ];
 const entries = [
   { icon: 'sets', title: 'Browse sets', detail: 'Explore every release, card and printing.', href: '/sets' },
@@ -20,12 +22,11 @@ const entries = [
 <Base title="Kairos Archive" canonical="/">
   <div class="home">
     <section class="hero" aria-labelledby="home-heading">
-      <p class="eyebrow">Sorcery: Contested Realm</p>
-      <h1 id="home-heading">Every card.<br />Every printing.</h1>
-      <p class="intro">Explore the cards, sets and history of Sorcery.</p>
+      <h1 id="home-heading" class="statement">Search the Realm and its history.</h1>
       <SearchBox hero />
-      <div class="search-help"><a href="/advanced">Advanced search</a><span aria-hidden="true">·</span><a href="/syntax">Search syntax</a></div>
-      <div class="try-search"><p class="eyebrow muted">Try a search</p><div class="example-chips">{examples.map(e => <a href={`/search?q=${encodeURIComponent(e.query)}`}>{e.label}</a>)}</div></div>
+      <nav class="hero-links" aria-label="Ways in">
+        {ways.map(w => <a href={w.href}>{w.label}</a>)}
+      </nav>
     </section>
     <section class="explore" aria-labelledby="explore-heading">
       <h2 id="explore-heading">Explore the archive</h2>

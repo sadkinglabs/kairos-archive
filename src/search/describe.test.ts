@@ -6,7 +6,7 @@ describe("describeElements", () => {
     expect(describeElements(["Water", "Fire"], "all")).toBe("Water and Fire");
     expect(describeElements(["Water", "Fire"], "any")).toBe("Water or Fire");
     expect(describeElements(["Water", "Fire"], "only")).toBe("only Water and Fire");
-    expect(describeElements(["Water"], "multi")).toBe("two or more, including Water");
+    expect(describeElements(["Multi", "Water"], "all")).toBe("two or more elements, Water");
     expect(describeElements(["Water", "Fire"], "mono")).toBe("one classification, Water or Fire");
     expect(describeElements(["Air", "Earth", "Water"], "all")).toBe("Air, Earth and Water");
   });
@@ -14,7 +14,7 @@ describe("describeElements", () => {
     expect(describeElements([], "all")).toBe("");
     expect(describeElements([], "any")).toBe("");
     expect(describeElements([], "only")).toBe("");
-    expect(describeElements([], "multi")).toBe("two or more elements");
+    expect(describeElements(["Multi"], "all")).toBe("two or more elements");
     expect(describeElements([], "mono")).toBe("one classification only (including no element)");
   });
   it("words no element like any other value", () => {
@@ -24,7 +24,7 @@ describe("describeElements", () => {
     expect(describeElements(["None", "Water"], "any")).toBe("no element or Water");
     expect(describeElements(["None", "Water"], "all")).toBe("no element and Water");
     expect(describeElements(["None", "Water", "Fire"], "any")).toBe("no element, Water or Fire");
-    expect(describeElements(["None", "Water"], "multi")).toBe("two or more, including no element and Water");
+    expect(describeElements(["Multi", "Water", "Fire"], "any")).toBe("two or more elements, Water or Fire");
   });
 });
 

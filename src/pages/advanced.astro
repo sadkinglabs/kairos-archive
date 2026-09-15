@@ -69,12 +69,15 @@ const numbers: { label: string; key: string; hint?: string }[] = [
  * the boxes and counts as one classification in the single-choice mode. */
 const pickers: { key: string; kind: 'element' | 'list'; legend: string; label: string; values: string[]; modes: { value: string; label: string }[] }[] = [
   { key: alias('element'), kind: 'element', legend: 'Elements', label: 'Find cards with',
-    values: [...(key('element').values ?? []).filter(v => v !== 'None'), 'None'],
+    // Multi sits in the row but is not an element: it says how many, and
+    // narrows whatever the elements say. Ticked alone it is every
+    // multi-element card - the question that otherwise means spelling out
+    // every pair.
+    values: [...(key('element').values ?? []).filter(v => v !== 'None'), 'None', 'Multi'],
     modes: [
       { value: 'all', label: 'all of the ticked elements' },
       { value: 'any', label: 'any of the ticked elements' },
       { value: 'only', label: 'only the ticked elements, nothing else' },
-      { value: 'multi', label: 'two or more elements, the ticked ones among them' },
       { value: 'mono', label: 'one classification only (includes No element)' },
     ] },
   { key: alias('subtype'), kind: 'list', legend: 'Subtypes', label: 'Match', values: subtypes,
@@ -125,7 +128,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
               {picker.modes.map(m => <option value={m.value}>{m.label}</option>)}
             </select></label>
           </div>
-          {picker.kind === 'element' && <p class="hint"><strong>No element</strong> is a classification shared by {colourless} cards. “One classification only” includes it: tick No element and Water to find cards with either classification alone. In this mode, leave the boxes empty to include every single classification. “Two or more elements” requires at least two elemental affinities.</p>}
+          {picker.kind === 'element' && <p class="hint"><strong>No element</strong> is a classification shared by {colourless} cards. “One classification only” includes it: tick No element and Water to find cards with either classification alone, or leave the boxes empty for every single-classification card. <strong>Multi</strong> is not an element but a count: ticked alone it finds every card with two or more elements, whichever they are — all the minions asking for more than one threshold, without naming the combinations — and ticked with Water it narrows that to the ones including Water.</p>}
           {picker.key === alias('keyword') && <p class="hint">Choose whether a card needs every ticked keyword or any one of them.</p>}
         </details>
       ))}
