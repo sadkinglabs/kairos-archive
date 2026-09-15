@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rotationFrame, rotationKeyframes } from './cardOrientation';
+import { LARGE, lightboxSize, rotationFrame, rotationKeyframes } from './cardOrientation';
 
 describe('Site card orientation', () => {
   it('starts clockwise in landscape and ends at natural portrait size', () => {
@@ -22,5 +22,18 @@ describe('Site card orientation', () => {
   it('returns to the same landscape endpoint after toggling', () => {
     expect(rotationKeyframes(0, 90).at(-1)).toEqual(rotationKeyframes(90, 0)[0]);
     expect(rotationKeyframes(90, 0).at(-1)).toEqual(rotationKeyframes(0, 90)[0]);
+  });
+});
+
+describe('what PhotoSwipe is told to size its frame to', () => {
+  it('declares the rotated dimensions for landscape and the served ones for portrait', () => {
+    expect(lightboxSize(90)).toEqual({ width: 936, height: 672 });
+    expect(lightboxSize(0)).toEqual(LARGE);
+    expect(LARGE).toEqual({ width: 672, height: 936 });
+  });
+  it("keeps the card's proportions either way round", () => {
+    const portrait = lightboxSize(0);
+    const landscape = lightboxSize(90);
+    expect(landscape.width / landscape.height).toBeCloseTo(portrait.height / portrait.width, 12);
   });
 });

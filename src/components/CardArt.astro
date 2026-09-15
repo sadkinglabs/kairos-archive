@@ -1,13 +1,15 @@
 ---
 import Icon from './Icon.astro';
+import { lightboxSize } from '../presentation/cardOrientation';
 interface Props { urls?: Record<string, string> | null; status?: string; name: string; back?: boolean; type?: string | null }
 const { urls, status, name, back = false, type } = Astro.props;
 const site = type === 'Site';
+const pswp = lightboxSize(site ? 90 : 0);
 ---
 <figure class="card-art" data-site-art={site || undefined}>
   {back && <p class="eyebrow">Back face</p>}
   {urls ? <>
-    <a class="art-link" data-orientation={site ? "90" : undefined} href={urls.large} data-lightbox data-pswp-width="672" data-pswp-height="936" aria-label={`Enlarge ${name}`}><img class="card-img" src={urls.normal} width="488" height="680" alt={name} loading={back ? 'lazy' : 'eager'} /></a>
+    <a class="art-link" data-orientation={site ? "90" : undefined} href={urls.large} data-lightbox data-pswp-width={pswp.width} data-pswp-height={pswp.height} aria-label={`Enlarge ${name}`}><img class="card-img" src={urls.normal} width="488" height="680" alt={name} loading={back ? 'lazy' : 'eager'} /></a>
     <figcaption>
       <div class="image-actions">{site && <button type="button" class="rotate-art" data-rotate-art hidden aria-label={`Show portrait for ${name}`}><span aria-hidden="true">↻</span> <span data-rotation-label>Show portrait</span></button>}<a href={urls.large} data-enlarge><Icon name="expand" size={15} /> Enlarge</a><a href={urls.small}>Small</a><a href={urls.normal}>Normal</a><a href={urls.large}>Large</a><a href={urls.original}>Original</a></div>
       {status === 'lowres' && <small class="muted">Low-resolution source, upscaled.</small>}
@@ -17,22 +19,24 @@ const site = type === 'Site';
 <script>
   import PhotoSwipeLightbox from 'photoswipe/lightbox';
   import 'photoswipe/style.css';
-  import { rotationKeyframes, type CardRotation } from '../presentation/cardOrientation';
+  import { lightboxSize, rotationKeyframes, type CardRotation } from '../presentation/cardOrientation';
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const lightbox = new PhotoSwipeLightbox({
     gallery: '.card-art', children: 'a[data-lightbox]',
     pswpModule: () => import('photoswipe'),
     showHideAnimationType: reducedMotion.matches ? 'none' : 'fade',
   });
-  // PhotoSwipe zooms a landscape-sized wrapper; the source bytes remain upright.
+  // PhotoSwipe zooms a landscape-sized wrapper; the source bytes remain
+  // upright. The wrapper's size comes from the link's data-pswp-width and
+  // -height, which PhotoSwipe reads before this filter runs and does not
+  // re-read from it; the toggle below keeps them in step with the
+  // orientation. All this filter can usefully do is mark the item as ours
+  // and ask for custom content.
   lightbox.addFilter('itemData', data => {
     const link = data.element?.matches('[data-lightbox]') ? data.element : data.element?.querySelector('[data-lightbox]');
     if (link instanceof HTMLElement && link.dataset.orientation !== undefined) {
-      const rotation = link.dataset.orientation === '90' ? 90 : 0;
-      data.siteRotation = rotation;
+      data.siteRotation = link.dataset.orientation === '90' ? 90 : 0;
       data.type = 'html';
-      data.width = rotation === 90 ? 936 : 672;
-      data.height = rotation === 90 ? 672 : 936;
     }
     return data;
   });
@@ -85,6 +89,9 @@ const site = type === 'Site';
       const from: CardRotation = link.dataset.orientation === '90' ? 90 : 0;
       const to: CardRotation = from === 90 ? 0 : 90;
       link.dataset.orientation = String(to);
+      const { width, height } = lightboxSize(to);
+      link.dataset.pswpWidth = String(width);
+      link.dataset.pswpHeight = String(height);
       label.textContent = to === 90 ? 'Show portrait' : 'Show landscape';
       button.setAttribute('aria-label', `${label.textContent} for ${image.alt}`);
       if (!reducedMotion.matches && typeof image.animate === 'function') {
