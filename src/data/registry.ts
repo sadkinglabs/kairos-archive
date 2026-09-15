@@ -50,9 +50,32 @@ export interface Registry {
 }
 export interface Source { tag: string; root: string | null; sha256: string; releasedAt: string | null }
 
+/** One fetch, retried: the build runs on every release, and a release is also
+ * the moment the CDN is busiest (it verifies every image it serves), so a
+ * dropped connection or a 5xx here must not fail a deploy. Four attempts,
+ * 1s/2s/4s apart; a 4xx is a real answer and is not retried. */
+export async function fetchWithRetry(url: string, headers: Record<string, string>, attempts = 4, pauseMs = 1000): Promise<Response> {
+  let last: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const response = await fetch(url, { headers });
+      if (response.ok) return response;
+      if (response.status < 500) throw new Error(`${url}: HTTP ${response.status}`);
+      last = new Error(`${url}: HTTP ${response.status}`);
+    } catch (error) {
+      if (error instanceof Error && /HTTP 4\d\d/.test(error.message)) throw error;
+      last = error;
+    }
+    if (attempt < attempts) {
+      console.warn(`[registry] ${url}: attempt ${attempt} failed (${last instanceof Error ? last.message : last}); retrying`);
+      await new Promise((resolve) => setTimeout(resolve, pauseMs * 2 ** (attempt - 1)));
+    }
+  }
+  throw last instanceof Error ? last : new Error(`${url}: failed after ${attempts} attempts`);
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  const response = await fetchWithRetry(url, { "User-Agent": USER_AGENT, Accept: "application/json" });
   return (await response.json()) as T;
 }
 
@@ -69,8 +92,7 @@ async function load(): Promise<{ registry: Registry; source: Source }> {
   const release = versions.releases.find((r) => r.tag === tag);
   if (!release) throw new Error(`versions.json does not list ${tag}`);
   const root = `${versions.base_url.replace(/\/$/, "")}/${tag}`;
-  const response = await fetch(`${root}/registry.json`, { headers: { "User-Agent": USER_AGENT } });
-  if (!response.ok) throw new Error(`${root}/registry.json: HTTP ${response.status}`);
+  const response = await fetchWithRetry(`${root}/registry.json`, { "User-Agent": USER_AGENT });
   const bytes = Buffer.from(await response.arrayBuffer());
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   if (sha256 !== release.sha256) throw new Error(`${root}/registry.json digest ${sha256} does not match versions.json (${release.sha256})`);
