@@ -3,6 +3,12 @@ name: ci
 # Every push and pull request: lint, type-check, unit tests (the search
 # grammar), then a real build against the newest verified registry
 # release on api.kairosarchive.net - the same thing Cloudflare Pages does.
+#
+# Both type checkers run, because they see different files. tsc reads the
+# .ts modules and ignores .astro entirely; astro check reads the templates,
+# their frontmatter and their expressions. A type error inside a component
+# passes tsc and fails astro check, so without this step one could reach
+# main unnoticed.
 
 on:
   push:
@@ -21,6 +27,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit -p tsconfig.json
+      - run: npm run check   # astro check: the .astro templates tsc cannot see
       - run: npm test
       - run: npm run build
       - name: Summary
