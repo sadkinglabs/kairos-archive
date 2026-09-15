@@ -302,6 +302,10 @@ th { color: var(--muted); font-weight: 600; }
   .reference-table td::before { content: attr(data-label); display: block; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: .2rem; }
 }
 
+.official-link { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; margin: .8rem 0 0; }
+.official-link .btn { font-size: .9rem; min-height: 40px; }
+.official-link .muted { font-size: .85rem; }
+
 /* Site art is served upright. Rotate the presentation, never the download URLs. */
 .card-art[data-site-art] > .placeholder { aspect-ratio: 88 / 63; }
 .art-link[data-orientation] { position: relative; height: 0; overflow: hidden; transition: padding-top 280ms ease-in-out; border-radius: 0; }
