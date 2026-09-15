@@ -111,6 +111,17 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       ($("unique") as HTMLSelectElement).value = result.options.unique;
       ($("sort") as HTMLSelectElement).value = result.options.sort ?? "";
       ($("order") as HTMLSelectElement).value = result.options.order ?? "";
+      // A rejected term is dropped, so the rest of the query still runs and
+      // answers a question nobody asked - a plausible list under a warning
+      // reads as though the filter worked. Say what is wrong and show
+      // nothing until it is fixed.
+      if (result.errors.length > 0) {
+        $("pager").hidden = true;
+        $("rules-group").hidden = true;
+        $("results").replaceChildren();
+        $("count").textContent = "";
+        return;
+      }
       const requestedPage = Number(params.get("page"));
       const { items: pageHits, info } = paginate(result.hits, requestedPage);
       const noun = resultNoun(result.options.unique);

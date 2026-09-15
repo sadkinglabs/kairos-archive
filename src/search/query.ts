@@ -85,6 +85,22 @@ export function tokenize(input: string): { tokens: Token[]; errors: string[] } {
     }
     const word = readWord();
     if (word === "") { i += 1; continue; }
+    // A key followed by something that is not an operator - t≠site from a
+    // phone keyboard, t<>site, m=>3 - parses as a bare word, which is a
+    // search for a card of that name and finds nothing. No card name
+    // contains ≠, =, < or > (8 contain !, so ! alone is not a signal),
+    // so when the part before the symbol names a key, this is a mistyped
+    // term and not a title.
+    const mistyped = /^([A-Za-z][A-Za-z.-]*)([^A-Za-z0-9\s._'-]+)(.*)$/.exec(word);
+    if (mistyped) {
+      const def = KEY_BY_ALIAS.get(mistyped[1].toLowerCase());
+      if (def && !OPS.includes(mistyped[2] as Op)) {
+        const [, key, symbol, value] = mistyped;
+        const target = value || "value";
+        errors.push(`${key}: "${symbol}" is not an operator - use ${key}:${target} to include, -${key}:${target} or ${key}!=${target} to exclude`);
+        continue;
+      }
+    }
     const lower = word.toLowerCase();
     if (!negate && lower === "or") { tokens.push({ kind: "or" }); continue; }
     if (!negate && lower === "and") { tokens.push({ kind: "and" }); continue; }
