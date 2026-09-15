@@ -5,7 +5,7 @@ interface Props { hero?: boolean }
 const { hero = false } = Astro.props;
 ---
 <form action="/search" method="get" role="search" class:list={['search-box', { 'hero-search': hero }]}>
-  <input type="search" name="q" id="site-search" placeholder="Search cards…" aria-label="Search cards" />
+  <input type="search" name="q" id="site-search" placeholder="Search Sorcery cards…" aria-label="Search Sorcery cards" />
   <button type="submit" aria-label="Search"><Icon name={hero ? 'arrow' : 'search'} /></button>
   <details class="syntax-help">
     <summary aria-label="Search syntax help" title="Search syntax help"><span aria-hidden="true">?</span></summary>
