@@ -206,7 +206,10 @@ th { color: var(--muted); font-weight: 600; }
 .advanced-form .numeric .row { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem; gap: .4rem; }
 .advanced-form .hint { color: var(--muted); font-size: .76rem; line-height: 1.5; }
 .advanced-form p.hint { margin: .9rem 0 0; font-size: .8rem; }
-.advanced-form .boxes { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; margin-bottom: .9rem; }
+.advanced-form .boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: .45rem .9rem; margin: .7rem 0 .9rem; }
+.advanced-form fieldset.picker summary { cursor: pointer; font-size: .78rem; color: var(--muted); }
+.advanced-form fieldset.picker summary .chosen { color: var(--fg); }
+.advanced-form fieldset.picker details { margin-bottom: .2rem; }
 .advanced-form label.box { display: flex; align-items: center; gap: .4rem; font-size: .9rem; }
 .advanced-form label.box input { width: auto; min-height: 0; }
 .advanced-form .reset-row { margin: 0; }
@@ -260,7 +263,7 @@ th { color: var(--muted); font-weight: 600; }
   .docs-nav a { font-size: .78rem; }
   .docs-content h1 { font-size: 2.15rem; }
   .grid-fields { grid-template-columns: 1fr; }
-  .advanced-form .boxes { gap: .5rem .9rem; }
+  .advanced-form .boxes { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: .45rem .7rem; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }

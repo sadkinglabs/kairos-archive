@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildQuery, elementTerm, quoteValue, term } from "./builder";
+import { buildQuery, listTerm, quoteValue, term } from "./builder";
 import { parse } from "./query";
 import { search } from "./evaluate";
 import { DATA, SLUG_HISTORY } from "./fixture";
@@ -41,32 +41,46 @@ describe("term", () => {
   });
 });
 
-describe("elementTerm", () => {
-  it("joins the ticked elements by mode", () => {
-    expect(elementTerm([], "+")).toBe("");
-    expect(elementTerm(["Water"], "+")).toBe("e:Water");
-    expect(elementTerm(["Water"], "=")).toBe("e=Water");
-    expect(elementTerm(["Water", "Air"], "+")).toBe("e:Water+Air");
-    expect(elementTerm(["Water", "Air"], ",")).toBe("e:Water,Air");
-    expect(elementTerm(["Water", "Air"], "=")).toBe("e=Water+Air");
+describe("listTerm", () => {
+  it("joins the ticked values by mode", () => {
+    expect(listTerm("e", [], "+")).toBe("");
+    expect(listTerm("e", ["Water"], "+")).toBe("e:Water");
+    expect(listTerm("e", ["Water"], "=")).toBe("e=Water");
+    expect(listTerm("e", ["Water", "Air"], "+")).toBe("e:Water+Air");
+    expect(listTerm("e", ["Water", "Air"], ",")).toBe("e:Water,Air");
+    expect(listTerm("e", ["Water", "Air"], "=")).toBe("e=Water+Air");
+    expect(listTerm("sub", ["Beast", "Spirit"], "+")).toBe("sub:Beast+Spirit");
+    expect(listTerm("k", ["Airborne", "Lethal"], ",")).toBe("k:Airborne,Lethal");
+  });
+  it("quotes the whole list when a value is not a plain word", () => {
+    const q = listTerm("sub", ["Beast", "Sea Serpent"], "+");
+    expect(q).toBe('sub:"Beast+Sea Serpent"');
+    expect(parses(q)).toEqual([]);
   });
   it("means on the fixture what the form label promises", () => {
     // Witch is Water and Air; Polar Bears is Water alone.
-    expect(names(elementTerm(["Water", "Air"], "+"))).toEqual(["Witch"]);
-    expect(names(elementTerm(["Water", "Air"], ","))).toEqual(["Apprentice Wizard", "Druid", "Polar Bears", "Witch"]);
-    expect(names(elementTerm(["Water", "Air"], "="))).toEqual(["Witch"]);
-    expect(names(elementTerm(["Water", "Fire"], "="))).toEqual([]);
+    expect(names(listTerm("e", ["Water", "Air"], "+"))).toEqual(["Witch"]);
+    expect(names(listTerm("e", ["Water", "Air"], ","))).toEqual(["Apprentice Wizard", "Druid", "Polar Bears", "Witch"]);
+    expect(names(listTerm("e", ["Water", "Air"], "="))).toEqual(["Witch"]);
+    expect(names(listTerm("e", ["Water", "Fire"], "="))).toEqual([]);
+    // Apprentice Wizard is the only card with both keywords; Polar Bears is
+    // the only Beast, and it is the only card with Submerge.
+    expect(names(listTerm("k", ["Spellcaster", "Genesis"], "+"))).toEqual(["Apprentice Wizard"]);
+    expect(names(listTerm("k", ["Spellcaster", "Submerge"], ","))).toEqual(["Apprentice Wizard", "Polar Bears"]);
+    expect(names(listTerm("k", ["Spellcaster", "Submerge"], "+"))).toEqual([]);
+    expect(names(listTerm("sub", ["Beast", "Mortal"], ","))).toEqual(["Apprentice Wizard", "Druid", "Polar Bears", "Witch"]);
+    expect(names(listTerm("sub", ["Beast", "Mortal"], "+"))).toEqual([]);
   });
 });
 
 describe("buildQuery", () => {
   it("keeps what was typed and appends the choices", () => {
-    const q = buildQuery(" k:genesis ", [elementTerm(["Air"], "+"), term({ key: "cost", op: "<=", value: "3" }), ""]);
+    const q = buildQuery(" k:genesis ", [listTerm("e", ["Air"], "+"), term({ key: "cost", op: "<=", value: "3" }), ""]);
     expect(q).toBe("k:genesis e:Air cost<=3");
     expect(parses(q)).toEqual([]);
     expect(names(q)).toEqual(["Apprentice Wizard"]);
   });
   it("an empty form leaves an empty query", () => {
-    expect(buildQuery("", [elementTerm([], "+"), term({ key: "t", value: "" })])).toBe("");
+    expect(buildQuery("", [listTerm("e", [], "+"), term({ key: "t", value: "" })])).toBe("");
   });
 });

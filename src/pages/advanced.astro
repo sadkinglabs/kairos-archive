@@ -53,6 +53,17 @@ const numbers: { label: string; key: string; max: number; hint?: string }[] = [
   { label: 'Power', key: 'pow', max: maxima.pow, hint: 'attack when attack equals defense, otherwise the average rounded down' },
   { label: 'Life', key: 'life', max: maxima.life, hint: 'Avatars only' },
 ];
+/** The tick-many fields. Elements can also be matched as an exact set,
+ * which is meaningless for a subtype or keyword list. */
+const pickers: { key: string; legend: string; values: string[]; modes: { value: string; label: string }[]; open: boolean }[] = [
+  { key: 'e', legend: 'Elements', values: (key('element').values ?? []).filter(v => v !== 'None'), open: true,
+    modes: [{ value: '+', label: 'every ticked element' }, { value: ',', label: 'any one of them' }, { value: '=', label: 'exactly those, no others' }] },
+  { key: 'sub', legend: 'Subtypes', values: subtypes, open: false,
+    modes: [{ value: '+', label: 'every ticked subtype' }, { value: ',', label: 'any one of them' }] },
+  { key: 'k', legend: 'Keywords', values: keywords, open: false,
+    modes: [{ value: '+', label: 'every ticked keyword' }, { value: ',', label: 'any one of them' }] },
+];
+
 const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', threshold: 'Threshold total',
   power: 'Power', atk: 'Attack', def: 'Defense', life: 'Life', set: 'Set', date: 'Release date', rarity: 'Rarity', type: 'Type' };
 ---
@@ -71,8 +82,6 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
           <label class="field">Rules contain<input data-key="r" type="text" placeholder="draw a spell" /></label>
           <label class="field">Type<select data-key="t"><option value="">Any type</option>{key('type').values?.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Rarity<select data-key="rarity"><option value="">Any rarity</option>{key('rarity').values?.map(v => <option value={v}>{v}</option>)}</select></label>
-          <label class="field">Subtype<select data-key="sub"><option value="">Any subtype</option>{subtypes.map(v => <option value={v}>{v}</option>)}</select></label>
-          <label class="field">Keyword<select data-key="k"><option value="">Any keyword</option>{keywords.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Group<select data-key="u"><option value="">Any group</option>{umbrellas.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Errata<select data-key="is">
             <option value="">Any card</option>
@@ -82,26 +91,32 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
         </div>
       </fieldset>
 
-      <fieldset>
-        <legend>Elements</legend>
-        <div class="boxes">{(key('element').values ?? []).filter(v => v !== 'None').map(v => (
-          <label class="box"><input type="checkbox" data-element value={v} />{v}</label>
-        ))}</div>
-        <div class="grid-fields">
-          <label class="field" for="element-mode">Match<select id="element-mode">
-            <option value="+">every ticked element</option>
-            <option value=",">any one of them</option>
-            <option value="=">exactly those, no others</option>
-          </select></label>
-          <label class="field">How many elements<select data-key="is">
-            <option value="">Any number</option>
-            <option value={flag('multi-element').name}>Two or more (multi-element)</option>
-            <option value={flag('mono-element').name}>Exactly one</option>
-            <option value="none" data-key-override="e">None at all</option>
-          </select></label>
-        </div>
-        <p class="hint">Water and Fire with <em>every ticked element</em> is <code>e:Water+Fire</code>, the cards that have both and maybe more; <em>exactly those</em> is <code>e=Water+Fire</code>, which drops anything with a third element.</p>
-      </fieldset>
+      {pickers.map(picker => (
+        <fieldset class="picker">
+          <legend>{picker.legend}</legend>
+          <details open={picker.open}>
+            <summary>{picker.values.length} to choose from<span class="chosen" data-chosen-for={picker.key}></span></summary>
+            <div class="boxes">{picker.values.map(v => (
+              <label class="box"><input type="checkbox" data-picker={picker.key} value={v} />{v}</label>
+            ))}</div>
+          </details>
+          <div class="grid-fields">
+            <label class="field">Match<select data-picker-mode={picker.key} aria-label={`How to combine the ticked ${picker.legend.toLowerCase()}`}>
+              {picker.modes.map(m => <option value={m.value}>{m.label}</option>)}
+            </select></label>
+            {picker.key === 'e' && (
+              <label class="field">How many elements<select data-key="is">
+                <option value="">Any number</option>
+                <option value={flag('multi-element').name}>Two or more (multi-element)</option>
+                <option value={flag('mono-element').name}>Exactly one</option>
+                <option value="none" data-key-override="e">None at all</option>
+              </select></label>
+            )}
+          </div>
+          {picker.key === 'e' && <p class="hint">Water and Fire with <em>every ticked element</em> is <code>e:Water+Fire</code>, the cards that have both and maybe more; <em>exactly those</em> is <code>e=Water+Fire</code>, which drops anything with a third element.</p>}
+          {picker.key === 'k' && <p class="hint">166 cards carry two keywords or more, so <em>every ticked keyword</em> is worth asking for; 15 cards have a second subtype.</p>}
+        </fieldset>
+      ))}
 
       <fieldset>
         <legend>Cost, thresholds and stats</legend>
@@ -156,7 +171,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     <button type="submit">Search cards →</button>
   </form>
   <script>
-    import { buildQuery, elementTerm, term, type ElementMode } from '../search/builder';
+    import { buildQuery, listTerm, term, type ListMode } from '../search/builder';
 
     const form = document.querySelector<HTMLFormElement>('#advanced-form')!;
     const query = document.querySelector<HTMLInputElement>('#advanced-query')!;
@@ -165,10 +180,15 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     let baseQuery = '';
     let lastGenerated = '';
     const controls = Array.from(fields.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-key]'));
-    const boxes = Array.from(fields.querySelectorAll<HTMLInputElement>('input[data-element]'));
     const ops = Array.from(fields.querySelectorAll<HTMLSelectElement>('[data-op]'));
-    const mode = document.querySelector<HTMLSelectElement>('#element-mode')!;
     const reset = document.querySelector<HTMLButtonElement>('#reset-fields')!;
+    // One picker per tick-many field: its checkboxes, its and/or select and
+    // the summary line that reports the choice while it is folded away.
+    const pickers = Array.from(fields.querySelectorAll<HTMLElement>('fieldset.picker')).map(group => ({
+      boxes: Array.from(group.querySelectorAll<HTMLInputElement>('input[data-picker]')),
+      mode: group.querySelector<HTMLSelectElement>('[data-picker-mode]')!,
+      chosen: group.querySelector<HTMLElement>('.chosen')!,
+    }));
 
     // The query text itself is built by src/search/builder.ts, which is unit
     // tested against the parser: the form cannot emit a query the language
@@ -187,18 +207,28 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       });
     }
 
+    function pickerTerms(): string[] {
+      return pickers.map(picker => {
+        const picked = picker.boxes.filter(b => b.checked).map(b => b.value);
+        picker.chosen.textContent = picked.length > 0 ? ` — ${picked.join(', ')}` : '';
+        return listTerm(picker.boxes[0]?.dataset.picker ?? '', picked, picker.mode.value as ListMode);
+      });
+    }
+
     function update() {
       if (query.value !== lastGenerated) baseQuery = query.value.trim();
-      const picked = boxes.filter(b => b.checked).map(b => b.value);
-      lastGenerated = buildQuery(baseQuery, [elementTerm(picked, mode.value as ElementMode), ...controls.map(termFor)]);
+      lastGenerated = buildQuery(baseQuery, [...pickerTerms(), ...controls.map(termFor)]);
       query.value = lastGenerated;
     }
 
     function clearFields() {
       controls.forEach(c => { c.value = ''; });
-      boxes.forEach(b => { b.checked = false; });
       ops.forEach(s => { s.selectedIndex = 0; });
-      mode.selectedIndex = 0;
+      pickers.forEach(picker => {
+        picker.boxes.forEach(b => { b.checked = false; });
+        picker.mode.selectedIndex = 0;
+        picker.chosen.textContent = '';
+      });
     }
 
     // Typing in the box takes over: the fields clear, and what you typed
@@ -210,8 +240,10 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     });
     controls.forEach(control => control.addEventListener('input', update));
     ops.forEach(op => op.addEventListener('input', update));
-    boxes.forEach(box => box.addEventListener('change', update));
-    mode.addEventListener('input', update);
+    pickers.forEach(picker => {
+      picker.boxes.forEach(box => box.addEventListener('change', update));
+      picker.mode.addEventListener('input', update);
+    });
     reset.addEventListener('click', () => { clearFields(); baseQuery = ''; update(); });
     form.addEventListener('submit', update);
   </script>
