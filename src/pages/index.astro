@@ -20,11 +20,17 @@ const entries = [
 <Base title="Kairos Archive" canonical="/">
   <div class="home">
     <section class="hero" aria-labelledby="home-heading">
-      <p class="eyebrow">Sorcery: Contested Realm</p>
-      <h1 id="home-heading">Every card.<br />Every printing.</h1>
-      <p class="intro">Explore the cards, sets and history of Sorcery.</p>
+      {/* The front door says what this is in one sentence, the way the card
+          search people already know does: the name, the game, and the thing
+          that makes it different - the record, not only the search. */}
+      <h1 id="home-heading" class="statement"><strong>Kairos Archive</strong> is a powerful <strong>Sorcery: Contested Realm</strong> card search, and a rigorous record of the realm.</h1>
       <SearchBox hero />
-      <div class="search-help"><a href="/advanced">Advanced search</a><span aria-hidden="true">·</span><a href="/syntax">Search syntax</a></div>
+      <nav class="hero-links" aria-label="Ways in">
+        <a class="btn secondary" href="/advanced">Advanced Search</a>
+        <a class="btn secondary" href="/syntax">Search Syntax</a>
+        <a class="btn secondary" href="/sets">All Sets</a>
+        <a class="btn secondary" href="/cards">All Cards</a>
+      </nav>
       <div class="try-search"><p class="eyebrow muted">Try a search</p><div class="example-chips">{examples.map(e => <a href={`/search?q=${encodeURIComponent(e.query)}`}>{e.label}</a>)}</div></div>
     </section>
     <section class="explore" aria-labelledby="explore-heading">
