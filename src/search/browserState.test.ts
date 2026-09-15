@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { browserHeading, refineQuery, refinementUrl, resultHref, resultNoun } from "./browserState";
+import { browserHeading, refineQuery, refinementUrl, resultHref, resultNoun, slugify } from "./browserState";
 import { parse } from "./query";
 import { search } from "./evaluate";
 import { DATA, SLUG_HISTORY } from "./fixture";
@@ -69,5 +69,16 @@ describe("result destinations", () => {
     expect(resultHref(card, "P000005", "prints")).toBe("/printings/P000005");
     expect(resultHref(card, "P000005", "art")).toBe("/printings/P000005");
     expect(resultHref(card, null, "prints")).toBe("/cards/C000002/polar-bears");
+  });
+});
+
+describe("the slug rule", () => {
+  it("gives the same answer in the browser as the build does", async () => {
+    // The build writes /cards/{id}/{slug}; the browser writes links to it.
+    // Two copies exist because the build's module cannot be imported into a
+    // page, so they are checked against each other over real card names.
+    const { slugify: built } = await import("../data/registry");
+    const names = [...DATA.cards.map((card) => card.name), "Æther Wind", "Sting, of Shelob's Lair", "---", "Ka'Thul  Deep", "水"];
+    for (const name of names) expect(slugify(name)).toBe(built(name));
   });
 });

@@ -43,7 +43,6 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
 
     interface Payload extends SearchData { tag: string; slug_history: { slug: string; printing_id: string }[] }
     const IMAGE_BASE = "https://api.kairosarchive.net/images";
-    const slugify = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "card";
     const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
     let payload: Payload | null = null;
@@ -97,7 +96,7 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       const d = await data();
       if (thisRun !== runId) return;
       if (jump) {
-        if (jump.kind === "card") { const c = d.cards.find((x) => x.codex_id === jump.value); if (c) { location.replace(`/cards/${c.codex_id}/${slugify(c.name)}`); return; } }
+        if (jump.kind === "card") { const c = d.cards.find((x) => x.codex_id === jump.value); if (c) { location.replace(resultHref(c, null, "cards")); return; } }
         if (jump.kind === "printing") { if (d.printings.some((p) => p.printing_id === jump.value)) { location.replace(`/printings/${jump.value}`); return; } }
         if (jump.kind === "slug") {
           const slug = jump.value.replace(/-r$/, "");

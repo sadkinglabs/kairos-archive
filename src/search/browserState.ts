@@ -33,8 +33,13 @@ export function refinementUrl(path: string, search: string, typed: string, defau
   return `${path}?${params.toString()}`;
 }
 
+/** The browser's copy of the slug rule. It cannot import the one in
+ * src/data/registry.ts, which pulls node:fs and node:crypto in with it, so
+ * a test holds the two to the same answer instead. */
+export const slugify = (name: string): string =>
+  name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "card";
+
 export function resultHref(card: { codex_id: string; name: string }, printingId: string | null, unit: Unit): string {
   if (printingId && unit !== "cards") return `/printings/${printingId}`;
-  const slug = card.name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "card";
-  return `/cards/${card.codex_id}/${slug}`;
+  return `/cards/${card.codex_id}/${slugify(card.name)}`;
 }
