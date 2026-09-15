@@ -5,19 +5,42 @@ import FaceFacts from '../../../components/FaceFacts.astro';
 import RecordActions from '../../../components/RecordActions.astro';
 import PrintingEntry from '../../../components/PrintingEntry.astro';
 import CardHistory from '../../../components/CardHistory.astro';
-import { cardPath, loadRegistry, officialCardUrl, slugify, views } from '../../../data/registry';
+import { cardPath, loadRegistry, slugify, views } from '../../../data/registry';
+import { officialCardUrl, officialSlugFromName } from '../../../presentation/officialCardUrl';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
-  return registry.cards.map(card => ({ params: { id: card.codex_id, slug: slugify(card.name) }, props: { card } }));
+  // Two ways of naming the publisher's page for a card: read their spelling
+  // out of their slugs, or derive it from the card name. The links use the
+  // first; the second is here to disagree. Both are right for all 1,100
+  // cards in this release, so a release where they part means their
+  // normalisation changed or a slug stopped parsing - which would ship a
+  // page of 404s, and fails the build instead.
+  const slugsFor = new Map<string, string[]>();
+  for (const printing of registry.printings) {
+    slugsFor.set(printing.codex_id, [...(slugsFor.get(printing.codex_id) ?? []), printing.slug]);
+  }
+  const parted = registry.cards.filter(card => {
+    const read = officialCardUrl(slugsFor.get(card.codex_id) ?? []);
+    return read !== null && !read.endsWith(`/${officialSlugFromName(card.name)}`);
+  });
+  if (parted.length > 0) {
+    throw new Error(`The publisher's card slug no longer matches their name for ${parted.length} card(s): ` +
+      parted.slice(0, 5).map(c => `${c.name} (${c.codex_id})`).join(', ') +
+      '. Check sorcerytcg.com and update officialSlugFromName, or the links will 404.');
+  }
+  return registry.cards.map(card => ({
+    params: { id: card.codex_id, slug: slugify(card.name) },
+    props: { card, officialUrl: officialCardUrl(slugsFor.get(card.codex_id) ?? []) },
+  }));
 }
-const { card } = Astro.props;
+const { card, officialUrl } = Astro.props;
 const { registry } = await loadRegistry();
 const v = views(registry);
 const printings = [...(v.printingsByCard.get(card.codex_id) ?? [])].sort((a, b) => a.printing_id.localeCompare(b.printing_id));
 const defaultPrinting = printings.find(p => p.printing_id === card.default_printing_id) ?? printings[0] ?? null;
 const history = v.historyByCard.get(card.codex_id) ?? [];
 const names = v.namesByCard.get(card.codex_id) ?? [];
-const official = officialCardUrl(defaultPrinting);
+
 ---
 <Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}>
   <div class="card-overview">
@@ -30,7 +53,7 @@ const official = officialCardUrl(defaultPrinting);
         <pre class="rules">{card.rules_text || 'No rules text'}</pre>
       </section>
       {card.back && <section><h2>Back face · current rules</h2><p class="muted">{[card.back.type, ...card.back.subtypes].filter(Boolean).join(' · ')}</p><pre class="rules">{card.back.rules_text || 'No rules text'}</pre><FaceFacts face={card.back} /></section>}
-      <RecordActions id={card.codex_id} url={card.api_url} official={official} />
+      <RecordActions id={card.codex_id} url={card.api_url} official={officialUrl} />
       <nav class="section-links" aria-label="On this card"><a href="#printings">{printings.length} printings ↓</a><a href="#history">History ↓</a><a href="/docs/cards">Data documentation</a></nav>
     </div>
   </div>
