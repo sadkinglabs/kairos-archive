@@ -89,12 +89,20 @@ describe("elementQuery", () => {
     expect(q(["Water"], "multi")).toBe("is:multi-element e:Water");
     expect(q(["Water", "Fire"], "mono")).toBe("is:mono-element e:Water,Fire");
   });
-  it("treats No element as the whole answer", () => {
-    expect(q(["None"], "all")).toBe("e:none");
-    expect(q(["None"], "mono")).toBe("e:none");
-    // Ticked with an element it still means colourless, never a contradiction.
-    expect(q(["None", "Water"], "all")).toBe("e:none");
+  it("reads No element as a value, combining as an either/or", () => {
+    // Every Artifact and every Avatar has no element, so it is a value like
+    // Water - and no card has both, so it can only combine as "or".
+    expect(q(["None"], "all")).toBe("e:None");
+    expect(q(["None", "Water"], "any")).toBe("e:None,Water");
+    expect(q(["None", "Water", "Fire"], "any")).toBe("e:None,Water,Fire");
+    // A match that would need a card to have none AND some falls back to or,
+    // so the form can never build a query that matches nothing.
+    expect(q(["None", "Water"], "all")).toBe("e:None,Water");
+    expect(q(["None", "Water"], "only")).toBe("e:None,Water");
+    expect(q(["None", "Water"], "multi")).toBe("e:None,Water");
+    // The Broken Site is the fixture's colourless card, Polar Bears its Water.
     expect(names(q(["None"], "all"))).toEqual(["Broken Site"]);
+    expect(names(q(["None", "Water"], "any"))).toEqual(["Broken Site", "Polar Bears", "Witch"]);
   });
   it("never builds a query that cannot match, whatever the combination", () => {
     for (const match of ["all", "any", "only", "multi", "mono"] as const) {

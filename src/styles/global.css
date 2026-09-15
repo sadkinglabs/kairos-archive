@@ -231,7 +231,6 @@ th { color: var(--muted); font-weight: 600; }
 .advanced-form p.hint { margin: .9rem 0 0; font-size: .8rem; }
 .advanced-form .boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: .45rem .9rem; margin: .7rem 0 .9rem; }
 .advanced-form details.group.picker .grid-fields { margin-top: .2rem; }
-.advanced-form label.box.off { opacity: .45; }
 .advanced-form label.box { display: flex; align-items: center; gap: .4rem; font-size: .9rem; }
 .advanced-form label.box input { width: auto; min-height: 0; }
 .advanced-form .reset-row { margin: 0; }

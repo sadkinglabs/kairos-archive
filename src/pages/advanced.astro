@@ -18,6 +18,7 @@ const subtypes = distinct(registry.cards.flatMap(c => c.subtypes));
 const keywords = distinct(registry.cards.flatMap(c => c.keywords));
 const umbrellas = distinct(registry.cards.flatMap(c => c.umbrellas));
 const artists = distinct(registry.printings.map(p => p.artist));
+const colourless = registry.cards.filter(c => c.elements.length === 1 && c.elements[0] === 'None').length;
 const sets = [...registry.sets].sort((a, b) => (b.set_code ?? '').localeCompare(a.set_code ?? ''));
 const years = distinct(registry.printings.map(p => p.released_at?.slice(0, 4))).reverse();
 
@@ -118,7 +119,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
               {picker.modes.map(m => <option value={m.value}>{m.label}</option>)}
             </select></label>
           </div>
-          {picker.kind === 'element' && <p class="hint">Tick nothing and the last two still work on their own: every multi-element card, or every single-element one. <strong>No element</strong> is the answer by itself — the colourless cards — so anything ticked with it is ignored.</p>}
+          {picker.kind === 'element' && <p class="hint">Tick nothing and the last two still work on their own: every multi-element card, or every single-element one. <strong>No element</strong> is a value like the rest — {colourless} cards have none, among them every Artifact and every Avatar — but no card has both, so ticking it reads as an either/or: with Water, the cards a Water deck can play.</p>}
           {picker.key === alias('keyword') && <p class="hint">166 cards carry two keywords or more, so <em>every ticked keyword</em> is worth asking for; 15 cards have a second subtype.</p>}
         </details>
       ))}
@@ -246,13 +247,13 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       if (group.kind !== 'element') return listTerm(group.key, picked, group.mode.value as ListMode);
       // "No element" answers on its own, so the other boxes and the match
       // select grey out rather than combining into something impossible.
+      // No element is a value, not a mode, so every box stays available. It
+      // only narrows how they read: a card never has no element AND Water, so
+      // the matches that would ask for that are closed off rather than
+      // offering a query with no answer.
       const colourless = picked.includes(NO_ELEMENT);
-      group.boxes.forEach(box => {
-        const off = colourless && box.value !== NO_ELEMENT;
-        box.disabled = off;
-        box.closest('.box')!.classList.toggle('off', off);
-      });
-      group.mode.disabled = colourless;
+      for (const option of group.mode.options) option.disabled = colourless && option.value !== 'any';
+      if (colourless) group.mode.value = 'any';
       return elementQuery(group.key, picked, group.mode.value as ElementMatch);
     }
 
@@ -273,8 +274,11 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       controls.forEach(c => { c.value = ''; });
       ops.forEach(s => { s.selectedIndex = 0; });
       groups.forEach(group => {
-        group.boxes.forEach(b => { b.checked = false; b.disabled = false; b.closest('.box')!.classList.remove('off'); });
-        if (group.mode) { group.mode.selectedIndex = 0; group.mode.disabled = false; }
+        group.boxes.forEach(b => { b.checked = false; });
+        if (group.mode) {
+          for (const option of group.mode.options) option.disabled = false;
+          group.mode.selectedIndex = 0;
+        }
         group.badge.textContent = '';
       });
     }

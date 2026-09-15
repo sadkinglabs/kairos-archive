@@ -17,10 +17,12 @@ describe("describeElements", () => {
     expect(describeElements([], "multi")).toBe("two or more elements");
     expect(describeElements([], "mono")).toBe("one element only");
   });
-  it("says no element whatever it is ticked with, matching the query built", () => {
+  it("reads no element as one of the values, joined with or", () => {
     for (const match of ["all", "any", "only", "multi", "mono"] as const) {
       expect(describeElements(["None"], match)).toBe("no element");
-      expect(describeElements(["None", "Water"], match)).toBe("no element");
+      // Matching the query built: no card has both, so it can only be either.
+      expect(describeElements(["None", "Water"], match)).toBe("no element or Water");
+      expect(describeElements(["None", "Water", "Fire"], match)).toBe("no element, Water or Fire");
     }
   });
 });

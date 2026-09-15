@@ -51,14 +51,20 @@ export function listTerm(key: string, picked: string[], mode: ListMode): string 
  * exist ("exactly Water and Fire" and "exactly one element" at once). */
 export type ElementMatch = "all" | "any" | "only" | "multi" | "mono";
 
-/** The colourless cards are stored as the element list ["None"], so
- * "No element" is a value in the picker rather than a mode - but it is
- * the whole answer, so it ignores anything ticked with it. */
+/** The colourless cards are stored as the element list ["None"], which
+ * makes "no element" a value like Water: every Artifact and every Avatar
+ * has it. It is a value in the picker for that reason, not a mode. */
 export const NO_ELEMENT = "None";
 
 export function elementQuery(key: string, picked: string[], match: ElementMatch): string {
   const values = picked.map((p) => p.trim()).filter(Boolean);
-  if (values.includes(NO_ELEMENT)) return `${key}:none`;
+  // A card has no element or it has some, never both, so No element joins
+  // the others as an either/or - "Water or colourless" is what a Water deck
+  // can play. Any other match would ask for a card that cannot exist, so it
+  // falls back to that reading (the form offers only that one).
+  if (values.includes(NO_ELEMENT)) {
+    return listTerm(key, [NO_ELEMENT, ...values.filter((v) => v !== NO_ELEMENT)], ",");
+  }
   const flag = match === "multi" ? "is:multi-element" : match === "mono" ? "is:mono-element" : "";
   if (values.length === 0) return flag;
   // multi asks for cards holding every ticked element and at least one more
