@@ -43,10 +43,10 @@ export default defineConfig({
   integrations: [
     cardRedirects(),
     sitemap({
-      // The 404 page, /random (a doorway, never the same card twice) and
-      // bare /cards/{id} links (superseded by the _redirects rules above)
-      // aren't destinations worth indexing.
-      filter: (page) => !page.endsWith("/404") && !page.endsWith("/random")
+      // The 404 page and bare /cards/{id} links (superseded by the
+      // _redirects rules above) aren't destinations worth indexing.
+      // /random needs no exclusion: it is a Pages Function, not a page.
+      filter: (page) => !page.endsWith("/404")
         && !/\/cards\/[^/]+$/.test(new URL(page).pathname),
     }),
   ],

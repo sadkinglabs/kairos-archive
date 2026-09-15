@@ -1,19 +1,17 @@
-/** GET /random - a real 302 to a random card, for clients that are not
- * browsers: curl, a Discord bot, a launcher action, a link in someone
- * else's page.
+/** GET /random - a 302 to a random card.
  *
- * This is the one piece of the site that is not static. functions/random.ts
- * exports this as a Cloudflare Pages Function, which claims the /random
- * route ahead of the built /random.html, so it answers first; on any
- * failure it calls next(), which serves that page instead and picks in the
- * browser as before. Nothing about the button path depends on this file
- * working.
+ * Exported as a Cloudflare Pages Function by functions/random.ts, which is
+ * the only part of this site that is not static. It is a Function and not
+ * a page on purpose: a page would have to carry the card list as a
+ * build-time constant, which grows with the catalogue and is stale the
+ * moment a set is added. This reads the list at request time, so the
+ * endpoint never needs touching again.
  *
- * The card list is the site's own /data/names.json, read through the
- * ASSETS binding - the deployed static asset, not a public round trip -
- * and held in the isolate so repeat visits parse nothing. A release
- * deploys a new build, which retires these isolates, so the list cannot
- * go stale. */
+ * The list is the site's own /data/names.json - the same index the search
+ * box's autocomplete uses - read through the ASSETS binding, which serves
+ * the deployed asset without leaving the edge. It is held in the isolate,
+ * so repeat visits parse nothing; a release deploys a new build and
+ * retires the isolates holding it, so it cannot go stale. */
 
 interface NameEntry {
   path: string;
@@ -28,8 +26,6 @@ interface Env {
 interface Context {
   request: Request;
   env: Env;
-  /** Hands the request on to static asset serving: the built /random.html. */
-  next(): Promise<Response>;
 }
 
 let cached: Promise<string[]> | null = null;
@@ -55,20 +51,28 @@ function cardPaths(context: Context): Promise<string[]> {
 }
 
 export async function onRequest(context: Context): Promise<Response> {
+  let paths: string[];
   try {
-    const paths = await cardPaths(context);
-    return new Response(null, {
-      status: 302,
-      headers: {
-        location: paths[Math.floor(Math.random() * paths.length)],
-        // A cached redirect is the same card forever, which is the one
-        // thing this endpoint must not be. Both the browser and the edge
-        // are told, since Cloudflare will happily cache a 302.
-        "cache-control": "no-store",
-        "cdn-cache-control": "no-store",
-      },
+    paths = await cardPaths(context);
+  } catch (error) {
+    // Reading our own deployed asset should not fail, so say so plainly
+    // rather than redirecting somewhere that would look like a card.
+    return new Response(`The card index could not be read: ${String(error)}\n`, {
+      status: 503,
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "retry-after": "30" },
     });
-  } catch {
-    return context.next();
   }
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location: paths[Math.floor(Math.random() * paths.length)],
+      // A cached redirect is the same card forever, which is the one thing
+      // this endpoint must not be. Both the browser and the edge are told,
+      // since Cloudflare will happily cache a 302.
+      "cache-control": "no-store",
+      "cdn-cache-control": "no-store",
+      // Not a page, and never the same twice: nothing here to index.
+      "x-robots-tag": "noindex",
+    },
+  });
 }

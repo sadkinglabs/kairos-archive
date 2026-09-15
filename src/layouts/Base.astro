@@ -2,8 +2,8 @@
 import "../styles/global.css";
 import SearchBox from "../components/SearchBox.astro";
 import { loadRegistry } from "../data/registry";
-interface Props { title: string; description?: string; canonical?: string; image?: string | null; noindex?: boolean }
-const { title, description = "Search, card pages and full history for Sorcery: Contested Realm, built on the Sorcery Card Registry.", canonical, image, noindex = false } = Astro.props;
+interface Props { title: string; description?: string; canonical?: string; image?: string | null }
+const { title, description = "Search, card pages and full history for Sorcery: Contested Realm, built on the Sorcery Card Registry.", canonical, image } = Astro.props;
 const { source } = await loadRegistry();
 const isHome = Astro.url.pathname === "/";
 // Three groups, ruled apart: what the archive holds, what changed in it,
@@ -22,7 +22,6 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
-    {noindex && <meta name="robots" content="noindex" />}
     {canonical && <link rel="canonical" href={new URL(canonical, Astro.site)} />}
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
@@ -33,7 +32,6 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
     <link rel="icon" type="image/png" href="/brand/icon-192.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/brand/icon-180.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
-    <slot name="head" />
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
