@@ -1,25 +1,30 @@
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 import { writeFile } from "node:fs/promises";
-import { cardPath, loadRegistry } from "./src/data/registry.ts";
+import { loadRegistry } from "./src/data/registry.ts";
+import { redirectLines } from "./src/data/redirects.ts";
 
-// Cloudflare Pages redirects bare /cards/{id} (the old permanent link) to
-// the canonical /cards/{id}/{slug} page via its own _redirects file, read
-// from the build output root. Astro ignores any pages/ file or route
-// prefixed with "_" (that's how you keep non-route helpers in pages/), so
-// this can't be an Astro endpoint at src/pages/_redirects.ts - write it
-// directly once the static build has finished instead. One line per card
-// (~1,100 today) stays well under Cloudflare's 2,000 static redirect limit,
-// so there is no need for dynamic (:splat-style) rules.
+// Cloudflare Pages redirects bare /cards/{id} (the old permanent link) and
+// old /cards/{id}/{old-slug} links (from a card rename) to the canonical
+// /cards/{id}/{slug} page via its own _redirects file, read from the build
+// output root. Astro ignores any pages/ file or route prefixed with "_"
+// (that's how you keep non-route helpers in pages/), so this can't be an
+// Astro endpoint at src/pages/_redirects.ts - write it directly once the
+// static build has finished instead. One bare-id line per card (~1,100
+// today) plus one old-slug line per renamed card whose slug actually
+// changed (very few - renames are rare and most name edits are
+// punctuation-only, which doesn't touch the slug) stays well under
+// Cloudflare's 2,000 static redirect limit, so there is no need for
+// dynamic (:splat-style) rules.
 function cardRedirects() {
   return {
     name: "kairos-card-redirects",
     hooks: {
       "astro:build:done": async ({ dir }) => {
         const { registry } = await loadRegistry();
-        // 302, not 301: the canonical path carries the card's current name and
-        // moves when a card is renamed, and browsers cache a 301 indefinitely.
-        const lines = registry.cards.map((c) => `/cards/${c.codex_id} ${cardPath(c)} 302`);
+        // 302, not 301: both kinds of target carry the card's current name
+        // and move on a rename, and browsers cache a 301 indefinitely.
+        const lines = redirectLines(registry);
         await writeFile(new URL("_redirects", dir), lines.join("\n") + "\n");
       },
     },
