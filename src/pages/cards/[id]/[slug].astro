@@ -1,6 +1,6 @@
 ---
 import Base from "../../../layouts/Base.astro";
-import { changedFields, cardPath, formatValue, loadRegistry, printingPath, rowInForce, setPath, slugify, views, FACE_FIELDS, type Face, type HistoryRow, type RegistryPrinting } from "../../../data/registry";
+import { changedFields, cardPath, formatValue, historySource, loadRegistry, printingPath, rowInForce, setPath, showsCurrentValues, slugify, views, FACE_FIELDS, type Face, type HistoryRow, type RegistryPrinting } from "../../../data/registry";
 
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
@@ -67,20 +67,22 @@ const hasAsPrinted = printings.some((p) => p.printed_as_current === false);
   </div>
 
   <h2>Printings</h2>
-  {hasAsPrinted && <p class="muted">A printing marked "older values" shows what it looked like as printed — expand "As printed" for the differences. Its date is <em>recorded on</em>: when the registry detected the change, not necessarily when the publisher made it.</p>}
+  {hasAsPrinted && <p class="muted">A printing marked "older values" shows what it looked like as printed — expand "As printed" for the differences. A face the registry observed in the official API is dated <em>recorded on</em>: when the registry detected the change, not necessarily when the publisher made it. A face transcribed from the printed card, which the API never served, runs from the release of the first printing that shows it.</p>}
   <div class="table-wrap"><table>
     <thead><tr><th>Set</th><th>Product</th><th>Finish</th><th>Artist</th><th>Released</th><th>Shows current values</th><th>printing_id</th><th>Slug</th><th>Image</th></tr></thead>
     <tbody>{printings.map((p) => { const ap = asPrintedFor(p); return (<>
       <tr>
         <td><a href={setPath(p)}>{p.set_name}</a></td><td>{p.product}</td><td>{p.finish}</td><td>{p.artist}</td><td>{p.released_at ?? "—"}</td>
-        <td>{p.printed_as_current === null ? "unknown" : p.printed_as_current ? <span class="badge ok">current</span> : <span class="badge">older values</span>}{p.retired_at && <span class="badge">retired {p.retired_at}</span>}</td>
+        <td>{(() => { const v = showsCurrentValues(p); return v.verdict === "yes" ? <span class="badge ok">{v.short}</span> : <span class="badge" title={v.long}>{v.short}</span>; })()}{p.retired_at && <span class="badge">retired {p.retired_at}</span>}</td>
         <td><a href={printingPath(p)}><code>{p.printing_id}</code></a>{p.printing_id === card.default_printing_id && <span class="badge" title="default printing">default</span>}</td>
         <td><code>{p.slug}</code></td>
         <td>{p.image_urls ? <a href={printingPath(p)}><img class="card-img" src={p.image_urls.small} width="73" height="102" alt="" loading="lazy" /></a> : <span class="muted">none</span>}</td>
       </tr>
       {ap && <tr class="as-printed-row"><td colspan="9">
         <details class="as-printed">
-          <summary>As printed <span class="muted">(recorded on {ap.row.valid_from})</span></summary>
+          <summary>As printed <span class="muted">({historySource(ap.row).fromCard
+            ? <>read from the printed card; the current text dates from {ap.row.valid_to}</>
+            : <>recorded on {ap.row.valid_from}</>})</span></summary>
           <ul class="diff">
             {ap.nameChanged && <li><strong>name</strong>: <del>{ap.nameRow!.name}</del> <ins>{card.name}</ins> <span class="muted">(recorded on {ap.nameRow!.valid_from})</span></li>}
             {ap.changed.map((f) => <li><strong>{f}</strong>: <del>{formatValue(ap.row[f as keyof Face])}</del> <ins>{formatValue(card[f as keyof Face])}</ins></li>)}
@@ -94,11 +96,12 @@ const hasAsPrinted = printings.some((p) => p.printed_as_current === false);
   </table></div>
 
   <h2>History</h2>
-  <p class="muted">Every state the card's gameplay face has been in, as the registry recorded it. Dates are <em>recorded on</em>: the sync that detected the change, not necessarily when the publisher made it. The first row stands for everything before the registry began recording.</p>
+  <p class="muted">Every state the card's gameplay face has been in. Dates on a face observed in the official API are <em>recorded on</em>: the sync that detected the change, not necessarily when the publisher made it. A face marked <em>read from the printed card</em> was never served by the API — a maintainer transcribed it from the card, and it runs from the release of the first printing that shows it until the current face took over. Otherwise the first row stands for everything before the registry began recording.</p>
   <div class="timeline">
     {history.map((row, i) => { const prev = i > 0 ? history[i - 1] : null; const changed = prev ? changedFields(prev, row) : []; const backChanged = prev ? changedFields(prev.back, row.back) : []; return (
       <div class="row">
-        <div class="when">{row.valid_from}{row.valid_to ? ` → ${row.valid_to}` : " → now"}{i === 0 && " · initial record"}</div>
+        <div class="when">{row.valid_from}{row.valid_to ? ` → ${row.valid_to}` : " → now"}{i === 0 && !historySource(row).fromCard && " · initial record"}
+          {historySource(row).fromCard && <span class="badge" title="Transcribed from the card; the official API never served this text">read from the printed card</span>}</div>
         {prev ? (changed.length + backChanged.length === 0 ? <div class="muted">no gameplay change</div> :
           <ul class="diff">{changed.map((f) => <li><strong>{f}</strong>: <del>{formatValue(prev![f as keyof Face])}</del> <ins>{formatValue(row[f as keyof Face])}</ins></li>)}{backChanged.length > 0 && <li><strong>back face</strong>: {backChanged.join(", ")} changed</li>}</ul>)
         : <div>{row.type} · cost {formatValue(row.cost)} · {formatValue(row.attack)}/{formatValue(row.defense)} · <span class="muted">{row.rules_text.slice(0, 120)}</span></div>}

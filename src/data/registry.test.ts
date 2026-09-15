@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { changedFields, rowInForce } from "./registry";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { changedFields, fetchWithRetry, historySource, rowInForce, showsCurrentValues } from "./registry";
 
 describe("rowInForce", () => {
   const rows = [
@@ -37,5 +37,61 @@ describe("changedFields", () => {
     expect(changedFields(null, face())).toEqual(["face"]);
     expect(changedFields(face(), null)).toEqual(["face"]);
     expect(changedFields(null, null)).toEqual([]);
+  });
+});
+
+describe("historySource", () => {
+  it("labels a face the registry observed in the API", () => {
+    expect(historySource({ source: "api" })).toMatchObject({ fromCard: false, dated: "recorded on" });
+  });
+  it("treats a row without the field as observed, as older releases were", () => {
+    expect(historySource({}).fromCard).toBe(false);
+  });
+  it("labels a face transcribed from the printed card", () => {
+    expect(historySource({ source: "card" })).toMatchObject({ fromCard: true, label: "read from the printed card" });
+  });
+});
+
+describe("showsCurrentValues", () => {
+  it("says yes for a printing that shows the current face", () => {
+    expect(showsCurrentValues({ printed_as_current: true, released_at: "2024-01-01" }).verdict).toBe("yes");
+  });
+  it("says no, and points at the history, for older printed values", () => {
+    const v = showsCurrentValues({ printed_as_current: false, released_at: "2023-06-22" });
+    expect(v.verdict).toBe("no");
+    expect(v.long).toContain("older values");
+  });
+  it("distinguishes a printing with no card text from one with no release date", () => {
+    expect(showsCurrentValues({ printed_as_current: null, released_at: "2025-03-01" })).toMatchObject({ verdict: "no-text" });
+    expect(showsCurrentValues({ printed_as_current: null, released_at: null })).toMatchObject({ verdict: "undated" });
+  });
+});
+
+describe("fetchWithRetry", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const ok = () => new Response("{}", { status: 200 });
+
+  it("retries a dropped connection and returns the eventual success", async () => {
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(ok());
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await fetchWithRetry("https://example.test/x", {}, 4, 0);
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a 5xx but gives up with the last error", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(fetchWithRetry("https://example.test/x", {}, 3, 0)).rejects.toThrow("HTTP 503");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry a 4xx, which is an answer rather than a failure", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(fetchWithRetry("https://example.test/x", {}, 4, 0)).rejects.toThrow("HTTP 404");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
