@@ -8,7 +8,7 @@
  * is still judged printing by printing. A card with no printings is
  * evaluated with no printing bound, where every printing term is false. */
 
-import { ELEMENTS, FINISH_CODES, PRODUCT_CODES, type KeyDef, type Op } from "./keys";
+import { ELEMENT_ALIASES, ELEMENTS, FINISH_CODES, FINISHES, KEY_BY_ALIAS, PRODUCT_CODES, PRODUCTS, resolveValue, squash, type KeyDef, type Op } from "./keys";
 import { parse, type Node, type Options, type Parsed } from "./query";
 import type { Card, Printing, SearchData } from "./types";
 
@@ -26,16 +26,14 @@ export interface SearchResult {
 // ---------------------------------------------------------------- helpers
 
 const fold = (s: string | null | undefined) => (s ?? "").toLowerCase();
-const squash = (s: string) => s.toLowerCase().replace(/[\s_\-]/g, "");
 
-/** Prefix-resolve `value` against a closed vocabulary. Exact wins;
- * otherwise a unique prefix; ambiguity or no match returns null. */
-export function resolveEnum(value: string, values: string[]): string | null {
-  const v = squash(value);
-  const exact = values.find((x) => squash(x) === v);
-  if (exact) return exact;
-  const prefixed = values.filter((x) => squash(x).startsWith(v));
-  return prefixed.length === 1 ? prefixed[0] : null;
+/** Resolve `value` against a closed vocabulary, or null when it is
+ * unknown or too short to tell two values apart. The resolution itself
+ * lives in keys.ts, because the parser now rejects an unusable value
+ * before the evaluator ever sees it. */
+export function resolveEnum(value: string, values: string[], aliases?: Record<string, string>): string | null {
+  const resolved = resolveValue(value, values, aliases);
+  return "value" in resolved ? resolved.value : null;
 }
 
 function compareNumbers(actual: number | null, op: Op, wanted: number): boolean {
@@ -94,11 +92,12 @@ function numberValue(card: Card, key: KeyDef, op: Op, value: string): boolean {
   return compareNumbers(actual, op, n);
 }
 
-function numericKeyField(alias: string): string | null {
-  const map: Record<string, string> = { atk: "attack", attack: "attack", def: "defense", defense: "defense",
-    defence: "defense", pow: "power", power: "power", m: "cost", mana: "cost", cost: "cost", l: "life", life: "life",
-    thr: "thr_total", threshold: "thr_total", air: "thr_air", earth: "thr_earth", fire: "thr_fire", water: "thr_water" };
-  return map[alias] ?? null;
+/** The field a numeric key reads, for a comparison whose right-hand side
+ * is another key (atk>def, m>=thr). Read off the key table, so the parser
+ * and the evaluator cannot disagree about which keys are numbers. */
+export function numericKeyField(alias: string): string | null {
+  const key = KEY_BY_ALIAS.get(alias.trim().toLowerCase());
+  return key && key.scope === "card" && key.kind === "number" ? key.field : null;
 }
 
 function listMatch(values: string[], value: string, vocabulary?: string[]): boolean {
@@ -108,10 +107,7 @@ function listMatch(values: string[], value: string, vocabulary?: string[]): bool
 }
 
 function resolveElement(value: string): string | null {
-  const raw = value.trim().toLowerCase();
-  const aliases: Record<string, string> = { none: "None", colorless: "None", colourless: "None", c: "None",
-    w: "Water", a: "Air", e: "Earth", f: "Fire" };
-  return aliases[raw] ?? resolveEnum(value, ELEMENTS);
+  return resolveEnum(value, ELEMENTS, ELEMENT_ALIASES);
 }
 
 function elementMatch(card: Card, op: Op, value: string): boolean {
@@ -137,14 +133,12 @@ function setMatch(printing: Printing, value: string, setNames: Map<string, strin
 }
 
 function productMatch(printing: Printing, value: string): boolean {
-  const code = PRODUCT_CODES[value.toLowerCase()];
-  const wanted = code ?? resolveEnum(value, Object.values(PRODUCT_CODES));
+  const wanted = resolveEnum(value, PRODUCTS, PRODUCT_CODES);
   return wanted !== null && printing.product === wanted;
 }
 
 function finishMatch(printing: Printing, value: string): boolean {
-  const code = FINISH_CODES[value.toLowerCase()];
-  const wanted = code ?? resolveEnum(value, Object.values(FINISH_CODES));
+  const wanted = resolveEnum(value, FINISHES, FINISH_CODES);
   return wanted !== null && printing.finish === wanted;
 }
 

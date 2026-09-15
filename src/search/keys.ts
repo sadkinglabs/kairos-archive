@@ -40,6 +40,47 @@ export const PRODUCT_CODES: Record<string, string> = {
   k: "Kickstarter", tc: "TeamCovenant", ai: "AlphaInvestments", scg: "StarCityGames", op: "OrganizedPlay",
 };
 export const FINISH_CODES: Record<string, string> = { s: "Standard", f: "Foil", rf: "Rainbow" };
+/** How a query may spell an element besides its name: e:w, e:none. */
+export const ELEMENT_ALIASES: Record<string, string> = { none: "None", colorless: "None", colourless: "None", c: "None",
+  w: "Water", a: "Air", e: "Earth", f: "Fire" };
+
+/** Values are compared with spaces, underscores and hyphens removed, so
+ * pro:"box topper", pro:box_topper and pro:boxtopper are one value. */
+export function squash(value: string): string {
+  return value.toLowerCase().replace(/[\s_-]/g, "");
+}
+
+export type Resolution = { value: string } | { ambiguous: string[] } | { unknown: true };
+
+/** Resolve a value against a closed vocabulary: a known shorthand first
+ * (pro:bt, e:none), then an exact name, then a unique prefix. It reports
+ * which of the two failures happened, so the parser can say whether a
+ * value is unknown or merely too short to tell apart. */
+export function resolveValue(value: string, values: string[], aliases: Record<string, string> = {}): Resolution {
+  const raw = value.trim().toLowerCase();
+  if (raw === "") return { unknown: true };
+  if (aliases[raw]) return { value: aliases[raw] };
+  const v = squash(value);
+  const exact = values.find((x) => squash(x) === v);
+  if (exact) return { value: exact };
+  const prefixed = values.filter((x) => squash(x).startsWith(v));
+  if (prefixed.length === 1) return { value: prefixed[0] };
+  if (prefixed.length > 1) return { ambiguous: prefixed };
+  return { unknown: true };
+}
+
+/** The closed vocabulary a key accepts, with the shorthands for it, or
+ * null when the values come from the data rather than from this table
+ * (a set name, a subtype, an artist). */
+export function vocabulary(key: KeyDef): { values: string[]; aliases: Record<string, string>; noun: string } | null {
+  switch (key.kind) {
+    case "element": return { values: ELEMENTS, aliases: ELEMENT_ALIASES, noun: "an element" };
+    case "finish": return { values: FINISHES, aliases: FINISH_CODES, noun: "a finish" };
+    case "product": return { values: PRODUCTS, aliases: PRODUCT_CODES, noun: "a product" };
+    case "enum": case "list": return key.values ? { values: key.values, aliases: {}, noun: `a ${key.name}` } : null;
+    default: return null;
+  }
+}
 
 export const KEYS: KeyDef[] = [
   // ---- card keys

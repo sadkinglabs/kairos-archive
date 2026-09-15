@@ -1,6 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
 import { KEYS, IS_FLAGS, HAS_FLAGS, SORT_FIELDS, type KeyDef } from '../search/keys';
+import { term } from '../search/builder';
+import { parse } from '../search/query';
 import { loadRegistry } from '../data/registry';
 
 const { registry } = await loadRegistry();
@@ -21,6 +23,22 @@ const artists = distinct(registry.printings.map(p => p.artist));
 const colourless = registry.cards.filter(c => c.elements.length === 1 && c.elements[0] === 'None').length;
 const sets = [...registry.sets].sort((a, b) => (b.set_code ?? '').localeCompare(a.set_code ?? ''));
 const years = distinct(registry.printings.map(p => p.released_at?.slice(0, 4))).reverse();
+
+/** The options above come from the release; the parser's vocabularies come
+ * from the key table. A value in one and not the other - a new umbrella, say -
+ * would ship a control that searches for nothing, so the build stops here
+ * instead. The key-table vocabularies (type, rarity, finish, product,
+ * elements) cannot drift, since the form reads them from the table itself. */
+const offered: [string, string[]][] = [
+  [alias('umbrella'), umbrellas], [alias('subtype'), subtypes], [alias('keyword'), keywords],
+  [alias('artist'), artists], [alias('set'), sets.map(s => s.set_code ?? s.set_name)], [alias('date'), years],
+];
+const rejected = offered.flatMap(([k, values]) =>
+  values.filter(v => parse(term({ key: k, value: v })).errors.length > 0).map(v => `${k}:${v}`));
+if (rejected.length > 0) {
+  throw new Error(`Advanced search would offer values the query parser rejects: ${rejected.join(', ')}. `
+    + 'Teach src/search/keys.ts the new value, or stop offering it.');
+}
 
 /** Every numeric row is an operator and a number, so "cost under 3" and
  * "exactly 2 Water" are each two choices. The values are the parser's own. */

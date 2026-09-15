@@ -79,13 +79,61 @@ describe("parse", () => {
     expect(parse("(t:minion").errors[0]).toMatch(/missing closing/);
   });
   it("resolves every alias in the key table and every flag", () => {
+    // A value the key would actually accept, since an unusable one is now an
+    // error rather than a term that matches nothing.
+    const sample = (key: (typeof KEYS)[number]): string => {
+      switch (key.kind) {
+        case "element": return "water";
+        case "enum": case "list": return key.values?.[0] ?? "beast";
+        case "finish": return "foil";
+        case "product": return "booster";
+        case "date": return "2024";
+        case "id": return "C000001";
+        case "slug": return "004-witch-b-s";
+        case "number": return "1";
+        default: return "a";
+      }
+    };
     for (const key of KEYS) for (const alias of key.aliases) {
-      const p = parse(`${alias}:1`);
-      expect(p.errors, alias).toEqual([]);
+      const p = parse(`${alias}:${sample(key)}`);
+      expect(p.errors, `${alias}:${sample(key)}`).toEqual([]);
       expect(p.ast).toMatchObject({ kind: "term", key: { name: key.name } });
     }
     for (const f of IS_FLAGS) expect(parse(`is:${f.name}`).errors).toEqual([]);
     for (const f of HAS_FLAGS) expect(parse(`has:${f.name}`).errors).toEqual([]);
+  });
+  it("accepts every example this page and /syntax put in front of a reader", () => {
+    // Each example is rendered as a link that runs the query, on /syntax, in
+    // the search box's help panel and on the home page.
+    for (const key of KEYS) for (const example of key.examples) {
+      expect(parse(example).errors, example).toEqual([]);
+      expect(parse(example).ast, example).not.toBeNull();
+    }
+    for (const flag of IS_FLAGS) expect(parse(`is:${flag.name}`).ast, flag.name).not.toBeNull();
+    for (const flag of HAS_FLAGS) expect(parse(`has:${flag.name}`).ast, flag.name).not.toBeNull();
+  });
+  it("names a value the evaluator could never match, instead of finding nothing", () => {
+    expect(parse("e:wateer").errors[0]).toMatch(/^e: "wateer" is not an element - Air, Earth, Fire, Water, None$/);
+    expect(parse("e=Water+unknown").errors[0]).toMatch(/is not an element/);
+    expect(parse("t:creature").errors[0]).toMatch(/^t: "creature" is not a type - Avatar, Minion, Magic, Aura, Artifact, Site$/);
+    expect(parse("rar:e").errors[0]).toMatch(/^rar: "e" could be Exceptional or Elite - spell more of it$/);
+    expect(parse("f:shiny").errors[0]).toMatch(/is not a finish - Standard, Foil, Rainbow/);
+    expect(parse("pro:nonsense").errors[0]).toMatch(/is not a product - Booster, BoxTopper/);
+    expect(parse("u:wizard").errors[0]).toMatch(/is not a umbrella - Evil, Knight, Royalty/);
+    expect(parse("m:banana").errors[0]).toMatch(/^m: "banana" is not a number - try m:3, m>=3, m:x, m:even, m:odd, or another numeric key like m>thr$/);
+    expect(parse("atk:tall").errors[0]).toMatch(/^atk: "tall" is not a number - try atk:3, atk>=3, or another numeric key like atk>thr$/);
+    expect(parse("date:soon").errors[0]).toMatch(/is not a date - use 2024, 2024-05 or 2024-05-01/);
+    expect(parse("id:1").errors[0]).toMatch(/is not a registry id - C000230 for a card, P000937 for a printing/);
+    // Every one of them refuses to build a term, so nothing runs half-asked.
+    for (const q of ["e:wateer", "t:creature", "rar:e", "f:shiny", "m:banana", "date:soon", "id:1"]) {
+      expect(parse(q).ast, q).toBeNull();
+    }
+    // What stays legal: shorthands, prefixes, key-to-key comparisons, and the
+    // open vocabularies that come from the data rather than the key table.
+    for (const q of ["e:w", "e:none", "e:colourless", "t:art", "rar:ex", "f:rf", "pro:bt", "m:x", "m:even", "atk>def",
+                     "m>=thr", "date:2024-05", "id:P000937", "sub:whatever", "k:whatever", "s:whatever", "a:whatever"]) {
+      expect(parse(q).errors, q).toEqual([]);
+    }
   });
   it("expands a value list into or (,) and and (+)", () => {
     const comma = parse("e:water,fire");
@@ -112,9 +160,13 @@ describe("parse", () => {
     // e!=water+fire is "not both", which is or-of-not-each.
     expect(parse("e!=water+fire").ast?.kind).toBe("or");
   });
-  it("leaves commas alone in text and numeric values", () => {
+  it("leaves commas alone in text values, and will not read one as a number", () => {
     expect(parse('r:"draw a spell, then"').ast).toMatchObject({ kind: "term", value: "draw a spell, then" });
-    expect(parse("cost:1,2").ast).toMatchObject({ kind: "term", value: "1,2" });
+    // A numeric key never splits on the comma - and "1,2" is not a number, so
+    // it is reported rather than quietly matching nothing.
+    const p = parse("cost:1,2");
+    expect(p.ast).toBeNull();
+    expect(p.errors[0]).toMatch(/is not a number/);
   });
   it("rejects a mixed, a one-sided and a stray separator", () => {
     expect(parse("e:water,+fire").errors[0]).toMatch(/mixing , and \+ is ambiguous/);
