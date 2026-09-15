@@ -3,11 +3,15 @@ import Base from "../layouts/Base.astro";
 import { HAS_FLAGS, IS_FLAGS, KEYS, SORT_FIELDS, UNITS } from "../search/keys";
 const cardKeys = KEYS.filter((k) => k.scope === "card");
 const printingKeys = KEYS.filter((k) => k.scope === "printing");
+const numericKeys = KEYS.filter((k) => k.kind === "number").map((k) => k.aliases[0]);
+const dateKey = KEYS.find((k) => k.kind === "date")!.aliases[0];
+const alias = (name: string) => KEYS.find((k) => k.name === name)!.aliases[0];
 const q = (s: string) => `/search?q=${encodeURIComponent(s)}`;
 ---
 <Base title="Search syntax" canonical="/syntax">
   <h1>Search syntax</h1>
-  <p>This page is generated from the same table the search engine is built from, so every key listed here works and no other does.</p>
+  <p>This page is generated from the same table the search engine is built from, so every key listed here works and no other does. Prefer clicking to typing? <a href="/advanced">Advanced search</a> builds these same queries from a form, and shows you the query it built.</p>
+  <p class="muted">Each key has one short spelling — the one this page heads its row with — and longer, descriptive ones that mean exactly the same thing: <code>{alias('rarity')}:</code> is <code>rarity:</code>, <code>{alias('cost')}:</code> is <code>mana:</code> and <code>cost:</code>, <code>{alias('life')}:</code> is <code>life:</code>. Keys and values are case-insensitive.</p>
   <h2>Words</h2>
   <p>Bare words match the card <strong>name</strong> (each word, anywhere, case-insensitive): <a href={q("polar")}>polar</a>. <code>!"Polar Bears"</code> is the exact name. Cards whose <em>rules text</em> contains your words appear in a separate group below the name matches, so a bare word never silently mixes the two; use <code>r:</code> to search rules text on purpose.</p>
   <h2>Card keys</h2>
@@ -21,7 +25,7 @@ const q = (s: string) => `/search?q=${encodeURIComponent(s)}`;
     {printingKeys.map((k) => <tr><td data-label="Key"><code>{k.aliases[0]}:</code></td><td data-label="Aliases">{k.aliases.slice(1).map((a) => <code>{a}:</code>)}</td><td data-label="Meaning">{k.doc}{k.values && <span class="muted"> Values: {k.values.join(", ")}.</span>}</td><td data-label="Examples">{k.examples.map((e) => <div><a href={q(e)}><code>{e}</code></a></div>)}</td></tr>)}
   </tbody></table></div>
   <h2>Numbers and dates</h2>
-  <p>Every numeric key (cost, pow, atk, def, life, the four thresholds) and the date key take <code>:</code> or <code>=</code> (equals), <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>!=</code>. A numeric key can compare to another: <a href={q("atk>def")}><code>atk&gt;def</code></a>. Dates accept YYYY, YYYY-MM or YYYY-MM-DD and compare as ranges: <code>date&lt;2024</code> is before 2024, <code>date:2024-05</code> is within that month.</p>
+  <p>Every numeric key — {numericKeys.map((k, i) => <>{i > 0 && ", "}<code>{k}</code></>)} — and the date key <code>{dateKey}</code> take <code>:</code> or <code>=</code> (equals), <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>!=</code>. A numeric key can compare to another: <a href={q("atk>def")}><code>atk&gt;def</code></a>, <a href={q("m>=thr")}><code>m&gt;=thr</code></a>. <code>{alias('threshold')}</code> is the four element thresholds added up, the total a deck has to reach; the element keys ask for one element each, so <a href={q("water>=2 fire:1")}><code>water&gt;=2 fire:1</code></a> is two Water and one Fire. Dates accept YYYY, YYYY-MM or YYYY-MM-DD and compare as ranges: <code>{dateKey}&lt;2024</code> is before 2024, <code>{dateKey}:2024-05</code> is within that month.</p>
   <h2>Flags</h2>
   <div class="table-wrap"><table class="reference-table"><thead><tr><th>Flag</th><th>Scope</th><th>Meaning</th></tr></thead><tbody>
     {IS_FLAGS.map((f) => <tr><td data-label="Flag"><a href={q(`is:${f.name}`)}><code>is:{f.name}</code></a>{f.aliases && <span class="muted"> · {f.aliases.map((a) => <code>is:{a}</code>)}</span>}</td><td data-label="Scope">{f.scope}</td><td data-label="Meaning">{f.doc}</td></tr>)}
@@ -29,6 +33,8 @@ const q = (s: string) => `/search?q=${encodeURIComponent(s)}`;
   </tbody></table></div>
   <h2>Value lists</h2>
   <p>Any key whose values are names, rather than free text, accepts several at once: <a href={q("e:water+fire")}><code>e:water+fire</code></a> needs both, <a href={q("e:water,fire")}><code>e:water,fire</code></a> takes either. It works the same for the rest, so <a href={q("t:minion,site")}><code>t:minion,site</code></a> and <a href={q("sub:beast+spirit")}><code>sub:beast+spirit</code></a> read as you would expect. No spaces around the separator, and don't mix <code>+</code> with <code>,</code> in one value: put the alternatives in parentheses instead. A printing key still has to be satisfied by a single printing, so <a href={q("f:foil,rainbow")}><code>f:foil,rainbow</code></a> finds cards printed either way while <code>f:foil+rainbow</code> asks one printing to be both and finds nothing. <code>!=</code> negates the whole list: <a href={q("e!=water,fire")}><code>e!=water,fire</code></a> is neither of them. Elements also take <code>=</code> for the exact set: <a href={q("e=water+fire")}><code>e=water+fire</code></a> is the cards that are those two and nothing more.</p>
+  <h2>When a query has a mistake</h2>
+  <p>Nothing is guessed. An unknown key, an unusable operator or a half-finished value list is reported above the results, and the terms that were understood still run — so <code>e:w + f</code> tells you a value list takes no spaces rather than quietly searching for a card named “+”. Mixing <code>+</code> and <code>,</code> in one value is refused for the same reason: <a href={q("(e:water+fire or e:air)")}><code>(e:water+fire or e:air)</code></a> says which grouping you meant.</p>
   <h2>Logic</h2>
   <p>Terms are ANDed; <code>-term</code> or <code>not term</code> negates; <code>or</code> alternates; parentheses group: <a href={q("t:minion (e:water or e:air) -k:genesis")}><code>t:minion (e:water or e:air) -k:genesis</code></a>. <code>and</code> is accepted and never required. Quote values with spaces: <code>r:"draw a spell"</code>.</p>
   <h2>Results, sorting, ids</h2>

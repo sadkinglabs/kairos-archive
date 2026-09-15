@@ -52,7 +52,22 @@ header.site .inner { position: relative; max-width: 1120px; margin: auto; paddin
 .search-box { display: flex; gap: 0; min-width: 0; }
 header .search-box { flex: 1; max-width: 530px; margin-left: auto; }
 .search-box input { width: 100%; flex: 1; min-width: 0; border-radius: 7px 0 0 7px; border-right: 0; background: var(--card); }
-.search-box button { border-radius: 0 7px 7px 0; min-width: 50px; }
+.search-box button { border-radius: 0; min-width: 50px; }
+/* The ? is the third segment of the search control, and its panel hangs
+   under the box. */
+.syntax-help { position: relative; display: flex; }
+.syntax-help summary { list-style: none; cursor: pointer; display: grid; place-items: center; min-width: 44px; padding-inline: .1rem;
+  border: 1px solid var(--line); border-left: 0; border-radius: 0 7px 7px 0; background: var(--card); color: var(--muted); font-weight: 600; }
+.syntax-help summary::-webkit-details-marker { display: none; }
+.syntax-help summary:hover, .syntax-help[open] summary { color: var(--accent); background: var(--badge); }
+.syntax-panel { position: absolute; right: 0; top: calc(100% + .35rem); z-index: 30; width: min(430px, 88vw); padding: .85rem 1rem 1rem;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px #0003; text-align: left; }
+.syntax-panel dl { display: grid; grid-template-columns: auto 1fr; gap: .3rem .8rem; margin: .6rem 0 .8rem; font-size: .8rem; }
+.syntax-panel dt { margin: 0; }
+.syntax-panel dt code { white-space: nowrap; }
+.syntax-panel dd { margin: 0; color: var(--muted); }
+.syntax-panel .panel-foot { margin: 0; font-size: .82rem; }
+.hero-search .syntax-help summary { min-width: 52px; font-size: 1.05rem; }
 footer.site { border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
 footer.site .inner { max-width: 1120px; margin: auto; padding: 1.5rem 28px 2rem; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 1.3rem; font-size: .87rem; margin-bottom: 1rem; }
@@ -199,17 +214,23 @@ th { color: var(--muted); font-weight: 600; }
 .advanced-form { max-width: 880px; }
 .advanced-form .query-label { display: block; font-size: .86rem; margin-bottom: .35rem; }
 .advanced-form #advanced-query { width: 100%; }
-.advanced-form fieldset { border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1.1rem 1.1rem; margin: 1.3rem 0; }
-.advanced-form legend { font: 600 .72rem/1.5 inherit; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); padding: 0 .4rem; }
+.advanced-form .query-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.advanced-form details.group { border: 1px solid var(--line); border-radius: 10px; padding: 0 1.1rem; margin: .7rem 0; }
+.advanced-form details.group[open] { padding-bottom: 1.1rem; }
+.advanced-form details.group > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: .6rem; min-height: 48px;
+  font: 600 .72rem/1.5 inherit; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); }
+.advanced-form details.group > summary::-webkit-details-marker { display: none; }
+.advanced-form details.group > summary::before { content: '+'; font-size: 1rem; line-height: 1; color: var(--muted); }
+.advanced-form details.group[open] > summary::before { content: '−'; }
+.advanced-form details.group > summary .badge { font: 400 .78rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0; text-transform: none;
+  color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .9rem 1rem; }
 .advanced-form label.field { display: grid; gap: .35rem; font-size: .86rem; align-content: start; }
 .advanced-form .numeric .row { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem; gap: .4rem; }
 .advanced-form .hint { color: var(--muted); font-size: .76rem; line-height: 1.5; }
 .advanced-form p.hint { margin: .9rem 0 0; font-size: .8rem; }
 .advanced-form .boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: .45rem .9rem; margin: .7rem 0 .9rem; }
-.advanced-form fieldset.picker summary { cursor: pointer; font-size: .78rem; color: var(--muted); }
-.advanced-form fieldset.picker summary .chosen { color: var(--fg); }
-.advanced-form fieldset.picker details { margin-bottom: .2rem; }
+.advanced-form details.group.picker .grid-fields { margin-top: .2rem; }
 .advanced-form label.box.off { opacity: .45; }
 .advanced-form label.box { display: flex; align-items: center; gap: .4rem; font-size: .9rem; }
 .advanced-form label.box input { width: auto; min-height: 0; }
@@ -223,6 +244,7 @@ th { color: var(--muted); font-weight: 600; }
   .site-menu { order: 0; }
   .site-menu nav { top: 60px; right: 20px; }
   header .search-box { order: 4; flex: 1 1 100%; max-width: none; }
+  .syntax-panel { width: min(430px, calc(100vw - 40px)); }
   footer.site .inner { padding: 1.3rem 20px; }
   .hero { padding-top: .6rem; }
   .hero .eyebrow { font-size: .65rem; }

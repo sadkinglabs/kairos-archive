@@ -55,12 +55,18 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
     <script>
       import { suggest, type NameEntry } from "../search/suggest";
 
-      const menu = document.querySelector<HTMLDetailsElement>('.site-menu');
+      // The navigation menu and the search box's syntax help are both
+      // <details> popovers: Escape closes the open one, and so does a click
+      // anywhere outside it.
+      const popovers = Array.from(document.querySelectorAll<HTMLDetailsElement>('details.site-menu, details.syntax-help'));
       document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && menu?.open) { menu.open = false; menu.querySelector('summary')?.focus(); }
+        if (event.key !== 'Escape') return;
+        for (const popover of popovers) if (popover.open) { popover.open = false; popover.querySelector('summary')?.focus(); }
       });
       document.addEventListener('click', event => {
-        if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
+        for (const popover of popovers) {
+          if (popover.open && event.target instanceof Node && !popover.contains(event.target)) popover.open = false;
+        }
       });
       document.querySelectorAll<HTMLImageElement>('img.card-img').forEach(image => {
         const fallback = () => {
