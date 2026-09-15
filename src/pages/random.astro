@@ -1,41 +1,23 @@
 ---
-/** A door, not a page: it picks a card and leaves. The pick happens in the
- * browser because the site is static - one build cannot serve a different
- * card to each visitor - so /random fetches the same name index the search
- * box's autocomplete uses (a name, an id and a path each) and replaces
- * itself with the card it landed on. replace(), not assign(), so Back
- * returns where you came from rather than rolling again. */
+/** A door, not a page. The pick is in the browser because the site is
+ * static, but nothing about it needs the network: the 1,100 card paths are
+ * written into this page at build time and the redirect runs from <head>,
+ * before the body is parsed, so the browser goes straight to the card.
+ * replace(), not assign(), so Back returns where you came from rather than
+ * rolling again. */
 import Base from '../layouts/Base.astro';
-import { loadRegistry } from '../data/registry';
+import { loadRegistry, cardPath } from '../data/registry';
 const { registry } = await loadRegistry();
+const paths = registry.cards.map(cardPath);
+if (paths.length === 0) throw new Error('/random has no cards to choose from.');
 ---
 <Base title="Random card" canonical="/random" noindex
       description="Open a card from the archive at random.">
+  <script slot="head" is:inline define:vars={{ paths }}>
+    location.replace(paths[Math.floor(Math.random() * paths.length)]);
+  </script>
   <div class="waiting">
     <h1>Finding a card…</h1>
-    <p class="muted" id="fallback" hidden>
-      That did not work — the card index could not be loaded.
-      <a href="/cards">Browse all {registry.header.cards.toLocaleString('en')} cards</a> instead.
-    </p>
-    <noscript><p class="muted">A random card needs JavaScript, because the pick happens in your browser. <a href="/cards">Browse all cards</a> instead.</p></noscript>
+    <noscript><p class="muted">A random card needs JavaScript, because the pick happens in your browser. <a href="/cards">Browse all {registry.header.cards.toLocaleString('en')} cards</a> instead.</p></noscript>
   </div>
-  <script>
-    import { pickRandom } from "../data/pick";
-
-    interface Name { name: string; codex_id: string; path: string }
-    (async () => {
-      try {
-        const response = await fetch("/data/names.json");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const card = pickRandom<Name>(await response.json());
-        if (!card) throw new Error("the index is empty");
-        location.replace(card.path);
-      } catch (error) {
-        console.error("[random]", error);
-        const fallback = document.getElementById("fallback");
-        if (fallback) fallback.hidden = false;
-        document.querySelector<HTMLElement>(".waiting h1")!.textContent = "No card to show";
-      }
-    })();
-  </script>
 </Base>
