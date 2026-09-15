@@ -222,8 +222,8 @@ th { color: var(--muted); font-weight: 600; }
 .advanced-form details.group > summary::-webkit-details-marker { display: none; }
 .advanced-form details.group > summary::before { content: '+'; font-size: 1rem; line-height: 1; color: var(--muted); }
 .advanced-form details.group[open] > summary::before { content: '−'; }
-.advanced-form details.group > summary .badge { font: 400 .78rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0; text-transform: none;
-  color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.advanced-form details.group > summary .badge { font: 400 .82rem/1.4 inherit; letter-spacing: 0; text-transform: none;
+  color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .9rem 1rem; }
 .advanced-form label.field { display: grid; gap: .35rem; font-size: .86rem; align-content: start; }
 .advanced-form .numeric .row { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem; gap: .4rem; }

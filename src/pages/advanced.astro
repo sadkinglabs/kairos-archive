@@ -94,8 +94,8 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       <details class="group">
         <summary>Card<span class="badge"></span></summary>
         <div class="grid-fields">
-          <label class="field">Name<input data-key={alias('name')} type="text" placeholder="polar bears" /></label>
-          <label class="field">Rules contain<input data-key={alias('rules')} type="text" placeholder="draw a spell" /></label>
+          <label class="field">Name<input data-key={alias('name')} data-say="named %s" type="text" placeholder="polar bears" /></label>
+          <label class="field">Rules contain<input data-key={alias('rules')} data-say="rules mention %s" type="text" placeholder="draw a spell" /></label>
           <label class="field">Type<select data-key={alias('type')}><option value="">Any type</option>{key('type').values?.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Rarity<select data-key={alias('rarity')}><option value="">Any rarity</option>{key('rarity').values?.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Group<select data-key={alias('umbrella')}><option value="">Any group</option>{umbrellas.map(v => <option value={v}>{v}</option>)}</select></label>
@@ -131,7 +131,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
               {n.label}
               <span class="row">
                 <select data-op aria-label={`${n.label} comparison`}>{OPERATORS.map(o => <option value={o.op}>{o.label}</option>)}</select>
-                <input type="number" min="0" max={n.max} step="1" data-key={n.key} aria-label={`${n.label} value`} />
+                <input type="number" min="0" max={n.max} step="1" data-key={n.key} data-label={n.label.toLowerCase()} aria-label={`${n.label} value`} />
               </span>
               {n.hint && <small class="hint">{n.hint}</small>}
             </label>
@@ -149,7 +149,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
           <label class="field numeric">Released
             <span class="row">
               <select data-op aria-label="Release year comparison">{OPERATORS.map(o => <option value={o.op}>{o.label}</option>)}</select>
-              <select data-key={alias('date')} aria-label="Release year"><option value="">Any year</option>{years.map(y => <option value={y}>{y}</option>)}</select>
+              <select data-key={alias('date')} data-label="released" aria-label="Release year"><option value="">Any year</option>{years.map(y => <option value={y}>{y}</option>)}</select>
             </span>
           </label>
           <label class="field">Image<select data-key="has"><option value="">Any printing</option><option value={HAS_FLAGS.find(f => f.name === 'image')!.name}>Has an image</option></select></label>
@@ -160,13 +160,13 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       <details class="group">
         <summary>Results<span class="badge"></span></summary>
         <div class="grid-fields">
-          <label class="field">Show<select data-key="unique">
-            <option value="">One row per card</option>
-            <option value="prints">One row per printing</option>
-            <option value="art">One row per artwork</option>
+          <label class="field">Show<select data-key="unique" data-say="showing %s">
+            <option value="">one row per card</option>
+            <option value="prints">one row per printing</option>
+            <option value="art">one row per artwork</option>
           </select></label>
-          <label class="field">Sort by<select data-key="sort"><option value="">Name</option>{SORT_FIELDS.filter(f => f !== 'name').map(f => <option value={f}>{SORT_LABELS[f] ?? f}</option>)}</select></label>
-          <label class="field">Order<select data-key="order"><option value="">Default</option><option value="asc">Ascending</option><option value="desc">Descending</option></select></label>
+          <label class="field">Sort by<select data-key="sort" data-say="sorted by %s"><option value="">Name</option>{SORT_FIELDS.filter(f => f !== 'name').map(f => <option value={f}>{SORT_LABELS[f] ?? f}</option>)}</select></label>
+          <label class="field">Order<select data-key="order" data-say="%s order"><option value="">Default</option><option value="asc">Ascending</option><option value="desc">Descending</option></select></label>
         </div>
       </details>
 
@@ -177,6 +177,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
   </form>
   <script>
     import { buildQuery, elementQuery, listTerm, NO_ELEMENT, term, type ElementMatch, type ListMode } from '../search/builder';
+    import { describeChoice, describeElements, describeList } from '../search/describe';
 
     const form = document.querySelector<HTMLFormElement>('#advanced-form')!;
     const query = document.querySelector<HTMLInputElement>('#advanced-query')!;
@@ -216,6 +217,29 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       });
     }
 
+    /** What a group says in its summary while folded: the same choices as
+     * the query, in words. Query text stays in the query box. */
+    function say(control: HTMLInputElement | HTMLSelectElement): string {
+      // A numeric row reads as "mana cost at most 3": its label, the word on
+      // the operator select beside it, then the number.
+      const operator = control.closest('.numeric')?.querySelector<HTMLSelectElement>('[data-op]');
+      return describeChoice({
+        value: control.value,
+        optionText: control instanceof HTMLSelectElement ? (control.selectedOptions[0].textContent ?? undefined) : undefined,
+        operatorWord: operator?.selectedOptions[0].textContent ?? undefined,
+        label: control.dataset.label,
+        say: control.dataset.say,
+      });
+    }
+
+    function pickerSay(group: Group): string {
+      if (!group.kind || !group.mode) return '';
+      const picked = group.boxes.filter(b => b.checked).map(b => b.value);
+      return group.kind === 'element'
+        ? describeElements(picked, group.mode.value as ElementMatch)
+        : describeList(picked, group.mode.value as ListMode);
+    }
+
     function pickerTerm(group: Group): string {
       if (!group.kind || !group.mode) return '';
       const picked = group.boxes.filter(b => b.checked).map(b => b.value);
@@ -234,7 +258,8 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
 
     function groupTerms(group: Group): string[] {
       const terms = [pickerTerm(group), ...group.controls.map(termFor)].filter(Boolean);
-      group.badge.textContent = terms.length > 0 ? terms.join(' ') : '';
+      const words = [pickerSay(group), ...group.controls.map(say)].filter(Boolean);
+      group.badge.textContent = words.join(' · ');
       return terms;
     }
 
