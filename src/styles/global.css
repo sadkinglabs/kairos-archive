@@ -50,12 +50,6 @@ header.site .inner { position: relative; max-width: 1120px; margin: auto; paddin
 .site-menu nav a { color: var(--fg); padding: .65rem .8rem; text-decoration: none; border-radius: 4px; }
 .site-menu nav a:hover, .site-menu nav a[aria-current] { background: var(--badge); color: var(--accent); }
 .site-menu nav hr { border: 0; border-top: 1px solid var(--line); margin: .4rem .8rem; }
-/* The A-Z bar on the card index: a row of letter jumps. */
-.az { display: flex; flex-wrap: wrap; gap: .3rem; margin: 1.2rem 0 1.6rem; }
-.az a { min-width: 2rem; padding: .35rem .2rem; text-align: center; border: 1px solid var(--line); border-radius: 5px;
-  text-decoration: none; font-size: .82rem; color: var(--muted); }
-.az a:hover { border-color: var(--accent); color: var(--accent); }
-.az a[aria-current] { border-color: var(--accent); background: var(--badge); color: var(--accent); font-weight: 600; }
 .search-box { display: flex; gap: 0; min-width: 0; }
 header .search-box { flex: 1; max-width: 530px; margin-left: auto; }
 .search-box input { width: 100%; flex: 1; min-width: 0; border-radius: 7px 0 0 7px; border-right: 0; background: var(--card); }

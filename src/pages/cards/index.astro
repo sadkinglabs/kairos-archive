@@ -1,0 +1,16 @@
+---
+/** Every card, in the same browser /search uses: the chips sort and page
+ * it, the URL keeps the state, and it loads sixty at a time rather than
+ * eleven hundred tiles. The query is options only, which the evaluator
+ * reads as "everything" - so this is a search, pointed at no question. */
+import Base from "../../layouts/Base.astro";
+import CardBrowser from "../../components/CardBrowser.astro";
+import { loadRegistry } from "../../data/registry";
+const { registry } = await loadRegistry();
+---
+<Base title="All cards" canonical="/cards"
+      description={`Every card in Sorcery: Contested Realm - ${registry.header.cards.toLocaleString('en')} of them, sortable and browsable.`}>
+  <p class="eyebrow">Browse the archive</p>
+  <CardBrowser heading="All cards" defaultQuery="unique:cards" noun="card" />
+  <p class="muted">Looking for something in particular? <a href="/search">Search</a>, <a href="/advanced">build a query</a>, or read the <a href="/syntax">syntax</a>.</p>
+</Base>
