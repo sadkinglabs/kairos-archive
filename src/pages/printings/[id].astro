@@ -19,7 +19,7 @@ const verdict = showsCurrentValues(printing);
 <Base title={`${card.name} (${printing.set_name}, ${printing.finish})`} canonical={printingPath(printing)} image={printing.image_urls?.normal ?? null}>
   <div class="card-overview">
     <div class="card-heading"><p class="eyebrow">Printing record</p><h1>{card.name}</h1><p class="intro">{[printing.set_name, printing.product, printing.finish].filter(Boolean).join(' · ')}</p></div>
-    <div class="art-column"><CardArt urls={printing.image_urls} status={printing.image_status} name={card.name} />{printing.back && <CardArt urls={printing.back.image_urls} status={printing.image_status} name={`${card.name}, back face`} back />}</div>
+    <div class="art-column"><CardArt urls={printing.image_urls} status={printing.image_status} name={card.name} type={card.type} />{printing.back && <CardArt urls={printing.back.image_urls} status={printing.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
     <div class="card-content">
       <p><span class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']}>{verdict.short}</span></p>
       <p><a href={cardPath(card)}>Read current rules and card history →</a></p>

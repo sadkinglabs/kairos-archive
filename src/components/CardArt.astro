@@ -1,14 +1,15 @@
 ---
 import Icon from './Icon.astro';
-interface Props { urls?: Record<string, string> | null; status?: string; name: string; back?: boolean }
-const { urls, status, name, back = false } = Astro.props;
+interface Props { urls?: Record<string, string> | null; status?: string; name: string; back?: boolean; type?: string | null }
+const { urls, status, name, back = false, type } = Astro.props;
+const site = type === 'Site';
 ---
-<figure class="card-art">
+<figure class="card-art" data-site-art={site || undefined}>
   {back && <p class="eyebrow">Back face</p>}
   {urls ? <>
-    <a class="art-link" href={urls.large} data-lightbox data-pswp-width="672" data-pswp-height="936" aria-label={`Enlarge ${name}`}><img class="card-img" src={urls.normal} width="488" height="680" alt={name} loading={back ? 'lazy' : 'eager'} /></a>
+    <a class="art-link" data-orientation={site ? "90" : undefined} href={urls.large} data-lightbox data-pswp-width="672" data-pswp-height="936" aria-label={`Enlarge ${name}`}><img class="card-img" src={urls.normal} width="488" height="680" alt={name} loading={back ? 'lazy' : 'eager'} /></a>
     <figcaption>
-      <div class="image-actions"><a href={urls.large} data-enlarge><Icon name="expand" size={15} /> Enlarge</a><a href={urls.small}>Small</a><a href={urls.normal}>Normal</a><a href={urls.large}>Large</a><a href={urls.original}>Original</a></div>
+      <div class="image-actions">{site && <button type="button" class="rotate-art" data-rotate-art hidden aria-label={`Show portrait for ${name}`}><span aria-hidden="true">↻</span> <span data-rotation-label>Show portrait</span></button>}<a href={urls.large} data-enlarge><Icon name="expand" size={15} /> Enlarge</a><a href={urls.small}>Small</a><a href={urls.normal}>Normal</a><a href={urls.large}>Large</a><a href={urls.original}>Original</a></div>
       {status === 'lowres' && <small class="muted">Low-resolution source, upscaled.</small>}
     </figcaption>
   </> : <div class="placeholder">No image held for {name}</div>}
@@ -16,12 +17,84 @@ const { urls, status, name, back = false } = Astro.props;
 <script>
   import PhotoSwipeLightbox from 'photoswipe/lightbox';
   import 'photoswipe/style.css';
+  import { rotationKeyframes, type CardRotation } from '../presentation/cardOrientation';
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const lightbox = new PhotoSwipeLightbox({
     gallery: '.card-art', children: 'a[data-lightbox]',
     pswpModule: () => import('photoswipe'),
-    showHideAnimationType: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'none' : 'fade',
+    showHideAnimationType: reducedMotion.matches ? 'none' : 'fade',
+  });
+  // PhotoSwipe zooms a landscape-sized wrapper; the source bytes remain upright.
+  lightbox.addFilter('itemData', data => {
+    const link = data.element?.matches('[data-lightbox]') ? data.element : data.element?.querySelector('[data-lightbox]');
+    if (link instanceof HTMLElement && link.dataset.orientation !== undefined) {
+      const rotation = link.dataset.orientation === '90' ? 90 : 0;
+      data.siteRotation = rotation;
+      data.type = 'html';
+      data.width = rotation === 90 ? 936 : 672;
+      data.height = rotation === 90 ? 672 : 936;
+    }
+    return data;
+  });
+  lightbox.addFilter('isContentZoomable', (zoomable, content) =>
+    content.data.siteRotation !== undefined ? !content.isError() : zoomable);
+  lightbox.addFilter('useContentPlaceholder', (use, content) =>
+    content.data.siteRotation !== undefined ? false : use);
+  lightbox.on('contentLoad', event => {
+    const { content } = event;
+    if (content.data.siteRotation === undefined) return;
+    event.preventDefault();
+    const frame = document.createElement('div');
+    frame.className = 'pswp__content site-lightbox-frame';
+    const image = document.createElement('img');
+    image.className = 'pswp__img';
+    image.draggable = false;
+    image.alt = content.data.alt || '';
+    image.style.transform = `translate(-50%, -50%) rotate(${content.data.siteRotation}deg)`;
+    frame.append(image);
+    content.element = frame;
+    content.state = 'loading';
+    image.onload = () => content.onLoaded();
+    image.onerror = () => content.onError();
+    image.src = content.data.src || '';
+  });
+  lightbox.on('contentResize', ({ content, width, height }) => {
+    if (content.data.siteRotation === undefined || content.isError()) return;
+    const image = content.element?.querySelector('img');
+    if (!image) return;
+    const landscape = content.data.siteRotation === 90;
+    image.style.width = `${landscape ? height : width}px`;
+    image.style.height = `${landscape ? width : height}px`;
+  });
+  lightbox.on('contentDestroy', ({ content }) => {
+    if (content.data.siteRotation === undefined) return;
+    const image = content.element?.querySelector('img');
+    if (image) { image.onload = null; image.onerror = null; }
   });
   lightbox.init();
+
+  document.querySelectorAll<HTMLElement>('[data-site-art]').forEach(figure => {
+    const link = figure.querySelector<HTMLElement>('[data-lightbox]');
+    const image = link?.querySelector<HTMLImageElement>('img');
+    const button = figure.querySelector<HTMLButtonElement>('[data-rotate-art]');
+    const label = button?.querySelector<HTMLElement>('[data-rotation-label]');
+    if (!link || !image || !button || !label) return;
+    button.hidden = image.complete && image.naturalWidth === 0;
+    image.addEventListener('error', () => { button.hidden = true; });
+    button.addEventListener('click', async () => {
+      const from: CardRotation = link.dataset.orientation === '90' ? 90 : 0;
+      const to: CardRotation = from === 90 ? 0 : 90;
+      link.dataset.orientation = String(to);
+      label.textContent = to === 90 ? 'Show portrait' : 'Show landscape';
+      button.setAttribute('aria-label', `${label.textContent} for ${image.alt}`);
+      if (!reducedMotion.matches && typeof image.animate === 'function') {
+        button.disabled = true;
+        const animation = image.animate(rotationKeyframes(from, to), { duration: 280, easing: 'ease-in-out' });
+        try { await animation.finished; } catch { /* A cancelled animation already has its final CSS state. */ }
+        button.disabled = false;
+      }
+    });
+  });
   document.querySelectorAll<HTMLAnchorElement>('[data-enlarge]').forEach(link => {
     link.addEventListener('click', event => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

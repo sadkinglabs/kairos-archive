@@ -301,3 +301,17 @@ th { color: var(--muted); font-weight: 600; }
   .reference-table td { border: 0; padding: .35rem 0; overflow-wrap: anywhere; }
   .reference-table td::before { content: attr(data-label); display: block; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: .2rem; }
 }
+
+/* Site art is served upright. Rotate the presentation, never the download URLs. */
+.card-art[data-site-art] > .placeholder { aspect-ratio: 88 / 63; }
+.art-link[data-orientation] { position: relative; height: 0; overflow: hidden; transition: padding-top 280ms ease-in-out; border-radius: 0; }
+.art-link[data-orientation="90"] { padding-top: calc(100% * 63 / 88); }
+.art-link[data-orientation="0"] { padding-top: calc(100% * 88 / 63); }
+.art-link[data-orientation] .card-img { position: absolute; left: 50%; top: 50%; aspect-ratio: 63 / 88; object-fit: contain; }
+.art-link[data-orientation="90"] .card-img { width: calc(100% * 63 / 88); transform: translate(-50%, -50%) rotate(90deg); }
+.art-link[data-orientation="0"] .card-img { width: 100%; transform: translate(-50%, -50%) rotate(0deg); }
+.art-link[data-orientation] > .placeholder { position: absolute; inset: 0; aspect-ratio: auto; }
+.image-actions .rotate-art { display: inline-flex; align-items: center; gap: .3rem; min-height: 36px; padding: .2rem .45rem; font: inherit; }
+.site-lightbox-frame { position: relative; }
+.site-lightbox-frame img { position: absolute; left: 50%; top: 50%; max-width: none; display: block; }
+@media (prefers-reduced-motion: reduce) { .art-link[data-orientation] { transition: none; } }
