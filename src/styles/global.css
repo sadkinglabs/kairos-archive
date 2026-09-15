@@ -210,6 +210,7 @@ th { color: var(--muted); font-weight: 600; }
 .advanced-form fieldset.picker summary { cursor: pointer; font-size: .78rem; color: var(--muted); }
 .advanced-form fieldset.picker summary .chosen { color: var(--fg); }
 .advanced-form fieldset.picker details { margin-bottom: .2rem; }
+.advanced-form label.box.off { opacity: .45; }
 .advanced-form label.box { display: flex; align-items: center; gap: .4rem; font-size: .9rem; }
 .advanced-form label.box input { width: auto; min-height: 0; }
 .advanced-form .reset-row { margin: 0; }

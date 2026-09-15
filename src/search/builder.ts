@@ -46,6 +46,27 @@ export function listTerm(key: string, picked: string[], mode: ListMode): string 
   return `${key}${mode === "=" ? "=" : ":"}${quoteList(values.join(mode === "=" ? "+" : mode))}`;
 }
 
+/** What the Elements picker asks for. One control, because two - which
+ * elements, and how many - multiplied into combinations that cannot
+ * exist ("exactly Water and Fire" and "exactly one element" at once). */
+export type ElementMatch = "all" | "any" | "only" | "multi" | "mono";
+
+/** The colourless cards are stored as the element list ["None"], so
+ * "No element" is a value in the picker rather than a mode - but it is
+ * the whole answer, so it ignores anything ticked with it. */
+export const NO_ELEMENT = "None";
+
+export function elementQuery(key: string, picked: string[], match: ElementMatch): string {
+  const values = picked.map((p) => p.trim()).filter(Boolean);
+  if (values.includes(NO_ELEMENT)) return `${key}:none`;
+  const flag = match === "multi" ? "is:multi-element" : match === "mono" ? "is:mono-element" : "";
+  if (values.length === 0) return flag;
+  // multi asks for cards holding every ticked element and at least one more
+  // besides; mono for a single-element card, whichever of the ticked it is.
+  const mode: ListMode = match === "only" ? "=" : match === "any" || match === "mono" ? "," : "+";
+  return [flag, listTerm(key, values, mode)].filter(Boolean).join(" ");
+}
+
 export function buildQuery(base: string, terms: string[]): string {
   return [base.trim(), ...terms].filter(Boolean).join(" ");
 }

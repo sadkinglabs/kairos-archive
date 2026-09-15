@@ -56,14 +56,24 @@ const numbers: { label: string; key: string; max: number; hint?: string }[] = [
   { label: 'Power', key: alias('power'), max: maxima.pow, hint: 'attack when attack equals defense, otherwise the average rounded down' },
   { label: 'Life', key: alias('life'), max: maxima.life, hint: 'Avatars only' },
 ];
-/** The tick-many fields. Elements can also be matched as an exact set,
- * which is meaningless for a subtype or keyword list. */
-const pickers: { key: string; legend: string; values: string[]; modes: { value: string; label: string }[]; open: boolean }[] = [
-  { key: alias('element'), legend: 'Elements', values: (key('element').values ?? []).filter(v => v !== 'None'), open: true,
-    modes: [{ value: '+', label: 'every ticked element' }, { value: ',', label: 'any one of them' }, { value: '=', label: 'exactly those, no others' }] },
-  { key: alias('subtype'), legend: 'Subtypes', values: subtypes, open: false,
+/** The tick-many fields. Elements get their own vocabulary of matches -
+ * one control, phrased as whole sentences, because a "which" select and a
+ * "how many" select multiplied into combinations that cannot exist. The
+ * colourless cards are the element list ["None"], so No element is one of
+ * the boxes; ticked, it is the whole answer. */
+const pickers: { key: string; kind: 'element' | 'list'; legend: string; label: string; values: string[]; modes: { value: string; label: string }[]; open: boolean }[] = [
+  { key: alias('element'), kind: 'element', legend: 'Elements', label: 'Find cards with', open: true,
+    values: [...(key('element').values ?? []).filter(v => v !== 'None'), 'None'],
+    modes: [
+      { value: 'all', label: 'all of the ticked elements' },
+      { value: 'any', label: 'any of the ticked elements' },
+      { value: 'only', label: 'only the ticked elements, nothing else' },
+      { value: 'multi', label: 'two or more elements, the ticked ones among them' },
+      { value: 'mono', label: 'one element only, one of the ticked' },
+    ] },
+  { key: alias('subtype'), kind: 'list', legend: 'Subtypes', label: 'Match', values: subtypes, open: false,
     modes: [{ value: '+', label: 'every ticked subtype' }, { value: ',', label: 'any one of them' }] },
-  { key: alias('keyword'), legend: 'Keywords', values: keywords, open: false,
+  { key: alias('keyword'), kind: 'list', legend: 'Keywords', label: 'Match', values: keywords, open: false,
     modes: [{ value: '+', label: 'every ticked keyword' }, { value: ',', label: 'any one of them' }] },
 ];
 
@@ -97,26 +107,18 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       {pickers.map(picker => (
         <fieldset class="picker">
           <legend>{picker.legend}</legend>
-          <details open={picker.open}>
+          <details open={picker.open} data-picker-kind={picker.kind}>
             <summary>{picker.values.length} to choose from<span class="chosen" data-chosen-for={picker.key}></span></summary>
             <div class="boxes">{picker.values.map(v => (
-              <label class="box"><input type="checkbox" data-picker={picker.key} value={v} />{v}</label>
+              <label class="box"><input type="checkbox" data-picker={picker.key} value={v} />{v === 'None' ? 'No element' : v}</label>
             ))}</div>
           </details>
           <div class="grid-fields">
-            <label class="field">Match<select data-picker-mode={picker.key} aria-label={`How to combine the ticked ${picker.legend.toLowerCase()}`}>
+            <label class="field">{picker.label}<select data-picker-mode={picker.key} aria-label={`How to read the ticked ${picker.legend.toLowerCase()}`}>
               {picker.modes.map(m => <option value={m.value}>{m.label}</option>)}
             </select></label>
-            {picker.key === alias('element') && (
-              <label class="field">How many elements<select data-key="is">
-                <option value="">Any number</option>
-                <option value={flag('multi-element').name}>Two or more (multi-element)</option>
-                <option value={flag('mono-element').name}>Exactly one</option>
-                <option value="none" data-key-override={alias('element')}>None at all</option>
-              </select></label>
-            )}
           </div>
-          {picker.key === alias('element') && <p class="hint">Water and Fire with <em>every ticked element</em> is <code>{alias('element')}:Water+Fire</code>, the cards that have both and maybe more; <em>exactly those</em> is <code>{alias('element')}=Water+Fire</code>, which drops anything with a third element.</p>}
+          {picker.kind === 'element' && <p class="hint">Tick nothing and the last two still work on their own: every multi-element card, or every single-element one. <strong>No element</strong> is the answer by itself — the colourless cards — so anything ticked with it is ignored.</p>}
           {picker.key === alias('keyword') && <p class="hint">166 cards carry two keywords or more, so <em>every ticked keyword</em> is worth asking for; 15 cards have a second subtype.</p>}
         </fieldset>
       ))}
@@ -174,7 +176,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     <button type="submit">Search cards →</button>
   </form>
   <script>
-    import { buildQuery, listTerm, term, type ListMode } from '../search/builder';
+    import { buildQuery, elementQuery, listTerm, NO_ELEMENT, term, type ElementMatch, type ListMode } from '../search/builder';
 
     const form = document.querySelector<HTMLFormElement>('#advanced-form')!;
     const query = document.querySelector<HTMLInputElement>('#advanced-query')!;
@@ -188,6 +190,8 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     // One picker per tick-many field: its checkboxes, its and/or select and
     // the summary line that reports the choice while it is folded away.
     const pickers = Array.from(fields.querySelectorAll<HTMLElement>('fieldset.picker')).map(group => ({
+      key: group.querySelector<HTMLInputElement>('input[data-picker]')!.dataset.picker!,
+      kind: group.querySelector<HTMLElement>('[data-picker-kind]')!.dataset.pickerKind,
       boxes: Array.from(group.querySelectorAll<HTMLInputElement>('input[data-picker]')),
       mode: group.querySelector<HTMLSelectElement>('[data-picker-mode]')!,
       chosen: group.querySelector<HTMLElement>('.chosen')!,
@@ -213,8 +217,22 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     function pickerTerms(): string[] {
       return pickers.map(picker => {
         const picked = picker.boxes.filter(b => b.checked).map(b => b.value);
-        picker.chosen.textContent = picked.length > 0 ? ` — ${picked.join(', ')}` : '';
-        return listTerm(picker.boxes[0]?.dataset.picker ?? '', picked, picker.mode.value as ListMode);
+        const colourless = picker.kind === 'element' && picked.includes(NO_ELEMENT);
+        // "No element" answers on its own, so the other boxes and the match
+        // select grey out rather than combining into something impossible.
+        if (picker.kind === 'element') {
+          picker.boxes.forEach(box => {
+            const off = colourless && box.value !== NO_ELEMENT;
+            box.disabled = off;
+            box.closest('.box')!.classList.toggle('off', off);
+          });
+          picker.mode.disabled = colourless;
+        }
+        const shown = picked.map(v => v === NO_ELEMENT ? 'No element' : v);
+        picker.chosen.textContent = shown.length > 0 ? ` — ${shown.join(', ')}` : '';
+        return picker.kind === 'element'
+          ? elementQuery(picker.key, picked, picker.mode.value as ElementMatch)
+          : listTerm(picker.key, picked, picker.mode.value as ListMode);
       });
     }
 
@@ -228,8 +246,9 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       controls.forEach(c => { c.value = ''; });
       ops.forEach(s => { s.selectedIndex = 0; });
       pickers.forEach(picker => {
-        picker.boxes.forEach(b => { b.checked = false; });
+        picker.boxes.forEach(b => { b.checked = false; b.disabled = false; b.closest('.box')!.classList.remove('off'); });
         picker.mode.selectedIndex = 0;
+        picker.mode.disabled = false;
         picker.chosen.textContent = '';
       });
     }
