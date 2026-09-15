@@ -14,7 +14,11 @@ const v = views(registry);
 const members = new Map<string, typeof registry.printings>();
 for (const p of registry.printings) if (p.set_code === set.set_code) members.set(p.codex_id, [...(members.get(p.codex_id) ?? []), p]);
 const cards = [...members.keys()].map(id => v.cardById.get(id)!).sort((a, b) => a.name.localeCompare(b.name));
-const groups = [...new Set(cards.map(c => c.type ?? 'Other'))].sort().map((type, index) => ({ type, id: `type-${index}`, cards: cards.filter(c => (c.type ?? 'Other') === type) }));
+// A token is grouped as a token. Its type is what it is once in play -
+// Rubble is a Site, Bruin a Minion - so grouping by type alone filed the
+// tokens of a set among its cards, where nobody goes looking for them.
+const groupOf = (c: typeof cards[number]) => c.category === 'Token' ? 'Token' : (c.type ?? 'Other');
+const groups = [...new Set(cards.map(groupOf))].sort().map((type, index) => ({ type, id: `type-${index}`, cards: cards.filter(c => groupOf(c) === type) }));
 const setKey = KEYS.find(k => k.name === 'set')!.aliases[0];
 const query = `${setKey}:${JSON.stringify(set.set_code ?? set.set_name)} unique:${UNITS.find(u => u === 'prints')}`;
 ---

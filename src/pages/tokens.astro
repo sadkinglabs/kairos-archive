@@ -1,39 +1,51 @@
 ---
 import Base from "../layouts/Base.astro";
 import CardTile from "../components/CardTile.astro";
-import { loadRegistry, orderedSets, setPath, views } from "../data/registry";
+import { loadRegistry, orderedSets, setPath, views, type RegistryPrinting } from "../data/registry";
 
 // Tokens aren't a set of their own upstream, so give them a catalogue page
-// like /sets: every card whose category is Token, grouped by the set of
-// its default printing (falling back to "no printing on record" for the
-// rare token with none).
+// like /sets: every card whose category is Token, under each set that
+// printed it. Not under the set of its default printing alone - Rubble is
+// in five sets and was listed only under Arthurian Legends, which read as
+// a claim that it belongs to that set.
 const { registry } = await loadRegistry();
 const v = views(registry);
 const tokens = registry.cards.filter((c) => c.category === "Token");
+const setByCode = new Map(registry.sets.map((s) => [s.set_code ?? "none", s]));
 
-interface Group { set: typeof registry.sets[number] | null; cards: typeof tokens }
+interface Entry { card: typeof tokens[number]; printing: RegistryPrinting | null }
+interface Group { set: typeof registry.sets[number] | null; entries: Entry[] }
 const groups = new Map<string, Group>();
 for (const card of tokens) {
-  const printing = card.default_printing_id ? v.printingById.get(card.default_printing_id) : undefined;
-  const set = printing ? (registry.sets.find((s) => s.set_code === printing.set_code) ?? null) : null;
-  const key = set?.set_code ?? "none";
-  if (!groups.has(key)) groups.set(key, { set, cards: [] });
-  groups.get(key)!.cards.push(card);
+  const printings = v.printingsByCard.get(card.codex_id) ?? [];
+  const bySet = new Map<string, RegistryPrinting>();
+  for (const p of printings) {
+    const key = p.set_code ?? "none";
+    // One tile per set: the plainest printing of it, Standard over a foil.
+    const held = bySet.get(key);
+    if (!held || (held.finish !== "Standard" && p.finish === "Standard")) bySet.set(key, p);
+  }
+  const places: [string, RegistryPrinting | null][] = bySet.size > 0 ? [...bySet] : [["none", null]];
+  for (const [key, printing] of places) {
+    const set = setByCode.get(key) ?? null;
+    if (!groups.has(key)) groups.set(key, { set, entries: [] });
+    groups.get(key)!.entries.push({ card, printing });
+  }
 }
 // Set order, so the promo bucket lands last here too; a token with no
 // printing on record has no set and goes after them.
 const order = new Map(orderedSets(registry.sets).map((s, i) => [s.set_code ?? "none", i]));
 const sorted = [...groups.values()].sort((a, b) =>
   (order.get(a.set?.set_code ?? "none") ?? 999) - (order.get(b.set?.set_code ?? "none") ?? 999));
-for (const g of sorted) g.cards.sort((a, b) => a.name.localeCompare(b.name));
+for (const g of sorted) g.entries.sort((a, b) => a.card.name.localeCompare(b.card.name));
 ---
 <Base title="Tokens" canonical="/tokens">
   <h1>Tokens</h1>
-  <p class="muted">{tokens.length} token cards, grouped by the set of their default printing. <a href="/search?q=cat%3Atoken">Every token as a search</a>.</p>
+  <p class="muted">{tokens.length} token cards, listed under every set that printed them. <a href="/search?q=cat%3Atoken">Every token as a search</a>.</p>
   {sorted.map((g) => (
     <section>
       <h2>{g.set ? <a href={setPath(g.set)}>{g.set.set_name}</a> : "No printing on record"} {g.set && <span class="muted">· {g.set.set_code}</span>}</h2>
-      <div class="grid">{g.cards.map((c) => <CardTile card={c} printing={c.default_printing_id ? (v.printingById.get(c.default_printing_id) ?? null) : null} />)}</div>
+      <div class="grid">{g.entries.map((e) => <CardTile card={e.card} printing={e.printing} />)}</div>
     </section>
   ))}
 </Base>
