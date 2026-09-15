@@ -5,7 +5,6 @@ import FaceFacts from '../../../components/FaceFacts.astro';
 import RecordActions from '../../../components/RecordActions.astro';
 import PrintingEntry from '../../../components/PrintingEntry.astro';
 import CardHistory from '../../../components/CardHistory.astro';
-import Icon from '../../../components/Icon.astro';
 import { cardPath, loadRegistry, officialCardUrl, slugify, views } from '../../../data/registry';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
@@ -31,8 +30,7 @@ const official = officialCardUrl(defaultPrinting);
         <pre class="rules">{card.rules_text || 'No rules text'}</pre>
       </section>
       {card.back && <section><h2>Back face · current rules</h2><p class="muted">{[card.back.type, ...card.back.subtypes].filter(Boolean).join(' · ')}</p><pre class="rules">{card.back.rules_text || 'No rules text'}</pre><FaceFacts face={card.back} /></section>}
-      <RecordActions id={card.codex_id} url={card.api_url} />
-      {official && <p class="official-link"><a class="btn secondary" href={official}>View on sorcerytcg.com <Icon name="external" size={15} /></a> <span class="muted">The publisher's own record for this card.</span></p>}
+      <RecordActions id={card.codex_id} url={card.api_url} official={official} />
       <nav class="section-links" aria-label="On this card"><a href="#printings">{printings.length} printings ↓</a><a href="#history">History ↓</a><a href="/docs/cards">Data documentation</a></nav>
     </div>
   </div>

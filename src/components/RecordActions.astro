@@ -1,9 +1,21 @@
 ---
+/** The record block: what this thing is called, and every way out of the
+ * page - the site's JSON both ways round, and the publisher's own record
+ * where there is one. One component so a card, a printing and a set all
+ * offer the same block in the same place.
+ *
+ * Without any links it is a bare centred identifier line rather than an
+ * empty panel (the printing page names its card that way). */
 import Icon from './Icon.astro';
-interface Props { id?: string | null; url?: string | null; label?: string }
-const { id, url, label = 'Card ID' } = Astro.props;
+interface Props { id?: string | null; url?: string | null; label?: string; official?: string | null }
+const { id, url, label = 'Card ID', official } = Astro.props;
+const links = Boolean(url || official);
 ---
-<div class="record-actions">
-  {id && <span class="record-id"><span class="muted">{label}</span> <code>{id}</code> <button class="copy" data-copy={id} aria-label={`Copy ${label} ${id}`}>Copy</button></span>}
-  {url && <div class="data-links"><a class="btn secondary" href={url} data-download={id ?? 'record'}><Icon name="download" size={17} /> Download JSON</a><a href={url}>View JSON</a></div>}
+<div class:list={['record-block', { bare: !links }]}>
+  {id && <p class="record-id"><span class="muted">{label}</span> <code>{id}</code> <button class="copy" data-copy={id} aria-label={`Copy ${label} ${id}`}>Copy</button></p>}
+  {links && <div class="record-buttons">
+    {url && <a class="btn secondary" href={url}>Show JSON</a>}
+    {url && <a class="btn secondary" href={url} data-download={id ?? 'record'}><Icon name="download" size={16} /> Download JSON</a>}
+    {official && <a class="btn secondary" href={official}>SorceryTCG.com <Icon name="external" size={15} /></a>}
+  </div>}
 </div>
