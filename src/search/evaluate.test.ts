@@ -140,6 +140,29 @@ describe("flags", () => {
     expect(names("is:multi-element e:fire")).toEqual([]);
     expect(names("-is:multi-element t:minion")).toEqual(["Apprentice Wizard", "Polar Bears"]);
   });
+  it("thr: is the four thresholds added up", () => {
+    // Apprentice Wizard and Druid ask for 1 Air, Polar Bears 1 Water,
+    // Witch 1 Air and 1 Water, the Broken Site nothing.
+    expect(names("thr:2")).toEqual(["Witch"]);
+    expect(names("thr:0")).toEqual(["Broken Site"]);
+    expect(names("thr>=1")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears", "Witch"]);
+    expect(names("threshold<2 -thr:0")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);
+    expect(names("thr.total:2")).toEqual(names("thr:2"));
+    // It reads as a right-hand side too, like the other numeric keys.
+    expect(names("cost>=thr")).toEqual(["Apprentice Wizard", "Polar Bears", "Witch"]);
+    // And it sorts.
+    expect(names("t:minion sort:threshold order:desc")).toEqual(["Witch", "Apprentice Wizard", "Polar Bears"]);
+  });
+  it("e= with a list is the exact set of elements", () => {
+    // Witch is Water and Air and nothing else.
+    expect(names("e=water+air")).toEqual(["Witch"]);
+    expect(names("e=w+a")).toEqual(["Witch"]);
+    expect(names("e=water+fire")).toEqual([]);
+    // One element behaves as before: exactly that element.
+    expect(names("e=water")).toEqual(["Polar Bears"]);
+    // A comma list stays a list of exact matches.
+    expect(names("e=water,air")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);
+  });
   it("value lists: , is either, + is every one", () => {
     // The pair a player actually wants: both elements on one card, versus
     // either element on any card.

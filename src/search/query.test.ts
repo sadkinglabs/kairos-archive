@@ -72,6 +72,12 @@ describe("parse", () => {
     // Whitespace inside a quoted list, and more than two values.
     expect(parse('s:"alpha, beta, 006"').ast).toMatchObject({ kind: "or", items: [{ value: "alpha" }, { value: "beta" }, { value: "006" }] });
   });
+  it("keeps e= with a + list as one term for the evaluator to judge", () => {
+    expect(parse("e=water+fire").ast).toMatchObject({ kind: "term", op: "=", value: "water+fire" });
+    // Only elements, and only with =: everything else still expands.
+    expect(parse("e:water+fire").ast?.kind).toBe("and");
+    expect(parse("t=minion+site").ast?.kind).toBe("and");
+  });
   it("flips the join for != so a list negates as a whole", () => {
     // e!=water,fire is "neither water nor fire", which is and-of-not-each.
     expect(parse("e!=water,fire").ast?.kind).toBe("and");

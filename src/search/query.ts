@@ -143,7 +143,10 @@ function resolveTerm(token: Token, options: Options, errors: string[]): Node | n
   // e:water+fire is both. Only for keys whose values are names rather than
   // free text, since a comma is legitimate inside a name or a rules phrase.
   const listable = !numeric && def.kind !== "text";
-  const separator = listable && /[,+]/.test(value) ? (value.includes("+") ? "+" : ",") : null;
+  // e=water+fire is a set: "these elements and no others", which only the
+  // evaluator can judge, so it stays one term instead of expanding.
+  const exactSet = def.kind === "element" && op === "=" && value.includes("+") && !value.includes(",");
+  const separator = listable && !exactSet && /[,+]/.test(value) ? (value.includes("+") ? "+" : ",") : null;
   if (separator) {
     if (value.includes(",") && value.includes("+")) {
       errors.push(`${key}: mixing , and + is ambiguous - use parentheses, e.g. (${key}:a+b or ${key}:c)`);

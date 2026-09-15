@@ -68,8 +68,15 @@ function compareDates(actual: string | null, op: Op, wanted: string): boolean {
   }
 }
 
+/** Card numbers, including the ones the registry does not store: the
+ * total threshold is the four element requirements added up. */
+function cardNumber(card: Card, field: string): number | null {
+  if (field === "thr_total") return card.thr_air + card.thr_earth + card.thr_fire + card.thr_water;
+  return (card as unknown as Record<string, number | null>)[field] ?? null;
+}
+
 function numberValue(card: Card, key: KeyDef, op: Op, value: string): boolean {
-  const actual = (card as unknown as Record<string, number | null>)[key.field] ?? null;
+  const actual = cardNumber(card, key.field);
   const v = value.toLowerCase();
   if (key.name === "cost" && v === "x") return actual === null;
   if (key.name === "cost" && (v === "even" || v === "odd")) {
@@ -79,7 +86,7 @@ function numberValue(card: Card, key: KeyDef, op: Op, value: string): boolean {
   // a numeric comparison against another numeric key: atk>def
   const other = numericKeyField(v);
   if (other) {
-    const rhs = (card as unknown as Record<string, number | null>)[other] ?? null;
+    const rhs = cardNumber(card, other);
     return rhs === null ? false : compareNumbers(actual, op, rhs);
   }
   const n = Number(v);
@@ -89,7 +96,8 @@ function numberValue(card: Card, key: KeyDef, op: Op, value: string): boolean {
 
 function numericKeyField(alias: string): string | null {
   const map: Record<string, string> = { atk: "attack", attack: "attack", def: "defense", defense: "defense",
-    defence: "defense", pow: "power", power: "power", cost: "cost", m: "cost", mana: "cost", life: "life" };
+    defence: "defense", pow: "power", power: "power", cost: "cost", m: "cost", mana: "cost", life: "life",
+    thr: "thr_total", threshold: "thr_total", air: "thr_air", earth: "thr_earth", fire: "thr_fire", water: "thr_water" };
   return map[alias] ?? null;
 }
 
@@ -99,16 +107,22 @@ function listMatch(values: string[], value: string, vocabulary?: string[]): bool
   return values.some((x) => squash(x) === v || squash(x).startsWith(v));
 }
 
-function elementMatch(card: Card, op: Op, value: string): boolean {
-  const raw = value.toLowerCase();
+function resolveElement(value: string): string | null {
+  const raw = value.trim().toLowerCase();
   const aliases: Record<string, string> = { none: "None", colorless: "None", colourless: "None", c: "None",
     w: "Water", a: "Air", e: "Earth", f: "Fire" };
-  const wanted = aliases[raw] ?? resolveEnum(value, ELEMENTS);
-  if (!wanted) return false;
-  const has = card.elements.includes(wanted);
-  if (op === "=") return has && card.elements.length === 1;
-  if (op === "!=") return !has;
-  return has;
+  return aliases[raw] ?? resolveEnum(value, ELEMENTS);
+}
+
+function elementMatch(card: Card, op: Op, value: string): boolean {
+  // The parser expands a value list for every operator but "=", which needs
+  // the whole list at once: e=water+fire is those two elements and no third.
+  const wanted = value.split("+").map(resolveElement);
+  if (wanted.some((w) => w === null)) return false;
+  const names = wanted as string[];
+  if (op === "=") return card.elements.length === names.length && names.every((n) => card.elements.includes(n));
+  const has = names.every((n) => card.elements.includes(n));
+  return op === "!=" ? !has : has;
 }
 
 function setMatch(printing: Printing, value: string, setNames: Map<string, string>): boolean {
@@ -255,6 +269,7 @@ function sortKey(hit: Hit, field: string): string | number {
   const num = (v: number | null) => (v === null ? Number.POSITIVE_INFINITY : v);
   switch (field) {
     case "cost": return num(c.cost);
+    case "threshold": return c.thr_air + c.thr_earth + c.thr_fire + c.thr_water;
     case "power": return num(c.power);
     case "atk": return num(c.attack);
     case "def": return num(c.defense);

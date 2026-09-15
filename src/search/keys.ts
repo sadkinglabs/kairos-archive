@@ -62,8 +62,11 @@ export const KEYS: KeyDef[] = [
     doc: "The cross-subtype groups rules text refers to: Evil, Knight, Royalty.",
     examples: ["u:knight", "u:evil t:minion"] },
   { name: "element", aliases: ["e", "element"], scope: "card", kind: "element", field: "elements", values: ELEMENTS,
-    doc: "e:water matches any card that has Water (multi-element cards match each of theirs); e:water e:air needs both; e=water means Water and nothing else; e:none is colourless. First letters work: e:w, e=wa. List values to combine them: e:water+fire has both, e:water,fire has either. For how many elements rather than which, use is:multi-element or is:mono-element.",
-    examples: ["e:water", "e:water+fire", "e:water,fire", "e=fire", "is:multi-element e:fire"] },
+    doc: "e:water matches any card that has Water (multi-element cards match each of theirs); e:water e:air needs both; e=water means Water and nothing else; e:none is colourless. First letters work: e:w, e=wa. List values to combine them: e:water+fire has both, e:water,fire has either, e=water+fire is exactly those two and nothing else. For how many elements rather than which, use is:multi-element or is:mono-element.",
+    examples: ["e:water", "e:water+fire", "e=water+fire", "e:water,fire", "is:multi-element e:fire"] },
+  { name: "threshold", aliases: ["thr", "threshold", "thr.total"], scope: "card", kind: "number", field: "thr_total",
+    doc: "Total threshold: the four element requirements added up, which is what a deck has to reach to play the card. Derived, so it needs no lookup: thr:0 is every card with no requirement at all.",
+    examples: ["thr:1", "thr>=3", "thr<=2 e:fire"] },
   { name: "air", aliases: ["air", "thr.air", "threshold.air"], scope: "card", kind: "number", field: "thr_air",
     doc: "Air threshold, with the numeric operators.", examples: ["air>=2", "air:1"] },
   { name: "earth", aliases: ["earth", "thr.earth", "threshold.earth"], scope: "card", kind: "number", field: "thr_earth",
@@ -151,7 +154,7 @@ export const HAS_FLAGS: FlagDef[] = [
   { name: "image", scope: "printing", doc: "image_status ok or lowres: an image is served" },
 ];
 
-export const SORT_FIELDS = ["name", "cost", "power", "atk", "def", "life", "set", "date", "rarity", "type"] as const;
+export const SORT_FIELDS = ["name", "cost", "threshold", "power", "atk", "def", "life", "set", "date", "rarity", "type"] as const;
 export type SortField = (typeof SORT_FIELDS)[number];
 export const UNITS = ["cards", "prints", "art"] as const;
 export type Unit = (typeof UNITS)[number];

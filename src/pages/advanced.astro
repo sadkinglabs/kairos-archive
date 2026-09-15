@@ -1,42 +1,163 @@
 ---
 import Base from '../layouts/Base.astro';
-import { KEYS, IS_FLAGS } from '../search/keys';
+import { KEYS, IS_FLAGS, HAS_FLAGS, SORT_FIELDS, type KeyDef } from '../search/keys';
 import { loadRegistry } from '../data/registry';
+
 const { registry } = await loadRegistry();
-const selectKeys = KEYS.filter(k => ['type', 'rarity', 'finish'].includes(k.name));
-const nameKey = KEYS.find(k => k.name === 'name')!;
-const rulesKey = KEYS.find(k => k.name === 'rules')!;
-const costKey = KEYS.find(k => k.name === 'cost')!;
-const setKey = KEYS.find(k => k.name === 'set')!;
-const errata = IS_FLAGS.find(f => f.name === 'errata')!;
-const multi = IS_FLAGS.find(f => f.name === 'multi-element')!;
-const mono = IS_FLAGS.find(f => f.name === 'mono-element')!;
-const elementKey = KEYS.find(k => k.name === 'element')!;
+const key = (name: string): KeyDef => KEYS.find(k => k.name === name)!;
+const flag = (name: string) => IS_FLAGS.find(f => f.name === name)!;
+
+// Vocabularies come from the release being built, so a new subtype, keyword
+// or artist appears in the form without anyone editing this page.
+const distinct = (values: (string | null | undefined)[]) =>
+  [...new Set(values.filter((v): v is string => !!v))].sort((a, b) => a.localeCompare(b));
+const subtypes = distinct(registry.cards.flatMap(c => c.subtypes));
+const keywords = distinct(registry.cards.flatMap(c => c.keywords));
+const umbrellas = distinct(registry.cards.flatMap(c => c.umbrellas));
+const artists = distinct(registry.printings.map(p => p.artist));
+const sets = [...registry.sets].sort((a, b) => (b.set_code ?? '').localeCompare(a.set_code ?? ''));
+const years = distinct(registry.printings.map(p => p.released_at?.slice(0, 4))).reverse();
+
+// Upper bounds for the number inputs, read off the data rather than guessed.
+const max = (values: (number | null | undefined)[]) => Math.max(...values.map(v => v ?? 0));
+const thresholds = registry.cards.map(c => [c.thr_air, c.thr_earth, c.thr_fire, c.thr_water]);
+const maxima: Record<string, number> = {
+  cost: max(registry.cards.map(c => c.cost)),
+  thr: max(thresholds.map(t => t[0] + t[1] + t[2] + t[3])),
+  element: max(thresholds.flat()),
+  atk: max(registry.cards.map(c => c.attack)),
+  def: max(registry.cards.map(c => c.defense)),
+  pow: max(registry.cards.map(c => c.power)),
+  life: max(registry.cards.map(c => c.life)),
+};
+
+/** Every numeric row is an operator and a number, so "cost under 3" and
+ * "exactly 2 Water" are each two choices. The values are the parser's own. */
+const OPERATORS = [
+  { op: ':', label: 'exactly' },
+  { op: '<=', label: 'at most' },
+  { op: '>=', label: 'at least' },
+  { op: '<', label: 'under' },
+  { op: '>', label: 'over' },
+  { op: '!=', label: 'not' },
+];
+const numbers: { label: string; key: string; max: number; hint?: string }[] = [
+  { label: 'Mana cost', key: 'cost', max: maxima.cost, hint: 'type cost:x for the cards with no fixed cost' },
+  { label: 'Threshold total', key: 'thr', max: maxima.thr, hint: 'the four element requirements added up' },
+  { label: 'Air threshold', key: 'air', max: maxima.element },
+  { label: 'Earth threshold', key: 'earth', max: maxima.element },
+  { label: 'Fire threshold', key: 'fire', max: maxima.element },
+  { label: 'Water threshold', key: 'water', max: maxima.element },
+  { label: 'Attack', key: 'atk', max: maxima.atk },
+  { label: 'Defense', key: 'def', max: maxima.def },
+  { label: 'Power', key: 'pow', max: maxima.pow, hint: 'attack when attack equals defense, otherwise the average rounded down' },
+  { label: 'Life', key: 'life', max: maxima.life, hint: 'Avatars only' },
+];
+const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', threshold: 'Threshold total',
+  power: 'Power', atk: 'Attack', def: 'Defense', life: 'Life', set: 'Set', date: 'Release date', rarity: 'Rarity', type: 'Type' };
 ---
 <Base title="Advanced search" canonical="/advanced">
-  <p class="eyebrow">Find your next card</p><h1>Advanced search</h1><p class="intro">Build a query with a few choices, then share the results.</p>
+  <p class="eyebrow">Find your next card</p><h1>Advanced search</h1>
+  <p class="intro">Every choice writes a term into the query box, so you can see exactly what you asked for, edit it by hand, and share the URL you end up with.</p>
   <form action="/search" method="get" class="advanced-form" id="advanced-form">
-    <label for="advanced-query">Search query</label><input style="width:100%" id="advanced-query" name="q" placeholder="Enter a query or use the fields below" />
-    <div class="advanced-fields" id="advanced-fields" hidden>
-      <label>Card name<input data-key={nameKey.aliases[0]} type="text" /></label>
-      <label>Rules contain<input data-key={rulesKey.aliases[0]} type="text" /></label>
-      {selectKeys.map(k => <label>{k.name.charAt(0).toUpperCase() + k.name.slice(1)}<select data-key={k.aliases[0]}><option value="">Any</option>{k.values?.map(value => <option value={value}>{value}</option>)}</select></label>)}
-      <label>Set<select data-key={setKey.aliases[0]}><option value="">Any set</option>{registry.sets.map(s => <option value={s.set_code ?? s.set_name}>{s.set_name}</option>)}</select></label>
-      <label>Maximum cost<input type="number" min="0" step="1" data-key={costKey.aliases[0]} data-operator="<=" /></label>
-      <fieldset class="element-picker" id="element-picker">
-        <legend>Elements</legend>
-        <div class="boxes">{(elementKey.values ?? []).filter(v => v !== 'None').map(value => (
-          <label class="box"><input type="checkbox" data-element value={value} />{value}</label>
-        ))}</div>
-        <label class="mode">Match<select id="element-mode"><option value="+">all of the ticked elements</option><option value=",">any of the ticked elements</option></select></label>
+    <label class="query-label" for="advanced-query">Search query</label>
+    <input id="advanced-query" name="q" placeholder="Enter a query or use the fields below" />
+    <div id="advanced-fields" hidden>
+
+      <fieldset>
+        <legend>Card</legend>
+        <div class="grid-fields">
+          <label class="field">Name<input data-key="n" type="text" placeholder="polar bears" /></label>
+          <label class="field">Rules contain<input data-key="r" type="text" placeholder="draw a spell" /></label>
+          <label class="field">Type<select data-key="t"><option value="">Any type</option>{key('type').values?.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Rarity<select data-key="rarity"><option value="">Any rarity</option>{key('rarity').values?.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Subtype<select data-key="sub"><option value="">Any subtype</option>{subtypes.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Keyword<select data-key="k"><option value="">Any keyword</option>{keywords.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Group<select data-key="u"><option value="">Any group</option>{umbrellas.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Errata<select data-key="is">
+            <option value="">Any card</option>
+            <option value={flag('errata').name}>Changed since printing</option>
+            <option value={flag('errata').name} data-negate>Unchanged since printing</option>
+          </select></label>
+        </div>
       </fieldset>
-      <label>How many elements<select data-key="is"><option value="">Any number</option><option value={multi.name}>Two or more elements</option><option value={mono.name}>Exactly one element</option><option value="none" data-key-override="e">No element</option></select></label>
-      <label>Errata<select data-key="is"><option value="">Any card</option><option value={errata.name}>Cards with errata</option></select></label>
+
+      <fieldset>
+        <legend>Elements</legend>
+        <div class="boxes">{(key('element').values ?? []).filter(v => v !== 'None').map(v => (
+          <label class="box"><input type="checkbox" data-element value={v} />{v}</label>
+        ))}</div>
+        <div class="grid-fields">
+          <label class="field" for="element-mode">Match<select id="element-mode">
+            <option value="+">every ticked element</option>
+            <option value=",">any one of them</option>
+            <option value="=">exactly those, no others</option>
+          </select></label>
+          <label class="field">How many elements<select data-key="is">
+            <option value="">Any number</option>
+            <option value={flag('multi-element').name}>Two or more (multi-element)</option>
+            <option value={flag('mono-element').name}>Exactly one</option>
+            <option value="none" data-key-override="e">None at all</option>
+          </select></label>
+        </div>
+        <p class="hint">Water and Fire with <em>every ticked element</em> is <code>e:Water+Fire</code>, the cards that have both and maybe more; <em>exactly those</em> is <code>e=Water+Fire</code>, which drops anything with a third element.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Cost, thresholds and stats</legend>
+        <div class="grid-fields">
+          {numbers.map(n => (
+            <label class="field numeric">
+              {n.label}
+              <span class="row">
+                <select data-op aria-label={`${n.label} comparison`}>{OPERATORS.map(o => <option value={o.op}>{o.label}</option>)}</select>
+                <input type="number" min="0" max={n.max} step="1" data-key={n.key} aria-label={`${n.label} value`} />
+              </span>
+              {n.hint && <small class="hint">{n.hint}</small>}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Printing</legend>
+        <div class="grid-fields">
+          <label class="field">Set<select data-key="s"><option value="">Any set</option>{sets.map(s => <option value={s.set_code ?? s.set_name}>{s.set_name}</option>)}</select></label>
+          <label class="field">Product<select data-key="pro"><option value="">Any product</option>{key('product').values?.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Finish<select data-key="f"><option value="">Any finish</option>{key('finish').values?.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Artist<select data-key="a"><option value="">Any artist</option>{artists.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field numeric">Released
+            <span class="row">
+              <select data-op aria-label="Release year comparison">{OPERATORS.map(o => <option value={o.op}>{o.label}</option>)}</select>
+              <select data-key="year" aria-label="Release year"><option value="">Any year</option>{years.map(y => <option value={y}>{y}</option>)}</select>
+            </span>
+          </label>
+          <label class="field">Image<select data-key="has"><option value="">Any printing</option><option value={HAS_FLAGS.find(f => f.name === 'image')!.name}>Has an image</option></select></label>
+        </div>
+        <p class="hint">Printing choices are judged one printing at a time: <code>s:006 f:Foil</code> asks for a printing that is both, not a card that is in Gothic and foil somewhere else.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Results</legend>
+        <div class="grid-fields">
+          <label class="field">Show<select data-key="unique">
+            <option value="">One row per card</option>
+            <option value="prints">One row per printing</option>
+            <option value="art">One row per artwork</option>
+          </select></label>
+          <label class="field">Sort by<select data-key="sort"><option value="">Name</option>{SORT_FIELDS.filter(f => f !== 'name').map(f => <option value={f}>{SORT_LABELS[f] ?? f}</option>)}</select></label>
+          <label class="field">Order<select data-key="order"><option value="">Default</option><option value="asc">Ascending</option><option value="desc">Descending</option></select></label>
+        </div>
+      </fieldset>
+
+      <p class="reset-row"><button type="button" id="reset-fields">Clear every field</button></p>
     </div>
-    <p id="query-hint" class="muted">Use the <a href="/syntax">search syntax reference</a> for all supported keys.</p>
+    <p class="muted">Anything you can pick here you can also type: the <a href="/syntax">syntax reference</a> lists every key, its operators and the value lists (<code>e:water,fire</code>) in full.</p>
     <button type="submit">Search cards →</button>
   </form>
   <script>
+    import { buildQuery, elementTerm, term, type ElementMode } from '../search/builder';
+
     const form = document.querySelector<HTMLFormElement>('#advanced-form')!;
     const query = document.querySelector<HTMLInputElement>('#advanced-query')!;
     const fields = document.querySelector<HTMLElement>('#advanced-fields')!;
@@ -45,37 +166,53 @@ const elementKey = KEYS.find(k => k.name === 'element')!;
     let lastGenerated = '';
     const controls = Array.from(fields.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-key]'));
     const boxes = Array.from(fields.querySelectorAll<HTMLInputElement>('input[data-element]'));
+    const ops = Array.from(fields.querySelectorAll<HTMLSelectElement>('[data-op]'));
     const mode = document.querySelector<HTMLSelectElement>('#element-mode')!;
-    // Ticking two or more elements builds a value list: + needs every one of
-    // them on the card, , takes any. One tick is a plain e: term.
-    function elementTerm() {
-      const picked = boxes.filter(b => b.checked).map(b => b.value);
-      if (picked.length === 0) return [];
-      return [`e:${picked.join(picked.length > 1 ? mode.value : '')}`];
+    const reset = document.querySelector<HTMLButtonElement>('#reset-fields')!;
+
+    // The query text itself is built by src/search/builder.ts, which is unit
+    // tested against the parser: the form cannot emit a query the language
+    // does not accept.
+    function termFor(control: HTMLInputElement | HTMLSelectElement): string {
+      // An option can emit a different key ("None at all" is e:none, not a
+      // flag) or negate itself (is:errata becomes -is:errata).
+      const selected = control instanceof HTMLSelectElement ? control.selectedOptions[0] : null;
+      // A numeric row carries its operator in the select beside it.
+      const chosen = control.closest('.numeric')?.querySelector<HTMLSelectElement>('[data-op]');
+      return term({
+        key: selected?.dataset.keyOverride ?? control.dataset.key ?? '',
+        op: chosen?.value ?? control.dataset.operator ?? ':',
+        value: control.value,
+        negate: selected?.dataset.negate !== undefined,
+      });
     }
+
     function update() {
       if (query.value !== lastGenerated) baseQuery = query.value.trim();
-      const terms = controls.flatMap(control => {
-        const value = control.value.trim();
-        if (!value) return [];
-        // One option can emit a different key: "No element" is e:none, not a flag.
-        const selected = control instanceof HTMLSelectElement ? control.selectedOptions[0] : null;
-        const key = selected?.dataset.keyOverride ?? control.dataset.key;
-        const operator = control.dataset.operator;
-        return [`${key}${operator ?? ':'}${operator ? value : JSON.stringify(value)}`];
-      });
-      lastGenerated = [baseQuery, ...elementTerm(), ...terms].filter(Boolean).join(' ');
+      const picked = boxes.filter(b => b.checked).map(b => b.value);
+      lastGenerated = buildQuery(baseQuery, [elementTerm(picked, mode.value as ElementMode), ...controls.map(termFor)]);
       query.value = lastGenerated;
     }
-    query.addEventListener('input', () => {
-      baseQuery = query.value.trim();
+
+    function clearFields() {
       controls.forEach(c => { c.value = ''; });
       boxes.forEach(b => { b.checked = false; });
+      ops.forEach(s => { s.selectedIndex = 0; });
+      mode.selectedIndex = 0;
+    }
+
+    // Typing in the box takes over: the fields clear, and what you typed
+    // becomes the base that later choices are appended to.
+    query.addEventListener('input', () => {
+      baseQuery = query.value.trim();
+      clearFields();
       lastGenerated = query.value;
     });
     controls.forEach(control => control.addEventListener('input', update));
+    ops.forEach(op => op.addEventListener('input', update));
     boxes.forEach(box => box.addEventListener('change', update));
     mode.addEventListener('input', update);
+    reset.addEventListener('click', () => { clearFields(); baseQuery = ''; update(); });
     form.addEventListener('submit', update);
   </script>
 </Base>
