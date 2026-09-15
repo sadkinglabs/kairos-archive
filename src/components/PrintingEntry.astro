@@ -1,6 +1,7 @@
 ---
 import { changedFields, historySource, printingPath, rowInForce, setPath, showsCurrentValues, type RegistryCard, type RegistryPrinting, type HistoryRow } from '../data/registry';
 import FaceDiff from './FaceDiff.astro';
+import ImageAddresses from './ImageAddresses.astro';
 import ValueDiff from './ValueDiff.astro';
 interface Props { printing: RegistryPrinting; card: RegistryCard; history: HistoryRow[]; names: { name: string; valid_from: string; valid_to: string | null }[] }
 const { printing: p, card, history, names } = Astro.props;
@@ -26,5 +27,5 @@ const hasDiff = row && (changedFields(row, card).length || changedFields(row.bac
     <FaceDiff before={row} after={card} beforeLabel="Printed values" afterLabel="Current values" />
     {changedFields(row.back, card.back).length > 0 && <><h4>Back face</h4><FaceDiff before={row.back} after={card.back} beforeLabel="Printed values" afterLabel="Current values" /></>}
   </details>}
-  <details class="disclosure printing-source"><summary>Printing data</summary><dl class="facts"><dt>Current slug</dt><dd><code>{p.slug}</code></dd><dt>Shows current values</dt><dd>{verdict.long}</dd><dt>JSON record</dt><dd><a href={p.api_url}>View JSON</a></dd></dl></details>
+  <details class="disclosure printing-source"><summary>Printing data</summary><dl class="facts"><dt>Current slug</dt><dd><code>{p.slug}</code></dd><dt>Shows current values</dt><dd>{verdict.long}</dd><dt>JSON record</dt><dd><a href={p.api_url}>View JSON</a></dd></dl><ImageAddresses urls={p.image_urls} back={p.back?.image_urls} name={`${card.name}, ${p.set_name} ${p.finish ?? ''}`.trim()} /></details>
 </article>

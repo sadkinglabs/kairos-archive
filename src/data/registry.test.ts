@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { changedFields, fetchWithRetry, historySource, orderedSets, rowInForce, setFace,
-         SET_FACES, showsCurrentValues, type RegistryPrinting, type RegistrySet } from "./registry";
+         SET_FACES, showsCurrentValues, officialCardUrl, type RegistryPrinting, type RegistrySet } from "./registry";
 
 describe("rowInForce", () => {
   const rows = [
@@ -151,5 +151,21 @@ describe("setFace", () => {
   });
   it("is null when the set has no served printing at all", () => {
     expect(setFace(gothic, [aPrinting({ printing_id: "P1", set_code: "006", image_status: "missing", image_urls: null })])).toBeNull();
+  });
+});
+
+describe("the publisher's own card page", () => {
+  it("reads the slug the publisher issued, rather than guessing at the name", () => {
+    expect(officialCardUrl({ slug: "001-vile_imp-b-s" })).toBe("https://sorcerytcg.com/cards/vile_imp");
+    // The cases a name-derived rule gets wrong: an apostrophe is dropped,
+    // not turned into a separator, and a diacritic is folded.
+    expect(officialCardUrl({ slug: "001-mariners_curse-b-s" })).toBe("https://sorcerytcg.com/cards/mariners_curse");
+    expect(officialCardUrl({ slug: "004-alvalinne_dryads-b-f" })).toBe("https://sorcerytcg.com/cards/alvalinne_dryads");
+  });
+  it("has nothing to link to without a printing, or without a name in the slug", () => {
+    expect(officialCardUrl(null)).toBeNull();
+    expect(officialCardUrl(undefined)).toBeNull();
+    expect(officialCardUrl({ slug: "vile_imp" })).toBeNull();
+    expect(officialCardUrl({ slug: "001--b-s" })).toBeNull();
   });
 });

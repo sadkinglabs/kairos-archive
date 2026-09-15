@@ -5,7 +5,7 @@ import FaceFacts from '../../../components/FaceFacts.astro';
 import RecordActions from '../../../components/RecordActions.astro';
 import PrintingEntry from '../../../components/PrintingEntry.astro';
 import CardHistory from '../../../components/CardHistory.astro';
-import { cardPath, loadRegistry, slugify, views } from '../../../data/registry';
+import { cardPath, loadRegistry, officialCardUrl, slugify, views } from '../../../data/registry';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
   return registry.cards.map(card => ({ params: { id: card.codex_id, slug: slugify(card.name) }, props: { card } }));
@@ -17,6 +17,7 @@ const printings = [...(v.printingsByCard.get(card.codex_id) ?? [])].sort((a, b) 
 const defaultPrinting = printings.find(p => p.printing_id === card.default_printing_id) ?? printings[0] ?? null;
 const history = v.historyByCard.get(card.codex_id) ?? [];
 const names = v.namesByCard.get(card.codex_id) ?? [];
+const official = officialCardUrl(defaultPrinting);
 ---
 <Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}>
   <div class="card-overview">
@@ -29,7 +30,7 @@ const names = v.namesByCard.get(card.codex_id) ?? [];
         <pre class="rules">{card.rules_text || 'No rules text'}</pre>
       </section>
       {card.back && <section><h2>Back face · current rules</h2><p class="muted">{[card.back.type, ...card.back.subtypes].filter(Boolean).join(' · ')}</p><pre class="rules">{card.back.rules_text || 'No rules text'}</pre><FaceFacts face={card.back} /></section>}
-      <RecordActions id={card.codex_id} url={card.api_url} />
+      <RecordActions id={card.codex_id} url={card.api_url} official={official} />
       <nav class="section-links" aria-label="On this card"><a href="#printings">{printings.length} printings ↓</a><a href="#history">History ↓</a><a href="/docs/cards">Data documentation</a></nav>
     </div>
   </div>
