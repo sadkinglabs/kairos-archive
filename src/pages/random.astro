@@ -1,10 +1,14 @@
 ---
-/** A door, not a page. The pick is in the browser because the site is
- * static, but nothing about it needs the network: the 1,100 card paths are
- * written into this page at build time and the redirect runs from <head>,
- * before the body is parsed, so the browser goes straight to the card.
- * replace(), not assign(), so Back returns where you came from rather than
- * rolling again. */
+/** A door, not a page - and the fallback one. In production the Pages
+ * Function at functions/random.ts claims /random first and answers with a
+ * 302; this page serves only if that fails, and is what `astro build`
+ * verifies either way.
+ *
+ * The pick here is in the browser, but nothing about it needs the network:
+ * the 1,100 card paths are written into the page at build time and the
+ * redirect runs from <head>, before the body is parsed, so the browser
+ * goes straight to the card. replace(), not assign(), so Back returns
+ * where you came from rather than rolling again. */
 import Base from '../layouts/Base.astro';
 import { loadRegistry, cardPath } from '../data/registry';
 const { registry } = await loadRegistry();
