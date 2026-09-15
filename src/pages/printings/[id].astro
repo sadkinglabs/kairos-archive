@@ -3,6 +3,7 @@ import Base from '../../layouts/Base.astro';
 import CardArt from '../../components/CardArt.astro';
 import RecordActions from '../../components/RecordActions.astro';
 import PrintingEntry from '../../components/PrintingEntry.astro';
+import ImageAddresses from '../../components/ImageAddresses.astro';
 import HistoryHelp from '../../components/HistoryHelp.astro';
 import { cardPath, loadRegistry, officialCardUrl, printingPath, setPath, showsCurrentValues, views } from '../../data/registry';
 export async function getStaticPaths() {
@@ -37,6 +38,7 @@ const verdict = showsCurrentValues(printing);
       </dl>
       <RecordActions id={printing.printing_id} url={printing.api_url} label="Printing ID" official={officialCardUrl(printing)} />
       <RecordActions id={card.codex_id} label="Card ID" />
+      <details class="disclosure"><summary>Image addresses</summary><ImageAddresses urls={printing.image_urls} back={printing.back?.image_urls} name={card.name} heading={false} /></details>
       {printing.back && <section><h2>Back face</h2><dl class="facts"><dt>Artist</dt><dd>{printing.back.artist ?? 'Unrecorded'}</dd><dt>Typeline</dt><dd>{printing.back.typeline || '—'}</dd>{printing.back.flavour_text && <><dt>Flavour</dt><dd>{printing.back.flavour_text}</dd></>}</dl></section>}
     </div>
   </div>

@@ -1,0 +1,29 @@
+---
+/** Where a printing's art actually lives, and how the addresses are built.
+ *
+ * Three of the four renditions differ by a single word, so the pattern is
+ * shown once rather than four near-identical URLs stacked up - which also
+ * says, without a paragraph, that an address names a printing and a
+ * version of its bytes. The original keeps the publisher's own format, so
+ * it breaks the pattern and gets its own line.
+ *
+ * Every button copies the whole URL; the pattern is there to be read. */
+import { RENDITIONS, imagePattern } from '../data/images';
+interface Props { urls?: Record<string, string> | null; back?: Record<string, string> | null; name: string; heading?: boolean }
+const { urls, back, name, heading = true } = Astro.props;
+const faces = [
+  { label: null, urls },
+  { label: 'Back face', urls: back ?? null },
+].filter((face): face is { label: string | null; urls: Record<string, string> } => Boolean(face.urls));
+---
+{faces.length > 0 && <div class="image-addresses">
+  {heading && <h4>Image addresses</h4>}
+  {faces.map(face => <div class="face-addresses">
+    {face.label && <p class="eyebrow muted">{face.label}</p>}
+    {imagePattern(face.urls) && <p class="pattern"><code>{imagePattern(face.urls)}</code></p>}
+    <div class="address-buttons">{RENDITIONS.filter(r => face.urls[r.key]).map(r =>
+      <button class="copy" data-copy={face.urls[r.key]} aria-label={`Copy the ${r.key} image address for ${name}${face.label ? ', back face' : ''}`}>{r.key} <span class="muted">{r.note}</span></button>
+    )}</div>
+  </div>)}
+  <p class="muted note">An address names the printing and a digest of these exact bytes, so it never points at anything else. New art, or a new encoding, gets a new address.</p>
+</div>}
