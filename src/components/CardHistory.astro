@@ -1,0 +1,22 @@
+---
+import { changedFields, historySource, type HistoryRow } from '../data/registry';
+import FaceDiff from './FaceDiff.astro';
+import FaceFacts from './FaceFacts.astro';
+import HistoryHelp from './HistoryHelp.astro';
+interface Props { rows: HistoryRow[]; names?: { name: string; valid_from: string; valid_to: string | null }[] }
+const { rows, names = [] } = Astro.props;
+const history = [...rows].sort((a, b) => a.valid_from.localeCompare(b.valid_from));
+---
+<HistoryHelp />
+<div class="timeline">
+  {history.map((row, i) => { const prev = i > 0 ? history[i - 1] : null; const source = historySource(row); return <article class="row">
+    <div class="when"><strong>{source.fromCard ? 'Read from the printed card' : `Recorded on ${row.valid_from}`}</strong><span class="badge">{row.valid_to ? 'Earlier record' : 'Latest record'}</span></div>
+    <p class="source-note">{source.fromCard ? `In force from ${row.valid_from}` : source.label}{row.valid_to ? ` · range ends ${row.valid_to}` : ' · open-ended range'}{i === 0 && !source.fromCard && ' · initial record'}</p>
+    {prev ? <>
+      {changedFields(prev, row).length + changedFields(prev.back, row.back).length === 0 && <p class="muted">No gameplay change.</p>}
+      <FaceDiff before={prev} after={row} />
+      {changedFields(prev.back, row.back).length > 0 && <><h4>Back face</h4><FaceDiff before={prev.back} after={row.back} /></>}
+    </> : <details class="disclosure"><summary>View initial values</summary><pre class="rules">{row.rules_text || 'No rules text'}</pre><FaceFacts face={row} />{row.back && <><h4>Back face</h4><pre class="rules">{row.back.rules_text || 'No rules text'}</pre><FaceFacts face={row.back} /></>}</details>}
+  </article>; })}
+</div>
+{names.length > 1 && <section><h3>Name history</h3><ul>{names.map(n => <li><strong>{n.name}</strong><span class="source-note"> Recorded on {n.valid_from} · {n.valid_to ? `range ends ${n.valid_to}` : 'open-ended range'}</span></li>)}</ul></section>}

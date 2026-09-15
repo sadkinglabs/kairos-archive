@@ -1,114 +1,40 @@
 ---
-import Base from "../../../layouts/Base.astro";
-import { changedFields, cardPath, formatValue, historySource, loadRegistry, printingPath, rowInForce, setPath, showsCurrentValues, slugify, views, FACE_FIELDS, type Face, type HistoryRow, type RegistryPrinting } from "../../../data/registry";
-
+import Base from '../../../layouts/Base.astro';
+import CardArt from '../../../components/CardArt.astro';
+import FaceFacts from '../../../components/FaceFacts.astro';
+import RecordActions from '../../../components/RecordActions.astro';
+import PrintingEntry from '../../../components/PrintingEntry.astro';
+import CardHistory from '../../../components/CardHistory.astro';
+import { cardPath, loadRegistry, slugify, views } from '../../../data/registry';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
-  return registry.cards.map((card) => ({ params: { id: card.codex_id, slug: slugify(card.name) }, props: { card } }));
+  return registry.cards.map(card => ({ params: { id: card.codex_id, slug: slugify(card.name) }, props: { card } }));
 }
 const { card } = Astro.props;
 const { registry } = await loadRegistry();
 const v = views(registry);
 const printings = [...(v.printingsByCard.get(card.codex_id) ?? [])].sort((a, b) => a.printing_id.localeCompare(b.printing_id));
-const defaultPrinting = printings.find((p) => p.printing_id === card.default_printing_id) ?? printings[0] ?? null;
+const defaultPrinting = printings.find(p => p.printing_id === card.default_printing_id) ?? printings[0] ?? null;
 const history = v.historyByCard.get(card.codex_id) ?? [];
 const names = v.namesByCard.get(card.codex_id) ?? [];
-const thresholds = [["Air", card.thr_air], ["Earth", card.thr_earth], ["Fire", card.thr_fire], ["Water", card.thr_water]].filter(([, n]) => (n as number) > 0);
-const faceRows = (face: Face) => FACE_FIELDS.filter((f) => !["rules_text"].includes(f)).map((f) => [f, formatValue(face[f])]);
-
-// A printing whose printed_as_current is false was printed with an
-// earlier state of the card's gameplay face. That state is the history
-// row in force on the printing's released_at (see rowInForce) — the same
-// row a browser reading history/cards.json would match by date range.
-interface AsPrinted { row: HistoryRow; nameRow: { name: string; valid_from: string; valid_to: string | null } | null; nameChanged: boolean; changed: string[]; backChanged: string[] }
-function asPrintedFor(p: RegistryPrinting): AsPrinted | null {
-  if (p.printed_as_current !== false || !p.released_at) return null;
-  const row = rowInForce(history, p.released_at);
-  if (!row) return null;
-  const nameRow = rowInForce(names, p.released_at);
-  const nameChanged = nameRow !== null && nameRow.name !== card.name;
-  const changed = changedFields(row, card);
-  const backChanged = changedFields(row.back, card.back);
-  if (changed.length + backChanged.length === 0 && !nameChanged) return null;
-  return { row, nameRow, nameChanged, changed, backChanged };
-}
-const hasAsPrinted = printings.some((p) => p.printed_as_current === false);
 ---
-<Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ""} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}>
-  <div class="two">
-    <div>
-      {card.image_urls ? <img class="card-img" src={card.image_urls.normal} width="488" height="680" alt={card.name} /> : <div class="placeholder">No image held for {card.name}</div>}
-      {card.image_urls && <p class="muted"><a href={card.image_urls.large}>large</a> · <a href={card.image_urls.original}>original</a>{card.image_status === "lowres" && " · low-resolution source, upscaled"}</p>}
-      {defaultPrinting?.back?.image_urls && <img class="card-img" src={defaultPrinting.back.image_urls.normal} width="488" height="680" alt={`${card.name}, back face`} />}
-    </div>
-    <div>
-      <h1>{card.name} {card.errata && <span class="badge errata" title="Text or stats changed since printing">errata</span>}</h1>
-      <p class="muted">{card.type}{card.subtypes.length ? ` — ${card.subtypes.join(", ")}` : ""} · {card.rarity ?? "no rarity"} · {card.elements.join(", ")}</p>
-      <dl class="facts">
-        <dt>codex_id</dt><dd><code>{card.codex_id}</code> <button class="copy" data-copy={card.codex_id}>copy</button></dd>
-        {card.cost !== null && <><dt>Cost</dt><dd>{card.cost}</dd></>}
-        {card.attack !== null && <><dt>Attack / Defense</dt><dd>{card.attack} / {card.defense} <span class="muted">(power {card.power})</span></dd></>}
-        {card.life !== null && <><dt>Life</dt><dd>{card.life}</dd></>}
-        {thresholds.length > 0 && <><dt>Thresholds</dt><dd>{thresholds.map(([e, n]) => `${e} ${n}`).join(", ")}</dd></>}
-        {card.keywords.length > 0 && <><dt>Keywords</dt><dd>{card.keywords.join(", ")}</dd></>}
-        {card.umbrellas.length > 0 && <><dt>Umbrellas</dt><dd>{card.umbrellas.join(", ")}</dd></>}
-        <dt>Category</dt><dd>{card.category} <span class="muted">· slot {card.slot ?? "none"}</span></dd>
-      </dl>
-      <h2>Rules</h2>
-      <pre class="rules">{card.rules_text || "—"}</pre>
-      {card.back && <>
-        <h2>Back face</h2>
-        <p class="muted">{card.back.type}{card.back.subtypes.length ? ` — ${card.back.subtypes.join(", ")}` : ""}</p>
-        <pre class="rules">{card.back.rules_text || "—"}</pre>
-        <dl class="facts">{faceRows(card.back).filter(([, val]) => val !== "—").map(([f, val]) => <><dt>{f}</dt><dd>{val}</dd></>)}</dl>
-      </>}
-      <p><a href={card.api_url}>JSON</a> · registry object for this card</p>
+<Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}>
+  <div class="card-overview">
+    <div class="card-heading"><p class="eyebrow">The card archive</p><h1>{card.name} {card.errata && <span class="badge errata">Errata</span>}</h1><p class="intro">{[card.rarity, card.type, ...card.subtypes, ...card.elements].filter(Boolean).join(' · ')}</p></div>
+    <div class="art-column"><CardArt urls={card.image_urls} status={card.image_status} name={card.name} />{defaultPrinting?.back && <CardArt urls={defaultPrinting.back.image_urls} status={defaultPrinting.image_status} name={`${card.name}, back face`} back />}</div>
+    <div class="card-content">
+      <FaceFacts face={card} />
+      <section id="rules"><h2>Current rules</h2>
+        {card.errata && <div class="errata-notice"><span>{defaultPrinting?.printed_as_current === false ? 'This printing shows earlier values.' : 'This card has recorded errata.'}</span><a href="#history">See history →</a></div>}
+        <pre class="rules">{card.rules_text || 'No rules text'}</pre>
+      </section>
+      {card.back && <section><h2>Back face · current rules</h2><p class="muted">{[card.back.type, ...card.back.subtypes].filter(Boolean).join(' · ')}</p><pre class="rules">{card.back.rules_text || 'No rules text'}</pre><FaceFacts face={card.back} /></section>}
+      <RecordActions id={card.codex_id} url={card.api_url} />
+      <nav class="section-links" aria-label="On this card"><a href="#printings">{printings.length} printings ↓</a><a href="#history">History ↓</a><a href="/docs/cards">Data documentation</a></nav>
     </div>
   </div>
-
-  <h2>Printings</h2>
-  {hasAsPrinted && <p class="muted">A printing marked "older values" shows what it looked like as printed — expand "As printed" for the differences. A face the registry observed in the official API is dated <em>recorded on</em>: when the registry detected the change, not necessarily when the publisher made it. A face transcribed from the printed card, which the API never served, runs from the release of the first printing that shows it.</p>}
-  <div class="table-wrap"><table>
-    <thead><tr><th>Set</th><th>Product</th><th>Finish</th><th>Artist</th><th>Released</th><th>Shows current values</th><th>printing_id</th><th>Slug</th><th>Image</th></tr></thead>
-    <tbody>{printings.map((p) => { const ap = asPrintedFor(p); return (<>
-      <tr>
-        <td><a href={setPath(p)}>{p.set_name}</a></td><td>{p.product}</td><td>{p.finish}</td><td>{p.artist}</td><td>{p.released_at ?? "—"}</td>
-        <td>{(() => { const v = showsCurrentValues(p); return v.verdict === "yes" ? <span class="badge ok">{v.short}</span> : <span class="badge" title={v.long}>{v.short}</span>; })()}{p.retired_at && <span class="badge">retired {p.retired_at}</span>}</td>
-        <td><a href={printingPath(p)}><code>{p.printing_id}</code></a>{p.printing_id === card.default_printing_id && <span class="badge" title="default printing">default</span>}</td>
-        <td><code>{p.slug}</code></td>
-        <td>{p.image_urls ? <a href={printingPath(p)}><img class="card-img" src={p.image_urls.small} width="73" height="102" alt="" loading="lazy" /></a> : <span class="muted">none</span>}</td>
-      </tr>
-      {ap && <tr class="as-printed-row"><td colspan="9">
-        <details class="as-printed">
-          <summary>As printed <span class="muted">({historySource(ap.row).fromCard
-            ? <>read from the printed card; the current text dates from {ap.row.valid_to}</>
-            : <>recorded on {ap.row.valid_from}</>})</span></summary>
-          <ul class="diff">
-            {ap.nameChanged && <li><strong>name</strong>: <del>{ap.nameRow!.name}</del> <ins>{card.name}</ins> <span class="muted">(recorded on {ap.nameRow!.valid_from})</span></li>}
-            {ap.changed.map((f) => <li><strong>{f}</strong>: <del>{formatValue(ap.row[f as keyof Face])}</del> <ins>{formatValue(card[f as keyof Face])}</ins></li>)}
-            {ap.backChanged.length > 0 && (ap.backChanged.includes("face")
-              ? <li><strong>back face</strong>: {ap.row.back ? "present as printed, now absent" : "absent as printed, now present"}</li>
-              : <li><strong>back face</strong>: {ap.backChanged.map((f, i) => <>{i > 0 && "; "}<strong>{f}</strong>: <del>{formatValue(ap.row.back![f as keyof Face])}</del> <ins>{formatValue(card.back![f as keyof Face])}</ins></>)}</li>)}
-          </ul>
-        </details>
-      </td></tr>}
-    </>); })}</tbody>
-  </table></div>
-
-  <h2>History</h2>
-  <p class="muted">Every state the card's gameplay face has been in. Dates on a face observed in the official API are <em>recorded on</em>: the sync that detected the change, not necessarily when the publisher made it. A face marked <em>read from the printed card</em> was never served by the API — a maintainer transcribed it from the card, and it runs from the release of the first printing that shows it until the current face took over. Otherwise the first row stands for everything before the registry began recording.</p>
-  <div class="timeline">
-    {history.map((row, i) => { const prev = i > 0 ? history[i - 1] : null; const changed = prev ? changedFields(prev, row) : []; const backChanged = prev ? changedFields(prev.back, row.back) : []; return (
-      <div class="row">
-        <div class="when">{row.valid_from}{row.valid_to ? ` → ${row.valid_to}` : " → now"}{i === 0 && !historySource(row).fromCard && " · initial record"}
-          {historySource(row).fromCard && <span class="badge" title="Transcribed from the card; the official API never served this text">read from the printed card</span>}</div>
-        {prev ? (changed.length + backChanged.length === 0 ? <div class="muted">no gameplay change</div> :
-          <ul class="diff">{changed.map((f) => <li><strong>{f}</strong>: <del>{formatValue(prev![f as keyof Face])}</del> <ins>{formatValue(row[f as keyof Face])}</ins></li>)}{backChanged.length > 0 && <li><strong>back face</strong>: {backChanged.join(", ")} changed</li>}</ul>)
-        : <div>{row.type} · cost {formatValue(row.cost)} · {formatValue(row.attack)}/{formatValue(row.defense)} · <span class="muted">{row.rules_text.slice(0, 120)}</span></div>}
-      </div>); })}
-    {names.length > 1 && <div class="row"><div class="when">names</div><ul>{names.map((n) => <li>{n.name} <span class="muted">{n.valid_from} → {n.valid_to ?? "now"}</span></li>)}</ul></div>}
-  </div>
-  <script>
-    document.querySelectorAll<HTMLButtonElement>(".copy").forEach((b) => b.addEventListener("click", async () => { await navigator.clipboard.writeText(b.dataset.copy ?? ""); b.textContent = "copied"; setTimeout(() => (b.textContent = "copy"), 1200); }));
-  </script>
+  <section id="printings" class="page-section"><div class="section-heading"><h2>Printings</h2><span class="muted">{printings.length} archived</span></div><p class="muted">Each set, product and finish has a permanent printing ID.</p>
+    <div class="printing-list">{printings.map(p => <PrintingEntry printing={p} card={card} history={history} names={names} />)}</div>
+  </section>
+  <section id="history" class="page-section"><h2>Card history</h2><CardHistory rows={history} names={names} /></section>
 </Base>

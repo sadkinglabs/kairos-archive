@@ -1,20 +1,28 @@
 ---
-import Base from "../../layouts/Base.astro";
-import CardTile from "../../components/CardTile.astro";
-import { loadRegistry, setPath, views } from "../../data/registry";
+import Base from '../../layouts/Base.astro';
+import CardTile from '../../components/CardTile.astro';
+import RecordActions from '../../components/RecordActions.astro';
+import { loadRegistry, setPath, views } from '../../data/registry';
+import { KEYS, UNITS } from '../../search/keys';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
-  return registry.sets.map((set) => ({ params: { code: set.set_code ?? "none" }, props: { set } }));
+  return registry.sets.map(set => ({ params: { code: set.set_code ?? 'none' }, props: { set } }));
 }
 const { set } = Astro.props;
 const { registry } = await loadRegistry();
 const v = views(registry);
 const members = new Map<string, typeof registry.printings>();
 for (const p of registry.printings) if (p.set_code === set.set_code) members.set(p.codex_id, [...(members.get(p.codex_id) ?? []), p]);
-const cards = [...members.keys()].map((id) => v.cardById.get(id)!).sort((a, b) => a.name.localeCompare(b.name));
+const cards = [...members.keys()].map(id => v.cardById.get(id)!).sort((a, b) => a.name.localeCompare(b.name));
+const groups = [...new Set(cards.map(c => c.type ?? 'Other'))].sort().map((type, index) => ({ type, id: `type-${index}`, cards: cards.filter(c => (c.type ?? 'Other') === type) }));
+const setKey = KEYS.find(k => k.name === 'set')!.aliases[0];
+const query = `${setKey}:${JSON.stringify(set.set_code ?? set.set_name)} unique:${UNITS.find(u => u === 'prints')}`;
 ---
 <Base title={set.set_name} canonical={setPath(set)}>
-  <h1>{set.set_name} <span class="muted">· {set.set_code}</span></h1>
-  <p class="muted">{set.cards} cards, {set.printings} printings, first released {set.released_at ?? "—"}. Ordered by name: the official data has no collector numbers. <a href={`/search?q=s%3A${set.set_code}+unique%3Aprints`}>Every printing as a search</a>.</p>
-  <div class="grid">{cards.map((c) => <CardTile card={c} printing={members.get(c.codex_id)![0]} />)}</div>
+  <p class="eyebrow"><a href="/sets">All sets</a> / Set {set.set_code ?? 'without code'}</p><h1>{set.set_name}</h1>
+  <p class="intro">{set.cards} cards · {set.printings} printings</p><p class="muted">First released {set.released_at ?? 'date unknown'}. Browse by type, then alphabetically.</p>
+  <RecordActions id={set.set_code} label="Set code" url={set.api_url} />
+  <a href={`/search?q=${encodeURIComponent(query)}`}>Search every printing in this set →</a>
+  <nav class="set-nav" aria-label="Card types in this set">{groups.map(g => <a href={`#${g.id}`}>{g.type} <span class="muted">{g.cards.length}</span></a>)}</nav>
+  {groups.map(g => <section class="page-section" id={g.id}><div class="section-heading"><h2>{g.type}</h2><span class="muted">{g.cards.length} cards</span></div><div class="grid" style="margin-top:1.5rem">{g.cards.map(c => <CardTile card={c} printing={members.get(c.codex_id)![0]} />)}</div></section>)}
 </Base>

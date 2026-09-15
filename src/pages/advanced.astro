@@ -1,0 +1,49 @@
+---
+import Base from '../layouts/Base.astro';
+import { KEYS, IS_FLAGS } from '../search/keys';
+import { loadRegistry } from '../data/registry';
+const { registry } = await loadRegistry();
+const selectKeys = KEYS.filter(k => ['type', 'rarity', 'element', 'finish'].includes(k.name));
+const nameKey = KEYS.find(k => k.name === 'name')!;
+const rulesKey = KEYS.find(k => k.name === 'rules')!;
+const costKey = KEYS.find(k => k.name === 'cost')!;
+const setKey = KEYS.find(k => k.name === 'set')!;
+const errata = IS_FLAGS.find(f => f.name === 'errata')!;
+---
+<Base title="Advanced search" canonical="/advanced">
+  <p class="eyebrow">Find your next card</p><h1>Advanced search</h1><p class="intro">Build a query with a few choices, then share the results.</p>
+  <form action="/search" method="get" class="advanced-form" id="advanced-form">
+    <label for="advanced-query">Search query</label><input style="width:100%" id="advanced-query" name="q" placeholder="Enter a query or use the fields below" />
+    <div class="advanced-fields" id="advanced-fields" hidden>
+      <label>Card name<input data-key={nameKey.aliases[0]} type="text" /></label>
+      <label>Rules contain<input data-key={rulesKey.aliases[0]} type="text" /></label>
+      {selectKeys.map(k => <label>{k.name.charAt(0).toUpperCase() + k.name.slice(1)}<select data-key={k.aliases[0]}><option value="">Any</option>{k.values?.map(value => <option value={value}>{value}</option>)}</select></label>)}
+      <label>Set<select data-key={setKey.aliases[0]}><option value="">Any set</option>{registry.sets.map(s => <option value={s.set_code ?? s.set_name}>{s.set_name}</option>)}</select></label>
+      <label>Maximum cost<input type="number" min="0" step="1" data-key={costKey.aliases[0]} data-operator="<=" /></label>
+      <label>Errata<select data-key="is"><option value="">Any card</option><option value={errata.name}>Cards with errata</option></select></label>
+    </div>
+    <p id="query-hint" class="muted">Use the <a href="/syntax">search syntax reference</a> for all supported keys.</p>
+    <button type="submit">Search cards →</button>
+  </form>
+  <script>
+    const form = document.querySelector<HTMLFormElement>('#advanced-form')!;
+    const query = document.querySelector<HTMLInputElement>('#advanced-query')!;
+    const fields = document.querySelector<HTMLElement>('#advanced-fields')!;
+    fields.hidden = false;
+    let baseQuery = '';
+    let lastGenerated = '';
+    const controls = Array.from(fields.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-key]'));
+    function update() {
+      if (query.value !== lastGenerated) baseQuery = query.value.trim();
+      const terms = controls.flatMap(control => {
+        const value = control.value.trim();
+        return value ? [`${control.dataset.key}${control.dataset.operator ?? ':'}${control.dataset.operator ? value : JSON.stringify(value)}`] : [];
+      });
+      lastGenerated = [baseQuery, ...terms].filter(Boolean).join(' ');
+      query.value = lastGenerated;
+    }
+    query.addEventListener('input', () => { baseQuery = query.value.trim(); controls.forEach(c => { c.value = ''; }); lastGenerated = query.value; });
+    controls.forEach(control => control.addEventListener('input', update));
+    form.addEventListener('submit', update);
+  </script>
+</Base>

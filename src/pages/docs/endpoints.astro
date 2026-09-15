@@ -1,0 +1,36 @@
+---
+import Docs from '../../layouts/Docs.astro';
+import CodeExample from '../../components/CodeExample.astro';
+const endpoints = [
+ ['index.json', 'Discovery for this root: schema and dataset versions, counts, endpoint templates and terms.'],
+ ['registry.json', 'The entire committed export: cards, printings, sets and all three histories.'],
+ ['registry.json.sha256', 'SHA-256 in sha256sum format. Verify the downloaded export bytes.'],
+ ['schema.json', 'The full export JSON Schema, draft 2020-12.'],
+ ['cards/{codex_id}.json', 'Card fields plus printing summaries, name_history and card_history.'],
+ ['printings/{printing_id}.json', 'Printing fields plus slug_history.'],
+ ['slugs/{slug}.json', 'Resolve a current or historical slug to permanent card and printing IDs.'],
+ ['sets.json', 'The set catalogue array.'],
+ ['sets/{set_code}.json', 'A set record with a cards array of names, IDs and that set’s printing IDs.'],
+ ['index/cards.json', 'Compact card records for local search and filtering.'],
+ ['index/printings.json', 'Compact printing records with image_hash and image_status.'],
+ ['index/slugs.json', 'An object mapping every known slug to its printing_id.'],
+ ['history/cards.json', 'All recorded gameplay faces.'],
+ ['history/names.json', 'Every recorded card name and its registry validity range.'],
+ ['history/slugs.json', 'Every recorded slug and its registry validity range.'],
+];
+const curl = `curl --fail --location \\
+  --user-agent 'my-card-tool/1.0 (contact@example.com)' \\
+  'https://api.kairosarchive.net/v3/cards/C000139.json'`;
+---
+<Docs title="Endpoints & releases" description="One immutable snapshot per release. One discovery document to find it.">
+  <h2>Find the release</h2><p><a href="https://api.kairosarchive.net/versions.json"><code>https://api.kairosarchive.net/versions.json</code></a> contains <code>base_url</code>, <code>latest</code> by major version, and a <code>releases</code> array. Each entry includes its tag, schema version, release date and the digest of <code>registry.json</code>.</p>
+  <dl class="facts"><dt>Follow updates</dt><dd><code>/v3/…</code> redirects with HTTP 302 to the newest verified v3 release.</dd><dt>Pin a snapshot</dt><dd>Read a tag from discovery and use <code>/&#123;tag&#125;/…</code>. All requests using that root stay on the same snapshot.</dd><dt>Breaking changes</dt><dd>A new major gets its own alias. Follow the major your client understands.</dd></dl>
+  <p>Discovery is cached for 60 seconds. Checking hourly is sufficient for typical clients. Immutable release files have a one-year immutable cache policy and their bytes never change. Images have their own permanent, content-addressed URLs.</p>
+  <h2>Available files</h2><p>These paths are relative to a release root or the <code>/v3/</code> alias. They are static files; search expressions and query parameters do not filter their contents.</p>
+  <div class="table-wrap"><table><thead><tr><th>Path</th><th>Response</th></tr></thead><tbody>{endpoints.map(([path, detail]) => <tr><td><code class="endpoint">{path}</code></td><td>{detail}</td></tr>)}</tbody></table></div>
+  <h2>Make a request</h2><CodeExample code={curl} lang="bash" title="curl · follow the release redirect" /><p>Check the HTTP response before parsing JSON. An unknown slug returns 404; retired printings remain in the registry. Fetch bulk exports or indexes for large imports rather than requesting every object separately.</p>
+  <h2>Links can leave a snapshot</h2><p><code>api_url</code> on full card, printing and set records points to the moving major alias. Following it from a historical release opens the current record. To stay on your selected release, construct the documented path under your pinned root instead. <code>kairos_url</code> links to the website.</p>
+  <p>The compact indexes contain selected fields, not full objects. In the current publisher implementation they do not include <code>api_url</code> or <code>kairos_url</code>; use the documented ID paths for lookups.</p>
+  <h2>Full export versus object responses</h2><p>The full export separates entities and histories into arrays. A card object adds that card’s history and printing summaries. A set entry in <code>sets.json</code> has a numeric <code>cards</code> count; the individual set object replaces that field with an array of its cards.</p>
+  <h2>Release verification and mirrors</h2><p>A verified root includes a <code>RELEASED</code> marker; release builds also include a manifest. Verify the actual <code>registry.json</code> bytes against the discovery digest. Comparing two checksum strings alone does not verify your download.</p><p>If you already know a release tag, its export is also available from <code>https://raw.githubusercontent.com/sadkinglabs/sorcery-registry/&#123;tag&#125;/export/registry.json</code>. Verify it against the same expected digest.</p>
+</Docs>

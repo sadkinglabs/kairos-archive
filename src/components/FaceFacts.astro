@@ -1,0 +1,39 @@
+---
+import { formatValue, type Face } from '../data/registry';
+interface Props { face: Face }
+const { face } = Astro.props;
+const thresholds = [['Air', face.thr_air], ['Earth', face.thr_earth], ['Fire', face.thr_fire], ['Water', face.thr_water]].filter(([, n]) => Number(n) > 0);
+// A threshold is a number of one element, so the element names the number
+// rather than labelling the cell: "3 Air", not "Air: 3". Cards needing more
+// than one element are rare (62 of 1,100) and set their values smaller so
+// four of them still fit the strip.
+---
+<dl class="stat-strip">
+  {face.cost !== null && <div><dt>Cost</dt><dd>{face.cost}</dd></div>}
+  {thresholds.length > 0 && <div>
+    <dt>{thresholds.length > 1 ? 'Thresholds' : 'Threshold'}</dt>
+    <dd class={thresholds.length > 1 ? 'thresholds many' : 'thresholds'}>{thresholds.map(([element, n], i) => <>
+      {i > 0 && <span class="sep">·</span>}{n}<span class="unit">{element}</span>
+    </>)}</dd>
+  </div>}
+  {face.power !== null && <div><dt>Power</dt><dd>{face.power}</dd></div>}
+  {face.life !== null && <div><dt>Life</dt><dd>{face.life}</dd></div>}
+</dl>
+<details class="disclosure face-details">
+  <summary>Card details</summary>
+  <dl class="facts">
+    <dt>Type</dt><dd>{formatValue(face.type)}</dd>
+    <dt>Subtypes</dt><dd>{formatValue(face.subtypes)}</dd>
+    <dt>Rarity</dt><dd>{formatValue(face.rarity)}</dd>
+    <dt>Elements</dt><dd>{formatValue(face.elements)}</dd>
+    <dt>Category</dt><dd>{formatValue(face.category)}</dd>
+    <dt>Deck slot</dt><dd>{formatValue(face.slot)}</dd>
+    <dt>Cost</dt><dd>{formatValue(face.cost)}</dd>
+    <dt>Attack / Defense</dt><dd>{formatValue(face.attack)} / {formatValue(face.defense)}</dd>
+    <dt>Power</dt><dd>{formatValue(face.power)}</dd>
+    <dt>Life</dt><dd>{formatValue(face.life)}</dd>
+    <dt>Thresholds</dt><dd>{thresholds.length ? thresholds.map(([e, n]) => `${n} ${e}`).join(', ') : 'None'}</dd>
+    <dt>Keywords</dt><dd>{formatValue(face.keywords)}</dd>
+    <dt>Umbrellas</dt><dd>{formatValue(face.umbrellas)}</dd>
+  </dl>
+</details>
