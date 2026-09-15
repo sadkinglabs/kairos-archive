@@ -96,7 +96,7 @@ function numberValue(card: Card, key: KeyDef, op: Op, value: string): boolean {
 
 function numericKeyField(alias: string): string | null {
   const map: Record<string, string> = { atk: "attack", attack: "attack", def: "defense", defense: "defense",
-    defence: "defense", pow: "power", power: "power", cost: "cost", m: "cost", mana: "cost", life: "life",
+    defence: "defense", pow: "power", power: "power", m: "cost", mana: "cost", cost: "cost", l: "life", life: "life",
     thr: "thr_total", threshold: "thr_total", air: "thr_air", earth: "thr_earth", fire: "thr_fire", water: "thr_water" };
   return map[alias] ?? null;
 }

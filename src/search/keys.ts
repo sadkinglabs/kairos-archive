@@ -12,7 +12,10 @@ export type Op = ":" | "=" | "<" | "<=" | ">" | ">=" | "!=";
 export interface KeyDef {
   /** canonical name, e.g. "rules" */
   name: string;
-  /** every spelling the parser accepts, shortest first */
+  /** Every spelling the parser accepts. The first is the key itself -
+   * always the short one, since that is what /syntax heads the row with
+   * and what the advanced form writes; the rest are the descriptive
+   * spellings. Enforced by a test. */
   aliases: string[];
   scope: Scope;
   kind: KeyKind;
@@ -46,9 +49,9 @@ export const KEYS: KeyDef[] = [
   { name: "rules", aliases: ["r", "rules"], scope: "card", kind: "text", field: "rules_text",
     doc: "Rules text, substring. r: is rules in Sorcery (there is no oracle text); quote phrases.",
     examples: ["r:\"draw a spell\"", "r:genesis t:minion"] },
-  { name: "rarity", aliases: ["rarity"], scope: "card", kind: "enum", field: "rarity", values: RARITIES,
-    doc: "Ordinary, Exceptional, Elite or Unique; any unambiguous prefix works. Spelled out on purpose: r is rules.",
-    examples: ["rarity:unique", "rarity:ex"] },
+  { name: "rarity", aliases: ["rar", "rarity"], scope: "card", kind: "enum", field: "rarity", values: RARITIES,
+    doc: "Ordinary, Exceptional, Elite or Unique; any unambiguous prefix works. Three letters, not one: r: is rules.",
+    examples: ["rar:unique", "rar:ex"] },
   { name: "type", aliases: ["t", "type"], scope: "card", kind: "enum", field: "type", values: TYPES,
     doc: "Avatar, Minion, Magic, Aura, Artifact or Site; prefixes work. Type only, never a subtype.",
     examples: ["t:minion", "t:art"] },
@@ -78,9 +81,9 @@ export const KEYS: KeyDef[] = [
   { name: "keyword", aliases: ["k", "keyword"], scope: "card", kind: "list", field: "keywords",
     doc: "A keyword (Airborne, Genesis, Spellcaster, Submerge, ...); repeat for AND; prefixes work.",
     examples: ["k:airborne", "k:spellcaster k:genesis"] },
-  { name: "cost", aliases: ["cost", "m", "mana"], scope: "card", kind: "number", field: "cost",
-    doc: "Mana cost with the numeric operators; cost:x for cards with no fixed cost; cost:even, cost:odd.",
-    examples: ["cost<=2", "cost:x", "cost:odd"] },
+  { name: "cost", aliases: ["m", "mana", "cost"], scope: "card", kind: "number", field: "cost",
+    doc: "Mana cost with the numeric operators; m:x for the cards with no fixed cost; m:even, m:odd.",
+    examples: ["m<=2", "m:x", "m:odd"] },
   { name: "power", aliases: ["pow", "power"], scope: "card", kind: "number", field: "power",
     doc: "Power is derived: equal to attack when attack equals defense, otherwise floor((attack + defense) / 2). pow: searches that value, as the registry publishes it.",
     examples: ["pow>=4", "pow:3 cost<=3"] },
@@ -88,8 +91,8 @@ export const KEYS: KeyDef[] = [
     doc: "The raw attack value - a different key from power on purpose.", examples: ["atk>def", "atk>=5"] },
   { name: "defense", aliases: ["def", "defense", "defence"], scope: "card", kind: "number", field: "defense",
     doc: "The raw defense value.", examples: ["def>=4"] },
-  { name: "life", aliases: ["life"], scope: "card", kind: "number", field: "life",
-    doc: "Life; only Avatars have one.", examples: ["life>=20"] },
+  { name: "life", aliases: ["l", "life"], scope: "card", kind: "number", field: "life",
+    doc: "Life; only Avatars have one.", examples: ["l>=20", "l>20 t:avatar"] },
   { name: "id", aliases: ["id", "codex", "printing"], scope: "card", kind: "id", field: "codex_id",
     doc: "A registry id, C000230 (card) or P000937 (printing). A query that is exactly an id jumps straight to that page.",
     examples: ["id:C000230", "id:P000937"] },

@@ -28,8 +28,9 @@ describe("card keys", () => {
     expect(names("n:witch")).toEqual(["Witch"]);
   });
   it("enums accept unambiguous prefixes and reject ambiguous ones", () => {
-    expect(names("rarity:ex")).toEqual(["Polar Bears"]);
-    expect(names("rarity:el")).toEqual(["Witch"]);
+    expect(names("rar:ex")).toEqual(["Polar Bears"]);
+    expect(names("rar:el")).toEqual(["Witch"]);
+    expect(names("rarity:ex")).toEqual(names("rar:ex"));
     expect(names("t:art")).toEqual([]);
     expect(names("t:si")).toEqual(["Broken Site"]);
     expect(names("cat:token")).toEqual([]);
@@ -53,11 +54,15 @@ describe("card keys", () => {
   it("thresholds and numbers with every operator", () => {
     expect(names("water>=1")).toEqual(["Polar Bears", "Witch"]);
     expect(names("air:1")).toEqual(["Apprentice Wizard", "Druid", "Witch"]);
-    expect(names("cost<=2")).toEqual(["Witch"]);
-    expect(names("cost!=3")).toEqual(["Broken Site", "Druid", "Witch"]);
-    expect(names("cost:x")).toEqual(["Broken Site", "Druid"]);
-    expect(names("cost:odd")).toEqual(["Apprentice Wizard", "Polar Bears"]);
-    expect(names("life>=20")).toEqual(["Druid"]);
+    expect(names("m<=2")).toEqual(["Witch"]);
+    expect(names("m!=3")).toEqual(["Broken Site", "Druid", "Witch"]);
+    expect(names("m:x")).toEqual(["Broken Site", "Druid"]);
+    expect(names("m:odd")).toEqual(["Apprentice Wizard", "Polar Bears"]);
+    expect(names("l>=20")).toEqual(["Druid"]);
+    // The descriptive spellings are the same key.
+    expect(names("cost:odd")).toEqual(names("m:odd"));
+    expect(names("mana:x")).toEqual(names("m:x"));
+    expect(names("life>=20")).toEqual(names("l>=20"));
   });
   it("power is the derived value; atk and def are the raw ones; keys compare to keys", () => {
     expect(names("pow:3")).toEqual(["Druid", "Polar Bears"]);

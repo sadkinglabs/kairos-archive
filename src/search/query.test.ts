@@ -22,6 +22,34 @@ describe("tokenize", () => {
   });
 });
 
+describe("the key table", () => {
+  it("leads with the short key and keeps the descriptive spellings as aliases", () => {
+    // The first alias is the key: /syntax heads its row with it and the
+    // advanced form writes it, so it is always the shortest spelling.
+    for (const key of KEYS) {
+      const [first, ...rest] = key.aliases;
+      for (const alias of rest) expect(first.length, `${key.name}: ${first} vs ${alias}`).toBeLessThanOrEqual(alias.length);
+    }
+  });
+  it("spells each key exactly once, and never as a reserved word", () => {
+    const seen = new Map<string, string>();
+    for (const key of KEYS) for (const alias of key.aliases) {
+      expect(seen.get(alias), `${alias} is claimed by both ${seen.get(alias)} and ${key.name}`).toBeUndefined();
+      seen.set(alias, key.name);
+    }
+    for (const reserved of ["is", "has", "unique", "sort", "order"]) expect(seen.has(reserved), reserved).toBe(false);
+  });
+  it("keeps the short keys the owner settled on", () => {
+    const keyOf = (name: string) => KEYS.find((k) => k.name === name)!.aliases[0];
+    expect(keyOf("rarity")).toBe("rar");
+    expect(keyOf("cost")).toBe("m");
+    expect(keyOf("life")).toBe("l");
+    expect(parse("rar:unique m<=2 l>=20").errors).toEqual([]);
+    // The descriptive spellings keep working.
+    expect(parse("rarity:unique cost<=2 life>=20").ast).toEqual(parse("rar:unique m<=2 l>=20").ast);
+  });
+});
+
 describe("parse", () => {
   it("builds and/or/not with precedence and parentheses", () => {
     const { ast, errors } = parse("t:minion (e:water or e:air) -k:genesis");

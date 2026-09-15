@@ -5,6 +5,9 @@ import { loadRegistry } from '../data/registry';
 
 const { registry } = await loadRegistry();
 const key = (name: string): KeyDef => KEYS.find(k => k.name === name)!;
+/** The key as a query spells it. Read from the table, never typed here,
+ * so renaming a key in keys.ts renames it in this form too. */
+const alias = (name: string): string => key(name).aliases[0];
 const flag = (name: string) => IS_FLAGS.find(f => f.name === name)!;
 
 // Vocabularies come from the release being built, so a new subtype, keyword
@@ -42,25 +45,25 @@ const OPERATORS = [
   { op: '!=', label: 'not' },
 ];
 const numbers: { label: string; key: string; max: number; hint?: string }[] = [
-  { label: 'Mana cost', key: 'cost', max: maxima.cost, hint: 'type cost:x for the cards with no fixed cost' },
-  { label: 'Threshold total', key: 'thr', max: maxima.thr, hint: 'the four element requirements added up' },
-  { label: 'Air threshold', key: 'air', max: maxima.element },
-  { label: 'Earth threshold', key: 'earth', max: maxima.element },
-  { label: 'Fire threshold', key: 'fire', max: maxima.element },
-  { label: 'Water threshold', key: 'water', max: maxima.element },
-  { label: 'Attack', key: 'atk', max: maxima.atk },
-  { label: 'Defense', key: 'def', max: maxima.def },
-  { label: 'Power', key: 'pow', max: maxima.pow, hint: 'attack when attack equals defense, otherwise the average rounded down' },
-  { label: 'Life', key: 'life', max: maxima.life, hint: 'Avatars only' },
+  { label: 'Mana cost', key: alias('cost'), max: maxima.cost, hint: `type ${alias('cost')}:x for the cards with no fixed cost` },
+  { label: 'Threshold total', key: alias('threshold'), max: maxima.thr, hint: 'the four element requirements added up' },
+  { label: 'Air threshold', key: alias('air'), max: maxima.element },
+  { label: 'Earth threshold', key: alias('earth'), max: maxima.element },
+  { label: 'Fire threshold', key: alias('fire'), max: maxima.element },
+  { label: 'Water threshold', key: alias('water'), max: maxima.element },
+  { label: 'Attack', key: alias('attack'), max: maxima.atk },
+  { label: 'Defense', key: alias('defense'), max: maxima.def },
+  { label: 'Power', key: alias('power'), max: maxima.pow, hint: 'attack when attack equals defense, otherwise the average rounded down' },
+  { label: 'Life', key: alias('life'), max: maxima.life, hint: 'Avatars only' },
 ];
 /** The tick-many fields. Elements can also be matched as an exact set,
  * which is meaningless for a subtype or keyword list. */
 const pickers: { key: string; legend: string; values: string[]; modes: { value: string; label: string }[]; open: boolean }[] = [
-  { key: 'e', legend: 'Elements', values: (key('element').values ?? []).filter(v => v !== 'None'), open: true,
+  { key: alias('element'), legend: 'Elements', values: (key('element').values ?? []).filter(v => v !== 'None'), open: true,
     modes: [{ value: '+', label: 'every ticked element' }, { value: ',', label: 'any one of them' }, { value: '=', label: 'exactly those, no others' }] },
-  { key: 'sub', legend: 'Subtypes', values: subtypes, open: false,
+  { key: alias('subtype'), legend: 'Subtypes', values: subtypes, open: false,
     modes: [{ value: '+', label: 'every ticked subtype' }, { value: ',', label: 'any one of them' }] },
-  { key: 'k', legend: 'Keywords', values: keywords, open: false,
+  { key: alias('keyword'), legend: 'Keywords', values: keywords, open: false,
     modes: [{ value: '+', label: 'every ticked keyword' }, { value: ',', label: 'any one of them' }] },
 ];
 
@@ -78,11 +81,11 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       <fieldset>
         <legend>Card</legend>
         <div class="grid-fields">
-          <label class="field">Name<input data-key="n" type="text" placeholder="polar bears" /></label>
-          <label class="field">Rules contain<input data-key="r" type="text" placeholder="draw a spell" /></label>
-          <label class="field">Type<select data-key="t"><option value="">Any type</option>{key('type').values?.map(v => <option value={v}>{v}</option>)}</select></label>
-          <label class="field">Rarity<select data-key="rarity"><option value="">Any rarity</option>{key('rarity').values?.map(v => <option value={v}>{v}</option>)}</select></label>
-          <label class="field">Group<select data-key="u"><option value="">Any group</option>{umbrellas.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Name<input data-key={alias('name')} type="text" placeholder="polar bears" /></label>
+          <label class="field">Rules contain<input data-key={alias('rules')} type="text" placeholder="draw a spell" /></label>
+          <label class="field">Type<select data-key={alias('type')}><option value="">Any type</option>{key('type').values?.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Rarity<select data-key={alias('rarity')}><option value="">Any rarity</option>{key('rarity').values?.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Group<select data-key={alias('umbrella')}><option value="">Any group</option>{umbrellas.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Errata<select data-key="is">
             <option value="">Any card</option>
             <option value={flag('errata').name}>Changed since printing</option>
@@ -104,17 +107,17 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
             <label class="field">Match<select data-picker-mode={picker.key} aria-label={`How to combine the ticked ${picker.legend.toLowerCase()}`}>
               {picker.modes.map(m => <option value={m.value}>{m.label}</option>)}
             </select></label>
-            {picker.key === 'e' && (
+            {picker.key === alias('element') && (
               <label class="field">How many elements<select data-key="is">
                 <option value="">Any number</option>
                 <option value={flag('multi-element').name}>Two or more (multi-element)</option>
                 <option value={flag('mono-element').name}>Exactly one</option>
-                <option value="none" data-key-override="e">None at all</option>
+                <option value="none" data-key-override={alias('element')}>None at all</option>
               </select></label>
             )}
           </div>
-          {picker.key === 'e' && <p class="hint">Water and Fire with <em>every ticked element</em> is <code>e:Water+Fire</code>, the cards that have both and maybe more; <em>exactly those</em> is <code>e=Water+Fire</code>, which drops anything with a third element.</p>}
-          {picker.key === 'k' && <p class="hint">166 cards carry two keywords or more, so <em>every ticked keyword</em> is worth asking for; 15 cards have a second subtype.</p>}
+          {picker.key === alias('element') && <p class="hint">Water and Fire with <em>every ticked element</em> is <code>{alias('element')}:Water+Fire</code>, the cards that have both and maybe more; <em>exactly those</em> is <code>{alias('element')}=Water+Fire</code>, which drops anything with a third element.</p>}
+          {picker.key === alias('keyword') && <p class="hint">166 cards carry two keywords or more, so <em>every ticked keyword</em> is worth asking for; 15 cards have a second subtype.</p>}
         </fieldset>
       ))}
 
@@ -137,14 +140,14 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       <fieldset>
         <legend>Printing</legend>
         <div class="grid-fields">
-          <label class="field">Set<select data-key="s"><option value="">Any set</option>{sets.map(s => <option value={s.set_code ?? s.set_name}>{s.set_name}</option>)}</select></label>
-          <label class="field">Product<select data-key="pro"><option value="">Any product</option>{key('product').values?.map(v => <option value={v}>{v}</option>)}</select></label>
-          <label class="field">Finish<select data-key="f"><option value="">Any finish</option>{key('finish').values?.map(v => <option value={v}>{v}</option>)}</select></label>
-          <label class="field">Artist<select data-key="a"><option value="">Any artist</option>{artists.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Set<select data-key={alias('set')}><option value="">Any set</option>{sets.map(s => <option value={s.set_code ?? s.set_name}>{s.set_name}</option>)}</select></label>
+          <label class="field">Product<select data-key={alias('product')}><option value="">Any product</option>{key('product').values?.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Finish<select data-key={alias('finish')}><option value="">Any finish</option>{key('finish').values?.map(v => <option value={v}>{v}</option>)}</select></label>
+          <label class="field">Artist<select data-key={alias('artist')}><option value="">Any artist</option>{artists.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field numeric">Released
             <span class="row">
               <select data-op aria-label="Release year comparison">{OPERATORS.map(o => <option value={o.op}>{o.label}</option>)}</select>
-              <select data-key="year" aria-label="Release year"><option value="">Any year</option>{years.map(y => <option value={y}>{y}</option>)}</select>
+              <select data-key={alias('date')} aria-label="Release year"><option value="">Any year</option>{years.map(y => <option value={y}>{y}</option>)}</select>
             </span>
           </label>
           <label class="field">Image<select data-key="has"><option value="">Any printing</option><option value={HAS_FLAGS.find(f => f.name === 'image')!.name}>Has an image</option></select></label>

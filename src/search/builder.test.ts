@@ -22,7 +22,7 @@ describe("quoteValue", () => {
 describe("term", () => {
   it("writes a key, an operator and a value", () => {
     expect(term({ key: "t", value: "Minion" })).toBe("t:Minion");
-    expect(term({ key: "cost", op: "<=", value: "3" })).toBe("cost<=3");
+    expect(term({ key: "m", op: "<=", value: "3" })).toBe("m<=3");
     expect(term({ key: "thr", op: ">=", value: "2" })).toBe("thr>=2");
     expect(term({ key: "is", value: "errata", negate: true })).toBe("-is:errata");
     expect(term({ key: "a", value: "Jeff A. Menges" })).toBe('a:"Jeff A. Menges"');
@@ -30,10 +30,10 @@ describe("term", () => {
   });
   it("produces queries the parser accepts", () => {
     for (const pick of [
-      { key: "t", value: "Minion" }, { key: "rarity", value: "Exceptional" }, { key: "sub", value: "Beast" },
-      { key: "k", value: "Genesis" }, { key: "u", value: "Evil" }, { key: "cost", op: "<=", value: "3" },
+      { key: "t", value: "Minion" }, { key: "rar", value: "Exceptional" }, { key: "sub", value: "Beast" },
+      { key: "k", value: "Genesis" }, { key: "u", value: "Evil" }, { key: "m", op: "<=", value: "3" },
       { key: "thr", op: ">=", value: "2" }, { key: "water", op: ":", value: "1" }, { key: "atk", op: ">", value: "4" },
-      { key: "pow", op: "!=", value: "0" }, { key: "life", op: ">=", value: "20" }, { key: "s", value: "006" },
+      { key: "pow", op: "!=", value: "0" }, { key: "l", op: ">=", value: "20" }, { key: "s", value: "006" },
       { key: "pro", value: "BoxTopper" }, { key: "f", value: "Foil" }, { key: "a", value: "Jeff A. Menges" },
       { key: "year", op: ">=", value: "2024" }, { key: "has", value: "image" }, { key: "is", value: "errata", negate: true },
       { key: "unique", value: "prints" }, { key: "sort", value: "threshold" }, { key: "order", value: "desc" },
@@ -75,8 +75,8 @@ describe("listTerm", () => {
 
 describe("buildQuery", () => {
   it("keeps what was typed and appends the choices", () => {
-    const q = buildQuery(" k:genesis ", [listTerm("e", ["Air"], "+"), term({ key: "cost", op: "<=", value: "3" }), ""]);
-    expect(q).toBe("k:genesis e:Air cost<=3");
+    const q = buildQuery(" k:genesis ", [listTerm("e", ["Air"], "+"), term({ key: "m", op: "<=", value: "3" }), ""]);
+    expect(q).toBe("k:genesis e:Air m<=3");
     expect(parses(q)).toEqual([]);
     expect(names(q)).toEqual(["Apprentice Wizard"]);
   });
