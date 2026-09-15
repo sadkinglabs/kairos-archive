@@ -17,13 +17,13 @@ describe("describeElements", () => {
     expect(describeElements([], "multi")).toBe("two or more elements");
     expect(describeElements([], "mono")).toBe("one element only");
   });
-  it("reads no element as one of the values, joined with or", () => {
-    for (const match of ["all", "any", "only", "multi", "mono"] as const) {
-      expect(describeElements(["None"], match)).toBe("no element");
-      // Matching the query built: no card has both, so it can only be either.
-      expect(describeElements(["None", "Water"], match)).toBe("no element or Water");
-      expect(describeElements(["None", "Water", "Fire"], match)).toBe("no element, Water or Fire");
-    }
+  it("words no element like any other value", () => {
+    expect(describeElements(["None"], "all")).toBe("no element");
+    expect(describeElements(["None"], "only")).toBe("only no element");
+    expect(describeElements(["None", "Water"], "any")).toBe("no element or Water");
+    expect(describeElements(["None", "Water"], "all")).toBe("no element and Water");
+    expect(describeElements(["None", "Water", "Fire"], "any")).toBe("no element, Water or Fire");
+    expect(describeElements(["None", "Water"], "multi")).toBe("two or more, including no element and Water");
   });
 });
 

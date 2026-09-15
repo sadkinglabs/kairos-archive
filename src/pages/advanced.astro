@@ -119,7 +119,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
               {picker.modes.map(m => <option value={m.value}>{m.label}</option>)}
             </select></label>
           </div>
-          {picker.kind === 'element' && <p class="hint">Tick nothing and the last two still work on their own: every multi-element card, or every single-element one. <strong>No element</strong> is a value like the rest — {colourless} cards have none, among them every Artifact and every Avatar — but no card has both, so ticking it reads as an either/or: with Water, the cards a Water deck can play.</p>}
+          {picker.kind === 'element' && <p class="hint"><strong>No element</strong> is the fifth element value, not a missing answer: {colourless} cards carry it, among them every Artifact and every Avatar. It behaves like the other four — ticked with Water, <em>any of the ticked</em> is what a Water deck can play, while <em>all of the ticked</em> asks for a card that is both, and no card is. Tick nothing and the last two options still work alone: every multi-element card, or every single-element one.</p>}
           {picker.key === alias('keyword') && <p class="hint">166 cards carry two keywords or more, so <em>every ticked keyword</em> is worth asking for; 15 cards have a second subtype.</p>}
         </details>
       ))}
@@ -177,7 +177,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     <button type="submit">Search cards →</button>
   </form>
   <script>
-    import { buildQuery, elementQuery, listTerm, NO_ELEMENT, term, type ElementMatch, type ListMode } from '../search/builder';
+    import { buildQuery, elementQuery, listTerm, term, type ElementMatch, type ListMode } from '../search/builder';
     import { describeChoice, describeElements, describeList } from '../search/describe';
 
     const form = document.querySelector<HTMLFormElement>('#advanced-form')!;
@@ -244,17 +244,12 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     function pickerTerm(group: Group): string {
       if (!group.kind || !group.mode) return '';
       const picked = group.boxes.filter(b => b.checked).map(b => b.value);
-      if (group.kind !== 'element') return listTerm(group.key, picked, group.mode.value as ListMode);
-      // "No element" answers on its own, so the other boxes and the match
-      // select grey out rather than combining into something impossible.
-      // No element is a value, not a mode, so every box stays available. It
-      // only narrows how they read: a card never has no element AND Water, so
-      // the matches that would ask for that are closed off rather than
-      // offering a query with no answer.
-      const colourless = picked.includes(NO_ELEMENT);
-      for (const option of group.mode.options) option.disabled = colourless && option.value !== 'any';
-      if (colourless) group.mode.value = 'any';
-      return elementQuery(group.key, picked, group.mode.value as ElementMatch);
+      // No element is the fifth element value, with no rule of its own: every
+      // box and every match stays available, and asking for a card that is
+      // both colourless and Water is answered rather than prevented.
+      return group.kind === 'element'
+        ? elementQuery(group.key, picked, group.mode.value as ElementMatch)
+        : listTerm(group.key, picked, group.mode.value as ListMode);
     }
 
     function groupTerms(group: Group): string[] {
@@ -275,10 +270,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       ops.forEach(s => { s.selectedIndex = 0; });
       groups.forEach(group => {
         group.boxes.forEach(b => { b.checked = false; });
-        if (group.mode) {
-          for (const option of group.mode.options) option.disabled = false;
-          group.mode.selectedIndex = 0;
-        }
+        if (group.mode) group.mode.selectedIndex = 0;
         group.badge.textContent = '';
       });
     }

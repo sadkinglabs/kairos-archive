@@ -14,10 +14,8 @@ function sentence(values: string[], join: "and" | "or"): string {
 }
 
 export function describeElements(picked: string[], match: ElementMatch): string {
-  const values = picked.map((p) => p.trim()).filter(Boolean);
-  if (values.includes(NO_ELEMENT)) {
-    return sentence(["no element", ...values.filter((v) => v !== NO_ELEMENT)], "or");
-  }
+  // No element is a value like the rest; only its wording differs.
+  const values = picked.map((p) => (p.trim() === NO_ELEMENT ? "no element" : p.trim())).filter(Boolean);
   if (values.length === 0) {
     return match === "multi" ? "two or more elements" : match === "mono" ? "one element only" : "";
   }
