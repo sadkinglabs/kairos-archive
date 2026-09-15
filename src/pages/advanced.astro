@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import { KEYS, IS_FLAGS, HAS_FLAGS, SORT_FIELDS, type KeyDef } from '../search/keys';
 import { term } from '../search/builder';
 import { parse } from '../search/query';
-import { loadRegistry } from '../data/registry';
+import { loadRegistry, orderedSets } from '../data/registry';
 
 const { registry } = await loadRegistry();
 const key = (name: string): KeyDef => KEYS.find(k => k.name === name)!;
@@ -21,7 +21,7 @@ const keywords = distinct(registry.cards.flatMap(c => c.keywords));
 const umbrellas = distinct(registry.cards.flatMap(c => c.umbrellas));
 const artists = distinct(registry.printings.map(p => p.artist));
 const colourless = registry.cards.filter(c => c.elements.length === 1 && c.elements[0] === 'None').length;
-const sets = [...registry.sets].sort((a, b) => (b.set_code ?? '').localeCompare(a.set_code ?? ''));
+const sets = orderedSets(registry.sets);
 const years = distinct(registry.printings.map(p => p.released_at?.slice(0, 4))).reverse();
 
 /** The options above come from the release; the parser's vocabularies come

@@ -100,6 +100,41 @@ async function load(): Promise<{ registry: Registry; source: Source }> {
 }
 
 let cached: Promise<{ registry: Registry; source: Source }> | null = null;
+/** Sets in set-code order: Alpha, Beta, Arthurian Legends, Dragonlord,
+ * Gothic, then the promo bucket. Not by release date - the promo set's
+ * released_at is 2022-03-15, before Alpha's 2023-06-22, because it holds
+ * the earliest promo; sorting by date put the bucket first. The codes the
+ * publisher issues are the release order and reserve 999 for promos, so
+ * they are the key. A set with no code sorts after them all. */
+export function orderedSets(sets: RegistrySet[]): RegistrySet[] {
+  return [...sets].sort((a, b) => (a.set_code ?? "zzz").localeCompare(b.set_code ?? "zzz"));
+}
+
+/** The card that stands for each set on /sets, by printing id - the only
+ * key that cannot drift; the card's name is the comment beside it. A set
+ * with no entry here (a new one, the day it appears) falls back to the
+ * first printing of that set with an image. */
+export const SET_FACES: Record<string, string> = {
+  "001": "P001632", // Sorcerer
+  "002": "P001624", // Pathfinder
+  "004": "P002035", // Templar
+  "005": "P002125", // Dragonlord
+  "006": "P002738", // Necromancer
+  "999": "P000005", // Apprentice Wizard
+};
+
+/** The printing whose art represents a set: the chosen one when it is
+ * named and served, else the first printing of the set with an image. */
+export function setFace(set: RegistrySet, printings: RegistryPrinting[]): RegistryPrinting | null {
+  const chosen = set.set_code ? SET_FACES[set.set_code] : undefined;
+  const served = (p: RegistryPrinting) => p.image_status !== "missing" && p.image_urls !== null;
+  if (chosen) {
+    const face = printings.find((p) => p.printing_id === chosen);
+    if (face && served(face)) return face;
+  }
+  return printings.find((p) => p.set_code === set.set_code && served(p)) ?? null;
+}
+
 export function loadRegistry(): Promise<{ registry: Registry; source: Source }> {
   cached ??= load();
   return cached;
