@@ -1,9 +1,12 @@
 ---
 import "../styles/global.css";
+import SearchBox from "../components/SearchBox.astro";
 import { loadRegistry } from "../data/registry";
 interface Props { title: string; description?: string; canonical?: string; image?: string | null }
 const { title, description = "Search, card pages and full history for Sorcery: Contested Realm, built on the Sorcery Card Registry.", canonical, image } = Astro.props;
 const { source } = await loadRegistry();
+const isHome = Astro.url.pathname === "/";
+const links = [["/sets", "Sets"], ["/changes", "Changes & Errata"], ["/tokens", "Tokens"], ["/syntax", "Search syntax"], ["/docs", "API docs"], ["/about", "About"]];
 const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archive`;
 ---
 <!doctype html>
@@ -25,26 +28,24 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
     <link rel="sitemap" href="/sitemap-index.xml" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="site">
       <div class="inner">
         <a class="brand" href="/" aria-label="Kairos Archive, home">
-          <picture>
-            <source srcset="/brand/wordmark-dark-560.png" media="(prefers-color-scheme: dark)" />
-            <img src="/brand/wordmark-560.png" alt="Kairos Archive" width="560" height="233" />
-          </picture>
+          <img src="/brand/mark.png" alt="" width="48" height="48" />
+          <span>Kairos Archive</span>
         </a>
-        <form action="/search" method="get" role="search">
-          <input type="search" name="q" id="site-search" placeholder='search cards: "polar bears", t:minion e:water, r:genesis' aria-label="Search" />
-          <button type="submit">Search</button>
-        </form>
-        <nav>
-          <a href="/sets">Sets</a><a href="/tokens">Tokens</a><a href="/changes">Changes</a><a href="/syntax">Syntax</a><a href="/about">About</a>
-        </nav>
+        <details class="site-menu">
+          <summary aria-label="Navigation menu"><span class="menu-lines" aria-hidden="true"></span><span class="sr-only">Menu</span></summary>
+          <nav aria-label="Main navigation">{links.map(([href, label]) => <a href={href} aria-current={Astro.url.pathname === href ? 'page' : undefined}>{label}</a>)}</nav>
+        </details>
+        {!isHome && <SearchBox />}
       </div>
     </header>
-    <main><slot /></main>
+    <main id="main" tabindex="-1"><slot /></main>
     <footer class="site">
       <div class="inner">
+        <div class="footer-links"><a href="/about">About</a><a href="/docs">API documentation</a><a href="/usage">Data & credits</a></div>
         Card names, text and images © <a href="https://sorcerytcg.com">Erik's Curiosa</a>, shown with credit for archive, identification and site function.
         Identifiers, structure and history: Kairos Archive, free for any use (<a href="/usage">usage</a>).
         Data: <a href="https://api.kairosarchive.net/versions.json">Sorcery Card Registry</a> release <code>{source.tag}</code> ·
@@ -53,6 +54,58 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
     </footer>
     <script>
       import { suggest, type NameEntry } from "../search/suggest";
+
+      const menu = document.querySelector<HTMLDetailsElement>('.site-menu');
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && menu?.open) { menu.open = false; menu.querySelector('summary')?.focus(); }
+      });
+      document.addEventListener('click', event => {
+        if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
+      });
+      document.querySelectorAll<HTMLImageElement>('img.card-img').forEach(image => {
+        const fallback = () => {
+          const placeholder = document.createElement('div');
+          placeholder.className = 'placeholder';
+          placeholder.textContent = 'Image unavailable';
+          image.replaceWith(placeholder);
+        };
+        image.addEventListener('error', fallback, { once: true });
+        if (image.complete && image.naturalWidth === 0) fallback();
+      });
+      // Shared actions work on card, printing, set and documentation pages.
+      document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach(button => {
+        button.addEventListener("click", async () => {
+          const original = button.textContent;
+          try { await navigator.clipboard.writeText(button.dataset.copy ?? ""); button.textContent = "Copied"; }
+          catch { button.textContent = "Select to copy"; }
+          setTimeout(() => { button.textContent = original; }, 1600);
+        });
+      });
+      document.querySelectorAll<HTMLAnchorElement>("[data-download]").forEach(link => {
+        link.addEventListener("click", async event => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          if (link.getAttribute("aria-busy") === "true") return;
+          link.setAttribute("aria-busy", "true");
+          const status = document.createElement("span");
+          status.setAttribute("role", "status");
+          status.className = "download-status muted";
+          link.parentElement?.querySelector(".download-status")?.remove();
+          link.after(status);
+          try {
+            const response = await fetch(link.href);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const download = document.createElement("a");
+            download.href = url; download.download = `${link.dataset.download}.json`;
+            document.body.append(download); download.click(); download.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            status.textContent = "Downloaded";
+          } catch { status.textContent = "Download unavailable. Use View JSON to open the source."; }
+          finally { link.removeAttribute("aria-busy"); }
+        });
+      });
 
       type Suggestion = NameEntry & { type: string | null };
 
@@ -64,7 +117,7 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
 
       let namesPromise: Promise<Suggestion[]> | null = null;
       function loadNames(): Promise<Suggestion[]> {
-        namesPromise ??= fetch("/data/names.json").then((r) => r.json());
+        namesPromise ??= fetch("/data/names.json").then((r) => { if (!r.ok) throw new Error("Names unavailable"); return r.json(); }).catch(error => { namesPromise = null; throw error; });
         return namesPromise;
       }
 
@@ -104,7 +157,7 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
         function highlight(index: number) {
           active = index;
           const options = list.querySelectorAll("li");
-          options.forEach((o, i) => o.classList.toggle("active", i === index));
+          options.forEach((o, i) => { o.classList.toggle("active", i === index); o.setAttribute("aria-selected", String(i === index)); });
           if (index >= 0 && options[index]) {
             input.setAttribute("aria-activedescendant", options[index].id);
             options[index].scrollIntoView({ block: "nearest" });
@@ -124,7 +177,7 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
           list.hidden = false;
           input.setAttribute("aria-expanded", "true");
           list.innerHTML = items.map((item, i) =>
-            `<li role="option" id="${listId}-${i}"><span class="name">${escapeHtml(item.name)}</span>${item.type ? `<span class="type">${escapeHtml(item.type)}</span>` : ""}</li>`
+            `<li role="option" aria-selected="false" id="${listId}-${i}"><span class="name">${escapeHtml(item.name)}</span>${item.type ? `<span class="type">${escapeHtml(item.type)}</span>` : ""}</li>`
           ).join("");
           list.querySelectorAll("li").forEach((li, i) => li.addEventListener("click", () => go(items[i])));
         }
@@ -133,13 +186,14 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
           const raw = input.value;
           const q = raw.trim();
           if (!q || NO_SUGGEST.test(raw)) { close(); return; }
-          const names = await loadNames();
-          if (input.value.trim() !== q) return; // input changed while the fetch was in flight
-          render(suggest(names, q, 8));
+          try {
+            const names = await loadNames();
+            if (input.value.trim() !== q || document.activeElement !== input) return;
+            render(suggest(names, q, 8));
+          } catch { close(); } // Plain search still works if autocomplete is unavailable.
         }
 
         input.addEventListener("focus", () => {
-          void loadNames();
           if (closeTimer) { clearTimeout(closeTimer); closeTimer = undefined; }
         });
         input.addEventListener("input", () => void onInput());

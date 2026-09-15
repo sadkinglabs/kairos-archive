@@ -1,0 +1,32 @@
+---
+import Icon from './Icon.astro';
+interface Props { urls?: Record<string, string> | null; status?: string; name: string; back?: boolean }
+const { urls, status, name, back = false } = Astro.props;
+---
+<figure class="card-art">
+  {back && <p class="eyebrow">Back face</p>}
+  {urls ? <>
+    <a class="art-link" href={urls.large} data-lightbox data-pswp-width="672" data-pswp-height="936" aria-label={`Enlarge ${name}`}><img class="card-img" src={urls.normal} width="488" height="680" alt={name} loading={back ? 'lazy' : 'eager'} /></a>
+    <figcaption>
+      <div class="image-actions"><a href={urls.large} data-enlarge><Icon name="expand" size={15} /> Enlarge</a><a href={urls.small}>Small</a><a href={urls.normal}>Normal</a><a href={urls.large}>Large</a><a href={urls.original}>Original</a></div>
+      {status === 'lowres' && <small class="muted">Low-resolution source, upscaled.</small>}
+    </figcaption>
+  </> : <div class="placeholder">No image held for {name}</div>}
+</figure>
+<script>
+  import PhotoSwipeLightbox from 'photoswipe/lightbox';
+  import 'photoswipe/style.css';
+  const lightbox = new PhotoSwipeLightbox({
+    gallery: '.card-art', children: 'a[data-lightbox]',
+    pswpModule: () => import('photoswipe'),
+    showHideAnimationType: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'none' : 'fade',
+  });
+  lightbox.init();
+  document.querySelectorAll<HTMLAnchorElement>('[data-enlarge]').forEach(link => {
+    link.addEventListener('click', event => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const image = link.closest('figure')?.querySelector<HTMLAnchorElement>('[data-lightbox]');
+      if (image) { event.preventDefault(); image.click(); }
+    });
+  });
+</script>

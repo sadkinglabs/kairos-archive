@@ -1,0 +1,9 @@
+---
+import Icon from './Icon.astro';
+interface Props { id?: string | null; url?: string | null; label?: string }
+const { id, url, label = 'Card ID' } = Astro.props;
+---
+<div class="record-actions">
+  {id && <span class="record-id"><span class="muted">{label}</span> <code>{id}</code> <button class="copy" data-copy={id} aria-label={`Copy ${label} ${id}`}>Copy</button></span>}
+  {url && <div class="data-links"><a class="btn secondary" href={url} data-download={id ?? 'record'}><Icon name="download" size={17} /> Download JSON</a><a href={url}>View JSON</a></div>}
+</div>

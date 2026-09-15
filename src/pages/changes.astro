@@ -1,18 +1,33 @@
 ---
-import Base from "../layouts/Base.astro";
-import { cardPath, changedFields, formatValue, loadRegistry, views, type Face } from "../data/registry";
+import Base from '../layouts/Base.astro';
+import FaceDiff from '../components/FaceDiff.astro';
+import HistoryHelp from '../components/HistoryHelp.astro';
+import { cardPath, changedFields, historySource, loadRegistry, views, type HistoryRow } from '../data/registry';
 const { registry } = await loadRegistry();
 const v = views(registry);
-const entries: { card: typeof registry.cards[number]; when: string; changed: string[]; before: Face; after: Face }[] = [];
-for (const [id, rows] of v.historyByCard) {
-  for (let i = 1; i < rows.length; i++) entries.push({ card: v.cardById.get(id)!, when: rows[i].valid_from, changed: changedFields(rows[i - 1], rows[i]), before: rows[i - 1], after: rows[i] });
+const entries: { card: typeof registry.cards[number]; before: HistoryRow; after: HistoryRow }[] = [];
+for (const [id, unsorted] of v.historyByCard) {
+  const rows = [...unsorted].sort((a, b) => a.valid_from.localeCompare(b.valid_from));
+  for (let i = 1; i < rows.length; i++) {
+    if (changedFields(rows[i - 1], rows[i]).length + changedFields(rows[i - 1].back, rows[i].back).length) entries.push({ card: v.cardById.get(id)!, before: rows[i - 1], after: rows[i] });
+  }
 }
-entries.sort((a, b) => b.when.localeCompare(a.when) || a.card.name.localeCompare(b.card.name));
+entries.sort((a, b) => b.after.valid_from.localeCompare(a.after.valid_from) || a.card.name.localeCompare(b.card.name));
+const recorded = new Set(entries.map(e => e.card.codex_id));
+const flaggedOnly = registry.cards.filter(c => c.errata && !recorded.has(c.codex_id));
 ---
-<Base title="Changes" canonical="/changes">
-  <h1>Changes</h1>
-  <p class="muted">Every recorded change to a card's gameplay face, newest first. A date is when the registry recorded the change. {entries.length} so far.</p>
-  {entries.length === 0 && <p>No changes recorded yet.</p>}
-  <div class="timeline">{entries.map((e) => <div class="row"><div class="when">{e.when}</div><a href={cardPath(e.card)}><strong>{e.card.name}</strong></a>
-    <ul class="diff">{e.changed.map((f) => <li>{f}: <del>{formatValue(e.before[f as keyof Face])}</del> <ins>{formatValue(e.after[f as keyof Face])}</ins></li>)}</ul></div>)}</div>
+<Base title="Changes and Errata" canonical="/changes" description="Explore recorded changes to Sorcery cards, compare earlier values and trace each record to its source.">
+  <p class="eyebrow">The record, kept</p><h1>Changes and Errata</h1>
+  <p class="intro">Cards change. Their history stays.</p>
+  <p class="muted">{entries.length} recorded gameplay changes across {recorded.size} cards, newest records first. Compare earlier values with the next recorded face.</p>
+  <HistoryHelp />
+  <details class="disclosure"><summary>Jump to a card ({entries.length})</summary><nav class="set-nav" aria-label="Changed cards">{entries.map(e => <a href={`#change-${e.card.codex_id}-${e.after.valid_from}`}>{e.card.name}</a>)}</nav></details>
+  {entries.length === 0 && <p>No gameplay changes recorded yet.</p>}
+  {entries.map(e => <article class="change-entry" id={`change-${e.card.codex_id}-${e.after.valid_from}`}>
+    <div class="change-heading">{e.card.image_urls && <a href={cardPath(e.card)} aria-label={e.card.name}><img class="card-img" src={e.card.image_urls.small} width="50" height="70" alt="" loading="lazy" /></a>}<div><p class="eyebrow">{historySource(e.after).fromCard ? `Read from the printed card · in force from ${e.after.valid_from}` : `Recorded on ${e.after.valid_from}`}</p><h2><a href={`${cardPath(e.card)}#history`}>{e.card.name}</a></h2><p class="source-note"><code>{e.card.codex_id}</code> · previous values {historySource(e.before).label}</p></div></div>
+    <FaceDiff before={e.before} after={e.after} />
+    {changedFields(e.before.back, e.after.back).length > 0 && <><h3>Back face</h3><FaceDiff before={e.before.back} after={e.after.back} /></>}
+    <a href={`${cardPath(e.card)}#printings`}>View affected printings and full history →</a>
+  </article>)}
+  {flaggedOnly.length > 0 && <section><h2>Also marked with errata</h2><p class="muted">These cards have an errata flag; a before-and-after comparison is not yet recorded.</p><ul>{flaggedOnly.map(c => <li><a href={cardPath(c)}>{c.name}</a></li>)}</ul></section>}
 </Base>

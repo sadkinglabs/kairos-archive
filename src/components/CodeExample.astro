@@ -1,0 +1,7 @@
+---
+import { Code } from 'astro:components';
+import type { ComponentProps } from 'astro/types';
+interface Props { code: string; lang?: ComponentProps<typeof Code>['lang']; title?: string }
+const { code, lang = 'javascript', title = 'Example' } = Astro.props;
+---
+<div class="code-example"><div class="section-heading"><span class="source-note">{title}</span><button class="copy" data-copy={code} aria-label={`Copy ${title}`}>Copy</button></div><Code code={code} lang={lang} themes={{ light: 'github-light', dark: 'github-dark' }} /></div>

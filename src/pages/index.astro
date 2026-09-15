@@ -1,24 +1,36 @@
 ---
-import Base from "../layouts/Base.astro";
-import { loadRegistry } from "../data/registry";
-const { registry, source } = await loadRegistry();
-const h = registry.header;
+import Base from '../layouts/Base.astro';
+import SearchBox from '../components/SearchBox.astro';
+import Icon from '../components/Icon.astro';
+import { loadRegistry } from '../data/registry';
+import { KEYS, IS_FLAGS, UNITS } from '../search/keys';
+const { registry } = await loadRegistry();
+const example = (key: string) => KEYS.find(k => k.name === key)!.examples[0];
+const examples = [
+  { label: 'Water minions', query: `${example('type')} ${example('element')}` },
+  { label: 'Foil printings', query: `${example('finish')} unique:${UNITS.find(u => u === 'prints')}` },
+  { label: 'Cards with errata', query: `is:${IS_FLAGS.find(f => f.name === 'errata')!.name}` },
+];
+const entries = [
+  { icon: 'sets', title: 'Browse sets', detail: 'Explore every release, card and printing.', href: '/sets' },
+  { icon: 'history', title: 'Changes and Errata', detail: 'See what changed. Read what came before.', href: '/changes' },
+  { icon: 'code', title: 'Read the documentation', detail: 'API guides, stable identifiers and open data.', href: '/docs' },
+];
 ---
 <Base title="Kairos Archive" canonical="/">
-  <section class="hero">
-    <img class="mark" src="/brand/mark.png" width="160" height="160" alt="" />
-    <h1>Kairos Archive</h1>
-    <p class="muted">Every Sorcery: Contested Realm card and printing, with a permanent identifier and its whole history.</p>
-    <form action="/search" method="get" role="search">
-      <input type="search" name="q" placeholder="Polar Bears" autofocus aria-label="Search" />
-      <button type="submit">Search</button>
-    </form>
-    <p class="examples muted">Try
-      <a href="/search?q=t%3Aminion+e%3Awater+cost%3C%3D3">t:minion e:water cost&lt;=3</a>
-      <a href="/search?q=is%3Aerrata">is:errata</a>
-      <a href="/search?q=s%3Agothic+f%3Afoil+unique%3Aprints">s:gothic f:foil unique:prints</a>
-      <a href="/syntax">full syntax</a>
-    </p>
-  </section>
-  <p class="muted" style="text-align:center">{h.cards} cards · {h.printings} printings · {h.sets} sets · {h.card_history - h.cards} recorded changes · registry release <code>{source.tag}</code></p>
+  <div class="home">
+    <section class="hero" aria-labelledby="home-heading">
+      <p class="eyebrow">Sorcery: Contested Realm</p>
+      <h1 id="home-heading">Every card.<br />Every printing.</h1>
+      <p class="intro">Explore the cards, sets and history of Sorcery.</p>
+      <SearchBox hero />
+      <div class="search-help"><a href="/advanced">Advanced search</a><span aria-hidden="true">·</span><a href="/syntax">Search syntax</a></div>
+      <div class="try-search"><p class="eyebrow muted">Try a search</p><div class="example-chips">{examples.map(e => <a href={`/search?q=${encodeURIComponent(e.query)}`}>{e.label}</a>)}</div></div>
+    </section>
+    <section class="explore" aria-labelledby="explore-heading">
+      <h2 id="explore-heading">Explore the archive</h2>
+      {entries.map(e => <a class="explore-row" href={e.href}><Icon name={e.icon} size={29} /><span><strong>{e.title}</strong><span class="muted">{e.detail}</span></span><Icon /></a>)}
+    </section>
+    <p class="archive-counts">{registry.header.cards.toLocaleString('en')} cards <span>·</span> {registry.header.printings.toLocaleString('en')} printings <span>·</span> {registry.header.sets} sets</p>
+  </div>
 </Base>

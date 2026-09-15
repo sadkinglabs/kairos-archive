@@ -1,0 +1,10 @@
+---
+import ValueDiff from './ValueDiff.astro';
+import { changedFields, type Face } from '../data/registry';
+interface Props { before: Face | null; after: Face | null; beforeLabel?: string; afterLabel?: string }
+const { before, after, beforeLabel, afterLabel } = Astro.props;
+const fields = changedFields(before, after);
+---
+{fields.map(field => field === 'face'
+  ? <ValueDiff field="Back face" before={before ? 'Present' : 'Absent'} after={after ? 'Present' : 'Absent'} beforeLabel={beforeLabel} afterLabel={afterLabel} />
+  : <ValueDiff field={field} before={before?.[field as keyof Face]} after={after?.[field as keyof Face]} beforeLabel={beforeLabel} afterLabel={afterLabel} />)}

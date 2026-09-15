@@ -1,0 +1,30 @@
+---
+import { formatValue, type Face } from '../data/registry';
+interface Props { face: Face }
+const { face } = Astro.props;
+const thresholds = [['Air', face.thr_air], ['Earth', face.thr_earth], ['Fire', face.thr_fire], ['Water', face.thr_water]].filter(([, n]) => Number(n) > 0);
+---
+<dl class="stat-strip">
+  {face.cost !== null && <div><dt>Cost</dt><dd>{face.cost}</dd></div>}
+  {thresholds.map(([element, n]) => <div><dt>{element}</dt><dd>{n}</dd></div>)}
+  {face.power !== null && <div><dt>Power</dt><dd>{face.power}</dd></div>}
+  {face.life !== null && <div><dt>Life</dt><dd>{face.life}</dd></div>}
+</dl>
+<details class="disclosure face-details">
+  <summary>Card details</summary>
+  <dl class="facts">
+    <dt>Type</dt><dd>{formatValue(face.type)}</dd>
+    <dt>Subtypes</dt><dd>{formatValue(face.subtypes)}</dd>
+    <dt>Rarity</dt><dd>{formatValue(face.rarity)}</dd>
+    <dt>Elements</dt><dd>{formatValue(face.elements)}</dd>
+    <dt>Category</dt><dd>{formatValue(face.category)}</dd>
+    <dt>Deck slot</dt><dd>{formatValue(face.slot)}</dd>
+    <dt>Cost</dt><dd>{formatValue(face.cost)}</dd>
+    <dt>Attack / Defense</dt><dd>{formatValue(face.attack)} / {formatValue(face.defense)}</dd>
+    <dt>Power</dt><dd>{formatValue(face.power)}</dd>
+    <dt>Life</dt><dd>{formatValue(face.life)}</dd>
+    <dt>Thresholds</dt><dd>{thresholds.length ? thresholds.map(([e, n]) => `${e} ${n}`).join(', ') : 'None'}</dd>
+    <dt>Keywords</dt><dd>{formatValue(face.keywords)}</dd>
+    <dt>Umbrellas</dt><dd>{formatValue(face.umbrellas)}</dd>
+  </dl>
+</details>

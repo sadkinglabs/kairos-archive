@@ -1,0 +1,16 @@
+---
+import { formatValue } from '../data/registry';
+import { wordDiff } from '../presentation/wordDiff';
+interface Props { field: string; before: unknown; after: unknown; beforeLabel?: string; afterLabel?: string }
+const { field, before, after, beforeLabel = 'Previous values', afterLabel = 'Updated values' } = Astro.props;
+const labels: Record<string, string> = { rules_text: 'Rules text', thr_air: 'Air threshold', thr_earth: 'Earth threshold', thr_fire: 'Fire threshold', thr_water: 'Water threshold' };
+const diff = wordDiff(formatValue(before), formatValue(after));
+const label = labels[field] ?? field.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
+---
+<div class="value-diff diff">
+  <h4>{label}</h4>
+  <div class="comparison">
+    <div><span class="eyebrow">{beforeLabel}</span><pre>{diff.before.map(s => s.changed ? <del>{s.text}</del> : s.text)}</pre></div>
+    <div><span class="eyebrow">{afterLabel}</span><pre>{diff.after.map(s => s.changed ? <ins>{s.text}</ins> : s.text)}</pre></div>
+  </div>
+</div>

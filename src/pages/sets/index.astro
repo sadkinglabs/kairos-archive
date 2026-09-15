@@ -1,12 +1,12 @@
 ---
-import Base from "../../layouts/Base.astro";
-import { loadRegistry, setPath } from "../../data/registry";
+import Base from '../../layouts/Base.astro';
+import { loadRegistry, setPath } from '../../data/registry';
 const { registry } = await loadRegistry();
-const sets = [...registry.sets].sort((a, b) => (a.released_at ?? "9999").localeCompare(b.released_at ?? "9999") || (a.set_code ?? "").localeCompare(b.set_code ?? ""));
+const sets = [...registry.sets].sort((a, b) => (a.released_at ?? '9999').localeCompare(b.released_at ?? '9999') || (a.set_code ?? '').localeCompare(b.set_code ?? ''));
 ---
-<Base title="Sets" canonical="/sets">
-  <h1>Sets</h1>
-  <div class="table-wrap"><table><thead><tr><th>Code</th><th>Set</th><th>First released</th><th>Cards</th><th>Printings</th></tr></thead>
-  <tbody>{sets.map((s) => <tr><td><code>{s.set_code ?? "—"}</code></td><td><a href={setPath(s)}>{s.set_name}</a></td><td>{s.released_at ?? "—"}</td><td>{s.cards}</td><td>{s.printings}</td></tr>)}</tbody></table></div>
-  <p class="muted">Set codes are the official ones (001 Alpha, 002 Beta, 004 Arthurian Legends, 005 Dragonlord, 006 Gothic, 999 Promo); 003 is deliberately unused upstream.</p>
+<Base title="Browse sets" canonical="/sets">
+  <p class="eyebrow">Explore the releases</p><h1>Browse sets</h1><p class="intro">Every release has a place in the archive.</p><p class="muted">{sets.length} sets · {registry.header.cards.toLocaleString('en')} cards · {registry.header.printings.toLocaleString('en')} printings</p>
+  <div class="set-catalogue">{sets.map(s => { const image = registry.printings.find(p => p.set_code === s.set_code && p.image_status === 'ok' && p.image_urls)?.image_urls?.small; return <a class="set-entry" href={setPath(s)}>{image && <img class="card-img" src={image} width="65" height="91" alt="" loading="lazy" />}<div><span class="eyebrow">Set {s.set_code ?? 'without code'} · {s.released_at ?? 'Date unknown'}</span><h2>{s.set_name}</h2><p>{s.cards} cards · {s.printings} printings</p></div></a>; })}</div>
+  <details class="disclosure"><summary>About set codes</summary><p>Set codes come from the official data; 003 is deliberately unused upstream. A set page lists cards alphabetically because the official data has no collector numbers.</p></details>
+  <p><a href="https://api.kairosarchive.net/v3/sets.json">View set catalogue JSON</a> · <a href="/docs/endpoints">API reference</a></p>
 </Base>

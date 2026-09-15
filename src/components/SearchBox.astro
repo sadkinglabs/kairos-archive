@@ -1,0 +1,9 @@
+---
+import Icon from './Icon.astro';
+interface Props { hero?: boolean }
+const { hero = false } = Astro.props;
+---
+<form action="/search" method="get" role="search" class:list={['search-box', { 'hero-search': hero }]}>
+  <input type="search" name="q" id="site-search" placeholder="Search cards…" aria-label="Search cards" />
+  <button type="submit" aria-label="Search"><Icon name={hero ? 'arrow' : 'search'} /></button>
+</form>
