@@ -9,6 +9,8 @@ const rulesKey = KEYS.find(k => k.name === 'rules')!;
 const costKey = KEYS.find(k => k.name === 'cost')!;
 const setKey = KEYS.find(k => k.name === 'set')!;
 const errata = IS_FLAGS.find(f => f.name === 'errata')!;
+const multi = IS_FLAGS.find(f => f.name === 'multi-element')!;
+const mono = IS_FLAGS.find(f => f.name === 'mono-element')!;
 ---
 <Base title="Advanced search" canonical="/advanced">
   <p class="eyebrow">Find your next card</p><h1>Advanced search</h1><p class="intro">Build a query with a few choices, then share the results.</p>
@@ -20,6 +22,7 @@ const errata = IS_FLAGS.find(f => f.name === 'errata')!;
       {selectKeys.map(k => <label>{k.name.charAt(0).toUpperCase() + k.name.slice(1)}<select data-key={k.aliases[0]}><option value="">Any</option>{k.values?.map(value => <option value={value}>{value}</option>)}</select></label>)}
       <label>Set<select data-key={setKey.aliases[0]}><option value="">Any set</option>{registry.sets.map(s => <option value={s.set_code ?? s.set_name}>{s.set_name}</option>)}</select></label>
       <label>Maximum cost<input type="number" min="0" step="1" data-key={costKey.aliases[0]} data-operator="<=" /></label>
+      <label>Elements<select data-key="is"><option value="">Any number</option><option value={multi.name}>Two or more elements</option><option value={mono.name}>Exactly one element</option><option value="none" data-key-override="e">No element</option></select></label>
       <label>Errata<select data-key="is"><option value="">Any card</option><option value={errata.name}>Cards with errata</option></select></label>
     </div>
     <p id="query-hint" class="muted">Use the <a href="/syntax">search syntax reference</a> for all supported keys.</p>
@@ -37,7 +40,12 @@ const errata = IS_FLAGS.find(f => f.name === 'errata')!;
       if (query.value !== lastGenerated) baseQuery = query.value.trim();
       const terms = controls.flatMap(control => {
         const value = control.value.trim();
-        return value ? [`${control.dataset.key}${control.dataset.operator ?? ':'}${control.dataset.operator ? value : JSON.stringify(value)}`] : [];
+        if (!value) return [];
+        // One option can emit a different key: "No element" is e:none, not a flag.
+        const selected = control instanceof HTMLSelectElement ? control.selectedOptions[0] : null;
+        const key = selected?.dataset.keyOverride ?? control.dataset.key;
+        const operator = control.dataset.operator;
+        return [`${key}${operator ?? ':'}${operator ? value : JSON.stringify(value)}`];
       });
       lastGenerated = [baseQuery, ...terms].filter(Boolean).join(' ');
       query.value = lastGenerated;

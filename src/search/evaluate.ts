@@ -200,6 +200,10 @@ function evalFlag(node: Extract<Node, { kind: "flag" }>, card: Card, printing: P
   }
   switch (node.name) {
     case "errata": return card.errata;
+    // "None" is how the registry spells a card with no element, so it is not
+    // one of them: Invigorate has two, Polar Bears one, Erosion none.
+    case "multi-element": return card.elements.filter((x) => x !== "None").length >= 2;
+    case "mono-element": return card.elements.filter((x) => x !== "None").length === 1;
     case "dfc": case "back": return card.has_back;
     case "token": return card.category === "Token";
     case "avatar": return card.category === "Avatar";

@@ -118,7 +118,8 @@ function resolveTerm(token: Token, options: Options, errors: string[]): Node | n
   }
   if (key === "is" || key === "has") {
     const table = key === "is" ? IS_FLAGS : HAS_FLAGS;
-    const flag = table.find((f) => f.name === value.toLowerCase());
+    const wanted = value.toLowerCase();
+    const flag = table.find((f) => f.name === wanted || (f.aliases ?? []).includes(wanted));
     if (!flag) { errors.push(`unknown flag ${key}:${value}`); return null; }
     return { kind: "flag", family: key, name: flag.name, scope: flag.scope };
   }
