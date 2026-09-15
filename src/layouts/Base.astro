@@ -34,7 +34,7 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
           </picture>
         </a>
         <form action="/search" method="get" role="search">
-          <input type="search" name="q" placeholder='search cards: "polar bears", t:minion e:water, r:genesis' aria-label="Search" />
+          <input type="search" name="q" id="site-search" placeholder='search cards: "polar bears", t:minion e:water, r:genesis' aria-label="Search" />
           <button type="submit">Search</button>
         </form>
         <nav>
@@ -157,6 +157,24 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
       }
 
       document.querySelectorAll<HTMLInputElement>('input[type="search"][name="q"]').forEach(enhance);
+
+      // "/" anywhere on the site jumps to the header search box, unless
+      // the user is already typing somewhere (another input, a select, a
+      // contenteditable region) - then "/" should just type a slash.
+      // Escape in the box blurs it, so a second "/" reopens it fresh.
+      const search = document.getElementById("site-search") as HTMLInputElement | null;
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "/" || !search) return;
+        const target = event.target as HTMLElement | null;
+        const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
+        if (typing) return;
+        event.preventDefault();
+        search.focus();
+        search.select();
+      });
+      search?.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") search.blur();
+      });
     </script>
   </body>
 </html>
