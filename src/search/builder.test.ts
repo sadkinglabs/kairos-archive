@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildQuery, elementQuery, listTerm, quoteValue, term } from "./builder";
 import { parse } from "./query";
 import { search } from "./evaluate";
-import { DATA, SLUG_HISTORY } from "./fixture";
+import { CARDS, DATA, SLUG_HISTORY } from "./fixture";
 
 /** Anything the form can build has to be something the parser accepts. */
 const parses = (q: string) => parse(q).errors;
@@ -77,17 +77,17 @@ describe("elementQuery", () => {
   // Apprentice Wizard and Druid are Air, Polar Bears Water, Witch Water and
   // Air, the Broken Site colourless.
   const q = (picked: string[], match: Parameters<typeof elementQuery>[2]) => elementQuery("e", picked, match);
-  it("writes one term set per match, and nothing for an empty pick", () => {
+  it("writes one term set per match, with count modes usable without ticks", () => {
     expect(q([], "all")).toBe("");
     expect(q([], "any")).toBe("");
     expect(q([], "only")).toBe("");
     expect(q([], "multi")).toBe("is:multi-element");
-    expect(q([], "mono")).toBe("is:mono-element");
+    expect(q([], "mono")).toBe("(is:mono-element or e=None)");
     expect(q(["Water", "Air"], "all")).toBe("e:Water+Air");
     expect(q(["Water", "Air"], "any")).toBe("e:Water,Air");
     expect(q(["Water", "Air"], "only")).toBe("e=Water+Air");
     expect(q(["Water"], "multi")).toBe("is:multi-element e:Water");
-    expect(q(["Water", "Fire"], "mono")).toBe("is:mono-element e:Water,Fire");
+    expect(q(["Water", "Fire"], "mono")).toBe("e=Water,Fire");
   });
   it("treats No element as the fifth value, with no rule of its own", () => {
     // Every Artifact and every Avatar carries it, so it is a value like Water
@@ -105,13 +105,36 @@ describe("elementQuery", () => {
     // Asking for both is answerable, and the answer is that no card is both.
     expect(names(q(["None", "Water"], "all"))).toEqual([]);
   });
-  it("never builds a query that cannot match, whatever the combination", () => {
-    for (const match of ["all", "any", "only", "multi", "mono"] as const) {
-      for (const picked of [[], ["Water"], ["Water", "Air"], ["None"], ["Air", "Earth", "Fire", "Water"]]) {
+  it("matches the selected classifications across every subset and mode, including zero results", () => {
+    const classifications = ["None", "Air", "Earth", "Fire", "Water"];
+    for (let mask = 0; mask < 1 << classifications.length; mask++) {
+      const picked = classifications.filter((_, i) => mask & (1 << i));
+      for (const match of ["all", "any", "only", "multi", "mono"] as const) {
         const built = q(picked, match);
-        expect(parses(built), `${match} ${picked.join("+")}`).toEqual([]);
+        expect(parses(built), built).toEqual([]);
+        const expected = CARDS.filter(card => {
+          const all = picked.every(value => card.elements.includes(value));
+          const any = picked.length === 0 || picked.some(value => card.elements.includes(value));
+          switch (match) {
+            case "all": return all;
+            case "any": return any;
+            case "only": return picked.length === 0 || (all && card.elements.length === picked.length);
+            case "multi": return all && card.elements.filter(value => value !== "None").length >= 2;
+            case "mono": return any && card.elements.length === 1;
+          }
+        }).map(card => card.name).sort();
+        expect(names(buildQuery("unique:cards", [built])), `${match}: ${picked.join(",")}`).toEqual(expected);
       }
     }
+  });
+  it("counts No element as one classification without changing typed mono-element searches", () => {
+    expect(names(q(["None"], "mono"))).toEqual(["Broken Site"]);
+    expect(names(q(["None", "Water"], "mono"))).toEqual(["Broken Site", "Polar Bears"]);
+    expect(names("is:mono-element")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);
+    // Both sides of the generated OR must obey other form choices.
+    expect(names(buildQuery("t:Site", [q([], "mono")]))).toEqual(["Broken Site"]);
+    expect(names(buildQuery("t:Minion", [q([], "mono")]))).toEqual(["Apprentice Wizard", "Polar Bears"]);
+    expect(names(buildQuery("t:Site", [q(["None", "Water"], "mono")]))).toEqual(["Broken Site"]);
   });
   it("answers on the fixture what each option promises", () => {
     expect(names(q(["Water", "Air"], "all"))).toEqual(["Witch"]);
@@ -120,7 +143,7 @@ describe("elementQuery", () => {
     expect(names(q([], "multi"))).toEqual(["Witch"]);
     expect(names(q(["Water"], "multi"))).toEqual(["Witch"]);
     expect(names(q(["Water", "Fire"], "multi"))).toEqual([]);
-    expect(names(q([], "mono"))).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);
+    expect(names(q([], "mono"))).toEqual(["Apprentice Wizard", "Broken Site", "Druid", "Polar Bears"]);
     expect(names(q(["Water"], "mono"))).toEqual(["Polar Bears"]);
     expect(names(q(["Water", "Air"], "mono"))).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);
   });

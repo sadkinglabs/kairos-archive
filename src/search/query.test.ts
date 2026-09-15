@@ -124,6 +124,20 @@ describe("parse", () => {
     expect(parse("e:water,").ast).toBeNull();
     expect(parse('!"+"').errors).toEqual([]);
   });
+  it("rejects empty entries even within an exact set or a longer list", () => {
+    for (const key of ["e", "f", "sub", "k"]) {
+      for (const op of [":", "=", "!="]) {
+        for (const value of ["Water+", "+Water", "Water++Air", "Water,,Air", ",Water", "Water,", '"Water+ +Air"']) {
+          const result = parse(`${key}${op}${value}`);
+          expect(result.errors, `${key}${op}${value}`).toHaveLength(1);
+          expect(result.errors[0]).toMatch(/needs a value on both sides/);
+          expect(result.ast).toBeNull();
+        }
+      }
+    }
+    expect(parse("e=Water+Air,Fire").errors[0]).toMatch(/mixing/);
+    expect(parse('r:"draw,, then"').errors).toEqual([]);
+  });
   it("collects bare words for the rules-text group", () => {
     const p = parse('polar !"Bears" t:minion');
     expect(p.bare).toEqual([{ text: "polar", exact: false }, { text: "Bears", exact: true }]);

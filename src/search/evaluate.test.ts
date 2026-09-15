@@ -168,6 +168,13 @@ describe("flags", () => {
     // A comma list stays a list of exact matches.
     expect(names("e=water,air")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);
   });
+  it("compares exact element sets after resolving and deduplicating aliases", () => {
+    expect(names("e=Water+Water")).toEqual(["Polar Bears"]);
+    expect(names("e=w+water")).toEqual(["Polar Bears"]);
+    expect(names("e=Air+Water+w")).toEqual(["Witch"]);
+    expect(names("e=None+colourless+c")).toEqual(["Broken Site"]);
+    expect(names("e=Water+unknown")).toEqual([]);
+  });
   it("value lists: , is either, + is every one", () => {
     // The pair a player actually wants: both elements on one card, versus
     // either element on any card.

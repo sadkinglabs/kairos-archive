@@ -217,13 +217,14 @@ th { color: var(--muted); font-weight: 600; }
 .advanced-form .query-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
 .advanced-form details.group { border: 1px solid var(--line); border-radius: 10px; padding: 0 1.1rem; margin: .7rem 0; }
 .advanced-form details.group[open] { padding-bottom: 1.1rem; }
-.advanced-form details.group > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: .6rem; min-height: 48px;
-  font: 600 .72rem/1.5 inherit; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); }
+.advanced-form details.group > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .25rem .6rem; min-height: 48px; padding: .7rem 0;
+  font-family: inherit; font-weight: 600; font-size: .72rem; line-height: 1.5; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); }
 .advanced-form details.group > summary::-webkit-details-marker { display: none; }
 .advanced-form details.group > summary::before { content: '+'; font-size: 1rem; line-height: 1; color: var(--muted); }
 .advanced-form details.group[open] > summary::before { content: '−'; }
-.advanced-form details.group > summary .badge { font: 400 .82rem/1.4 inherit; letter-spacing: 0; text-transform: none;
-  color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.advanced-form details.group > summary .badge { grid-column: 2; font-family: inherit; font-weight: 400; font-size: .82rem; line-height: 1.4; letter-spacing: 0; text-transform: none;
+  color: var(--muted); overflow-wrap: anywhere; white-space: normal; }
+.advanced-form details.group > summary .badge:empty { display: none; }
 .grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .9rem 1rem; }
 .advanced-form label.field { display: grid; gap: .35rem; font-size: .86rem; align-content: start; }
 .advanced-form .numeric .row { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem; gap: .4rem; }
@@ -231,10 +232,10 @@ th { color: var(--muted); font-weight: 600; }
 .advanced-form p.hint { margin: .9rem 0 0; font-size: .8rem; }
 .advanced-form .boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: .45rem .9rem; margin: .7rem 0 .9rem; }
 .advanced-form details.group.picker .grid-fields { margin-top: .2rem; }
-.advanced-form label.box { display: flex; align-items: center; gap: .4rem; font-size: .9rem; }
+.advanced-form label.box { display: flex; align-items: center; gap: .4rem; min-height: 44px; cursor: pointer; font-size: .9rem; overflow-wrap: anywhere; }
 .advanced-form label.box input { width: auto; min-height: 0; }
 .advanced-form .reset-row { margin: 0; }
-#reset-fields { min-height: 0; padding: 0; border: 0; background: none; color: var(--muted); text-decoration: underline; font-size: .8rem; }
+#reset-fields { min-height: 44px; padding: .5rem 0; border: 0; background: none; color: var(--muted); text-decoration: underline; font-size: .8rem; }
 @media (max-width: 740px) {
   main { padding: 1.8rem 20px 3rem; }
   header.site .inner { padding: .7rem 20px; flex-wrap: wrap; gap: .7rem; }

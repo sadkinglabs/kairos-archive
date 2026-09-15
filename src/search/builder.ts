@@ -51,19 +51,22 @@ export function listTerm(key: string, picked: string[], mode: ListMode): string 
  * exist ("exactly Water and Fire" and "exactly one element" at once). */
 export type ElementMatch = "all" | "any" | "only" | "multi" | "mono";
 
-/** No element is the registry's fifth element value - the element list
- * ["None"] - and every Artifact and every Avatar has it. It is a value
- * here like Water is, with no rule of its own: every match applies to it,
- * and "no element or Water" is what a Water deck can play. */
+/** No element is a selectable classification, represented by ["None"].
+ * It counts as one classification in the picker, but no actual affinity
+ * for the existing is:mono-element and is:multi-element flags. */
 export const NO_ELEMENT = "None";
 
 export function elementQuery(key: string, picked: string[], match: ElementMatch): string {
   const values = picked.map((p) => p.trim()).filter(Boolean);
-  const flag = match === "multi" ? "is:multi-element" : match === "mono" ? "is:mono-element" : "";
+  if (match === "mono") {
+    // Commas join exact singleton matches: None or Water, with no additional
+    // affinities. With no ticks, include every mono-affinity or None card.
+    return values.length ? `${key}=${quoteList(values.join(","))}` : `(is:mono-element or ${key}=${NO_ELEMENT})`;
+  }
+  const flag = match === "multi" ? "is:multi-element" : "";
   if (values.length === 0) return flag;
-  // multi asks for cards holding every ticked element and at least one more
-  // besides; mono for a single-element card, whichever of the ticked it is.
-  const mode: ListMode = match === "only" ? "=" : match === "any" || match === "mono" ? "," : "+";
+  // Multi means at least two actual affinities, including every ticked value.
+  const mode: ListMode = match === "only" ? "=" : match === "any" ? "," : "+";
   return [flag, listTerm(key, values, mode)].filter(Boolean).join(" ");
 }
 

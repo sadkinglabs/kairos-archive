@@ -17,14 +17,14 @@ export function describeElements(picked: string[], match: ElementMatch): string 
   // No element is a value like the rest; only its wording differs.
   const values = picked.map((p) => (p.trim() === NO_ELEMENT ? "no element" : p.trim())).filter(Boolean);
   if (values.length === 0) {
-    return match === "multi" ? "two or more elements" : match === "mono" ? "one element only" : "";
+    return match === "multi" ? "two or more elements" : match === "mono" ? "one classification only (including no element)" : "";
   }
   switch (match) {
     case "all": return sentence(values, "and");
     case "any": return sentence(values, "or");
     case "only": return `only ${sentence(values, "and")}`;
     case "multi": return `two or more, including ${sentence(values, "and")}`;
-    case "mono": return `one element, ${sentence(values, "or")}`;
+    case "mono": return `one classification, ${sentence(values, "or")}`;
   }
 }
 

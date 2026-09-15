@@ -22,19 +22,6 @@ const colourless = registry.cards.filter(c => c.elements.length === 1 && c.eleme
 const sets = [...registry.sets].sort((a, b) => (b.set_code ?? '').localeCompare(a.set_code ?? ''));
 const years = distinct(registry.printings.map(p => p.released_at?.slice(0, 4))).reverse();
 
-// Upper bounds for the number inputs, read off the data rather than guessed.
-const max = (values: (number | null | undefined)[]) => Math.max(...values.map(v => v ?? 0));
-const thresholds = registry.cards.map(c => [c.thr_air, c.thr_earth, c.thr_fire, c.thr_water]);
-const maxima: Record<string, number> = {
-  cost: max(registry.cards.map(c => c.cost)),
-  thr: max(thresholds.map(t => t[0] + t[1] + t[2] + t[3])),
-  element: max(thresholds.flat()),
-  atk: max(registry.cards.map(c => c.attack)),
-  def: max(registry.cards.map(c => c.defense)),
-  pow: max(registry.cards.map(c => c.power)),
-  life: max(registry.cards.map(c => c.life)),
-};
-
 /** Every numeric row is an operator and a number, so "cost under 3" and
  * "exactly 2 Water" are each two choices. The values are the parser's own. */
 const OPERATORS = [
@@ -45,23 +32,23 @@ const OPERATORS = [
   { op: '>', label: 'over' },
   { op: '!=', label: 'not' },
 ];
-const numbers: { label: string; key: string; max: number; hint?: string }[] = [
-  { label: 'Mana cost', key: alias('cost'), max: maxima.cost, hint: `type ${alias('cost')}:x for the cards with no fixed cost` },
-  { label: 'Threshold total', key: alias('threshold'), max: maxima.thr, hint: 'the four element requirements added up' },
-  { label: 'Air threshold', key: alias('air'), max: maxima.element },
-  { label: 'Earth threshold', key: alias('earth'), max: maxima.element },
-  { label: 'Fire threshold', key: alias('fire'), max: maxima.element },
-  { label: 'Water threshold', key: alias('water'), max: maxima.element },
-  { label: 'Attack', key: alias('attack'), max: maxima.atk },
-  { label: 'Defense', key: alias('defense'), max: maxima.def },
-  { label: 'Power', key: alias('power'), max: maxima.pow, hint: 'attack when attack equals defense, otherwise the average rounded down' },
-  { label: 'Life', key: alias('life'), max: maxima.life, hint: 'Avatars only' },
+const numbers: { label: string; key: string; hint?: string }[] = [
+  { label: 'Mana cost', key: alias('cost'), hint: `type ${alias('cost')}:x for the cards with no fixed cost` },
+  { label: 'Threshold total', key: alias('threshold'), hint: 'the four element requirements added up' },
+  { label: 'Air threshold', key: alias('air') },
+  { label: 'Earth threshold', key: alias('earth') },
+  { label: 'Fire threshold', key: alias('fire') },
+  { label: 'Water threshold', key: alias('water') },
+  { label: 'Attack', key: alias('attack') },
+  { label: 'Defense', key: alias('defense') },
+  { label: 'Power', key: alias('power'), hint: 'attack when attack equals defense, otherwise the average rounded down' },
+  { label: 'Life', key: alias('life'), hint: 'Avatars only' },
 ];
 /** The tick-many fields. Elements get their own vocabulary of matches -
  * one control, phrased as whole sentences, because a "which" select and a
  * "how many" select multiplied into combinations that cannot exist. The
  * colourless cards are the element list ["None"], so No element is one of
- * the boxes; ticked, it is the whole answer. */
+ * the boxes and counts as one classification in the single-choice mode. */
 const pickers: { key: string; kind: 'element' | 'list'; legend: string; label: string; values: string[]; modes: { value: string; label: string }[] }[] = [
   { key: alias('element'), kind: 'element', legend: 'Elements', label: 'Find cards with',
     values: [...(key('element').values ?? []).filter(v => v !== 'None'), 'None'],
@@ -70,7 +57,7 @@ const pickers: { key: string; kind: 'element' | 'list'; legend: string; label: s
       { value: 'any', label: 'any of the ticked elements' },
       { value: 'only', label: 'only the ticked elements, nothing else' },
       { value: 'multi', label: 'two or more elements, the ticked ones among them' },
-      { value: 'mono', label: 'one element only, one of the ticked' },
+      { value: 'mono', label: 'one classification only (includes No element)' },
     ] },
   { key: alias('subtype'), kind: 'list', legend: 'Subtypes', label: 'Match', values: subtypes,
     modes: [{ value: '+', label: 'every ticked subtype' }, { value: ',', label: 'any one of them' }] },
@@ -90,10 +77,11 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       <input id="advanced-query" name="q" placeholder="Enter a query or use the fields below" />
       <button type="submit">Search</button>
     </div>
+    <p class="hint">Editing the query directly clears the field selections; later choices add to your edited query.</p>
     <div id="advanced-fields" hidden>
 
       <details class="group">
-        <summary>Card<span class="badge"></span></summary>
+        <summary><span class="group-title">Card</span><span class="badge"></span></summary>
         <div class="grid-fields">
           <label class="field">Name<input data-key={alias('name')} data-say="named %s" type="text" placeholder="polar bears" /></label>
           <label class="field">Rules contain<input data-key={alias('rules')} data-say="rules mention %s" type="text" placeholder="draw a spell" /></label>
@@ -102,16 +90,16 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
           <label class="field">Group<select data-key={alias('umbrella')}><option value="">Any group</option>{umbrellas.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Errata<select data-key="is">
             <option value="">Any card</option>
-            <option value={flag('errata').name}>Changed since printing</option>
-            <option value={flag('errata').name} data-negate>Unchanged since printing</option>
+            <option value={flag('errata').name}>Marked with errata</option>
+            <option value={flag('errata').name} data-negate>Not marked with errata</option>
           </select></label>
         </div>
       </details>
 
       {pickers.map(picker => (
         <details class="group picker" data-picker-kind={picker.kind} data-picker-key={picker.key}>
-          <summary>{picker.legend}<span class="badge"></span></summary>
-          <div class="boxes">{picker.values.map(v => (
+          <summary><span class="group-title">{picker.legend}</span><span class="badge"></span></summary>
+          <div class="boxes" role="group" aria-label={picker.legend}>{picker.values.map(v => (
             <label class="box"><input type="checkbox" data-picker={picker.key} value={v} />{v === 'None' ? 'No element' : v}</label>
           ))}</div>
           <div class="grid-fields">
@@ -119,20 +107,20 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
               {picker.modes.map(m => <option value={m.value}>{m.label}</option>)}
             </select></label>
           </div>
-          {picker.kind === 'element' && <p class="hint"><strong>No element</strong> is the fifth element value, not a missing answer: {colourless} cards carry it, among them every Artifact and every Avatar. It behaves like the other four — ticked with Water, <em>any of the ticked</em> is what a Water deck can play, while <em>all of the ticked</em> asks for a card that is both, and no card is. Tick nothing and the last two options still work alone: every multi-element card, or every single-element one.</p>}
-          {picker.key === alias('keyword') && <p class="hint">166 cards carry two keywords or more, so <em>every ticked keyword</em> is worth asking for; 15 cards have a second subtype.</p>}
+          {picker.kind === 'element' && <p class="hint"><strong>No element</strong> is a classification shared by {colourless} cards. “One classification only” includes it: tick No element and Water to find cards with either classification alone. In this mode, leave the boxes empty to include every single classification. “Two or more elements” requires at least two elemental affinities.</p>}
+          {picker.key === alias('keyword') && <p class="hint">Choose whether a card needs every ticked keyword or any one of them.</p>}
         </details>
       ))}
 
       <details class="group">
-        <summary>Cost, thresholds and stats<span class="badge"></span></summary>
+        <summary><span class="group-title">Cost, thresholds and stats</span><span class="badge"></span></summary>
         <div class="grid-fields">
           {numbers.map(n => (
             <label class="field numeric">
               {n.label}
               <span class="row">
                 <select data-op aria-label={`${n.label} comparison`}>{OPERATORS.map(o => <option value={o.op}>{o.label}</option>)}</select>
-                <input type="number" min="0" max={n.max} step="1" data-key={n.key} data-label={n.label.toLowerCase()} aria-label={`${n.label} value`} />
+                <input type="number" step="1" data-key={n.key} data-label={n.label.toLowerCase()} aria-label={`${n.label} value`} />
               </span>
               {n.hint && <small class="hint">{n.hint}</small>}
             </label>
@@ -141,7 +129,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       </details>
 
       <details class="group">
-        <summary>Printing<span class="badge"></span></summary>
+        <summary><span class="group-title">Printing</span><span class="badge"></span></summary>
         <div class="grid-fields">
           <label class="field">Set<select data-key={alias('set')}><option value="">Any set</option>{sets.map(s => <option value={s.set_code ?? s.set_name}>{s.set_name}</option>)}</select></label>
           <label class="field">Product<select data-key={alias('product')}><option value="">Any product</option>{key('product').values?.map(v => <option value={v}>{v}</option>)}</select></label>
@@ -159,7 +147,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       </details>
 
       <details class="group">
-        <summary>Results<span class="badge"></span></summary>
+        <summary><span class="group-title">Results</span><span class="badge"></span></summary>
         <div class="grid-fields">
           <label class="field">Show<select data-key="unique" data-say="showing %s">
             <option value="">one row per card</option>

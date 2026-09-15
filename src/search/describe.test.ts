@@ -7,7 +7,7 @@ describe("describeElements", () => {
     expect(describeElements(["Water", "Fire"], "any")).toBe("Water or Fire");
     expect(describeElements(["Water", "Fire"], "only")).toBe("only Water and Fire");
     expect(describeElements(["Water"], "multi")).toBe("two or more, including Water");
-    expect(describeElements(["Water", "Fire"], "mono")).toBe("one element, Water or Fire");
+    expect(describeElements(["Water", "Fire"], "mono")).toBe("one classification, Water or Fire");
     expect(describeElements(["Air", "Earth", "Water"], "all")).toBe("Air, Earth and Water");
   });
   it("covers the picks that need no element ticked", () => {
@@ -15,9 +15,10 @@ describe("describeElements", () => {
     expect(describeElements([], "any")).toBe("");
     expect(describeElements([], "only")).toBe("");
     expect(describeElements([], "multi")).toBe("two or more elements");
-    expect(describeElements([], "mono")).toBe("one element only");
+    expect(describeElements([], "mono")).toBe("one classification only (including no element)");
   });
   it("words no element like any other value", () => {
+    expect(describeElements(["None", "Water"], "mono")).toBe("one classification, no element or Water");
     expect(describeElements(["None"], "all")).toBe("no element");
     expect(describeElements(["None"], "only")).toBe("only no element");
     expect(describeElements(["None", "Water"], "any")).toBe("no element or Water");

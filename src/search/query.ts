@@ -146,14 +146,15 @@ function resolveTerm(token: Token, options: Options, errors: string[]): Node | n
   // e=water+fire is a set: "these elements and no others", which only the
   // evaluator can judge, so it stays one term instead of expanding.
   const exactSet = def.kind === "element" && op === "=" && value.includes("+") && !value.includes(",");
-  const separator = listable && !exactSet && /[,+]/.test(value) ? (value.includes("+") ? "+" : ",") : null;
+  const separator = listable && /[,+]/.test(value) ? (value.includes("+") ? "+" : ",") : null;
   if (separator) {
     if (value.includes(",") && value.includes("+")) {
       errors.push(`${key}: mixing , and + is ambiguous - use parentheses, e.g. (${key}:a+b or ${key}:c)`);
       return null;
     }
-    const parts = value.split(separator).map((part) => part.trim()).filter(Boolean);
-    if (parts.length < 2) { errors.push(`${key}: ${separator} needs a value on both sides`); return null; }
+    const parts = value.split(separator).map((part) => part.trim());
+    if (parts.some((part) => part === "")) { errors.push(`${key}: ${separator} needs a value on both sides`); return null; }
+    if (exactSet) return { kind: "term", key: def, op, value };
     const items: Node[] = parts.map((part) => ({ kind: "term", key: def, op, value: part }));
     // De Morgan: each term already carries the negation, so the join has to
     // flip with it. e!=water,fire is "neither", not "not both".

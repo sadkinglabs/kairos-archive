@@ -119,7 +119,8 @@ function elementMatch(card: Card, op: Op, value: string): boolean {
   // the whole list at once: e=water+fire is those two elements and no third.
   const wanted = value.split("+").map(resolveElement);
   if (wanted.some((w) => w === null)) return false;
-  const names = wanted as string[];
+  // Resolve aliases before deduplicating: w+Water is one affinity, not two.
+  const names = [...new Set(wanted as string[])];
   if (op === "=") return card.elements.length === names.length && names.every((n) => card.elements.includes(n));
   const has = names.every((n) => card.elements.includes(n));
   return op === "!=" ? !has : has;
