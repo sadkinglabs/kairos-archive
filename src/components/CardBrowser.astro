@@ -11,20 +11,15 @@ interface Props {
   heading: string;
   /** Used when the URL carries no ?q= - "every card" for /cards. */
   defaultQuery?: string;
-  /** /search retitles itself after the query; /cards keeps its name. */
-  reflectQuery?: boolean;
-  /** What the count line calls a row. */
-  noun?: string;
 }
-const { heading, defaultQuery = "", reflectQuery = false, noun = "result" } = Astro.props;
+const { heading, defaultQuery = "" } = Astro.props;
 /** The chips offer exactly what sort: and unique: accept, read from the
  * key table, so a field added to the language appears here too. */
 const SORT_LABELS: Record<string, string> = { name: "name", cost: "mana cost", threshold: "threshold total",
   power: "power", atk: "attack", def: "defense", life: "life", set: "set", date: "release date", rarity: "rarity", type: "type" };
 const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "every printing", art: "one per artwork" };
 ---
-<div id="browser" data-heading={heading} data-default-query={defaultQuery}
-     data-reflect-query={reflectQuery ? "yes" : "no"} data-noun={noun}>
+<div id="browser" data-default-query={defaultQuery}>
   <h1 id="heading">{heading}</h1>
   <div id="errors" class="notice" hidden></div>
   <div class="chips">
@@ -43,6 +38,8 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
   <script>
     import { search, directLookup, paginate, type PageInfo } from "../search";
     import type { SearchData } from "../search";
+    import type { Unit } from "../search/keys";
+    import { browserHeading, refinementUrl, resultHref, resultNoun } from "../search/browserState";
 
     interface Payload extends SearchData { tag: string; slug_history: { slug: string; printing_id: string }[] }
     const IMAGE_BASE = "https://api.kairosarchive.net/images";
@@ -55,8 +52,8 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       return payload!;
     }
 
-    function tile(cardName: string, codexId: string, printing: { printing_id: string; image_hash: string | null; image_status: string; set_name: string; finish: string | null } | null, sub: string) {
-      const href = `/cards/${codexId}/${slugify(cardName)}`;
+    function tile(cardName: string, codexId: string, printing: { printing_id: string; image_hash: string | null; image_status: string; set_name: string; finish: string | null } | null, sub: string, unit: Unit = "cards") {
+      const href = resultHref({ codex_id: codexId, name: cardName }, printing?.printing_id ?? null, unit);
       const img = printing && printing.image_hash && printing.image_status !== "missing"
         ? `<img class="card-img" src="${IMAGE_BASE}/${printing.printing_id}.${printing.image_hash}.normal.webp" width="488" height="680" alt="" loading="lazy" decoding="async">`
         : `<div class="placeholder">${escapeHtml(cardName)}</div>`;
@@ -65,26 +62,40 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
     function escapeHtml(s: string) { return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!); }
 
     const browser = $("browser");
-    const HEADING = browser.dataset.heading ?? "Search";
     const DEFAULT_QUERY = browser.dataset.defaultQuery ?? "";
-    const REFLECTS = browser.dataset.reflectQuery === "yes";
-    const NOUN = browser.dataset.noun ?? "result";
     const here = () => location.pathname;
+    const box = document.querySelector<HTMLInputElement>('header input[name="q"]');
+    let runId = 0;
+
+    // Refine either entry point in place, preserving browse options and
+    // resetting pagination. Explicitly typed options take precedence.
+    box?.form?.addEventListener("submit", event => {
+      event.preventDefault();
+      history.pushState(null, "", refinementUrl(here(), location.search, box.value, DEFAULT_QUERY));
+      void run();
+    });
 
     async function run() {
+      const thisRun = ++runId;
       const params = new URLSearchParams(location.search);
       const typed = (params.get("q") ?? "").trim();
       // No question asked: /search waits, /cards asks its own.
       const q = typed || DEFAULT_QUERY;
-      if (REFLECTS) {
-        const box = document.querySelector<HTMLInputElement>('header input[name="q"]');
-        if (box) box.value = typed;
-        $("heading").textContent = typed ? `${HEADING}: ${typed}` : HEADING;
-        document.title = typed ? `${typed} · Kairos Archive` : `${HEADING} · Kairos Archive`;
+      if (box) box.value = typed;
+      const title = browserHeading(q);
+      $("heading").textContent = title;
+      document.title = `${title} · Kairos Archive`;
+      if (!q) {
+        $("pager").hidden = true;
+        $("rules-group").hidden = true;
+        $("errors").hidden = true;
+        $("results").replaceChildren();
+        $("count").textContent = "";
+        return;
       }
-      if (!q) { $("pager").hidden = true; return; }
       const jump = directLookup(q);
       const d = await data();
+      if (thisRun !== runId) return;
       if (jump) {
         if (jump.kind === "card") { const c = d.cards.find((x) => x.codex_id === jump.value); if (c) { location.replace(`/cards/${c.codex_id}/${slugify(c.name)}`); return; } }
         if (jump.kind === "printing") { if (d.printings.some((p) => p.printing_id === jump.value)) { location.replace(`/printings/${jump.value}`); return; } }
@@ -103,9 +114,10 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       ($("order") as HTMLSelectElement).value = result.options.order ?? "";
       const requestedPage = Number(params.get("page"));
       const { items: pageHits, info } = paginate(result.hits, requestedPage);
-      $("count").textContent = result.total === 0 ? `0 ${NOUN}s`
-        : `Showing ${info.start}–${info.end} of ${result.total.toLocaleString("en")} ${NOUN}${result.total === 1 ? "" : "s"}`;
-      $("results").innerHTML = pageHits.map((h) => tile(h.card.name, h.card.codex_id, h.printing, h.printing ? `${h.printing.set_name} · ${h.printing.finish ?? ""}` : h.card.type ?? "")).join("");
+      const noun = resultNoun(result.options.unique);
+      $("count").textContent = result.total === 0 ? `0 ${noun}s`
+        : `Showing ${info.start}–${info.end} of ${result.total.toLocaleString("en")} ${noun}${result.total === 1 ? "" : "s"}`;
+      $("results").innerHTML = pageHits.map((h) => tile(h.card.name, h.card.codex_id, h.printing, h.printing ? `${h.printing.set_name} · ${h.printing.finish ?? ""}` : h.card.type ?? "", result.options.unique)).join("");
       renderPager(info, params);
       const group = $("rules-group");
       group.hidden = result.rulesTextHits.length === 0;
@@ -121,6 +133,7 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       const params = new URLSearchParams(location.search);
       let q = (params.get("q") || DEFAULT_QUERY).replace(new RegExp(`\\s*\\b${key}:\\S+`, "g"), "").trim();
       if (value) q = `${q} ${key}:${value}`.trim();
+      if (!q) q = DEFAULT_QUERY || "unique:cards";
       params.set("q", q);
       params.delete("page");
       history.replaceState(null, "", `${here()}?${params.toString()}`);

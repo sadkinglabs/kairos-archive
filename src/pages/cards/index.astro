@@ -11,6 +11,6 @@ const { registry } = await loadRegistry();
 <Base title="All cards" canonical="/cards"
       description={`Every card in Sorcery: Contested Realm - ${registry.header.cards.toLocaleString('en')} of them, sortable and browsable.`}>
   <p class="eyebrow">Browse the archive</p>
-  <CardBrowser heading="All cards" defaultQuery="unique:cards" noun="card" />
-  <p class="muted">Looking for something in particular? <a href="/search">Search</a>, <a href="/advanced">build a query</a>, or read the <a href="/syntax">syntax</a>.</p>
+  <CardBrowser heading="All cards" defaultQuery="unique:cards" />
+  <p class="muted">Refine these results with the search field above, <a href="/advanced">build an advanced query</a>, or read the <a href="/syntax">syntax</a>.</p>
 </Base>

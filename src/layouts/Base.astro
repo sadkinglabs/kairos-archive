@@ -212,6 +212,9 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
           if (closeTimer) { clearTimeout(closeTimer); closeTimer = undefined; }
         });
         input.addEventListener("input", () => void onInput());
+        // Search results can update in place, so submission must close the
+        // suggestions even when the browser does not navigate to a new page.
+        input.form?.addEventListener("submit", close);
         input.addEventListener("keydown", (e) => {
           if (e.key === "Escape") { close(); return; }
           if (list.hidden || matches.length === 0) return;
