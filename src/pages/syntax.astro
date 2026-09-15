@@ -24,7 +24,7 @@ const q = (s: string) => `/search?q=${encodeURIComponent(s)}`;
   <p>Every numeric key (cost, pow, atk, def, life, the four thresholds) and the date key take <code>:</code> or <code>=</code> (equals), <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>!=</code>. A numeric key can compare to another: <a href={q("atk>def")}><code>atk&gt;def</code></a>. Dates accept YYYY, YYYY-MM or YYYY-MM-DD and compare as ranges: <code>date&lt;2024</code> is before 2024, <code>date:2024-05</code> is within that month.</p>
   <h2>Flags</h2>
   <div class="table-wrap"><table class="reference-table"><thead><tr><th>Flag</th><th>Scope</th><th>Meaning</th></tr></thead><tbody>
-    {IS_FLAGS.map((f) => <tr><td data-label="Flag"><a href={q(`is:${f.name}`)}><code>is:{f.name}</code></a></td><td data-label="Scope">{f.scope}</td><td data-label="Meaning">{f.doc}</td></tr>)}
+    {IS_FLAGS.map((f) => <tr><td data-label="Flag"><a href={q(`is:${f.name}`)}><code>is:{f.name}</code></a>{f.aliases && <span class="muted"> · {f.aliases.map((a) => <code>is:{a}</code>)}</span>}</td><td data-label="Scope">{f.scope}</td><td data-label="Meaning">{f.doc}</td></tr>)}
     {HAS_FLAGS.map((f) => <tr><td data-label="Flag"><a href={q(`has:${f.name}`)}><code>has:{f.name}</code></a></td><td data-label="Scope">{f.scope}</td><td data-label="Meaning">{f.doc}</td></tr>)}
   </tbody></table></div>
   <h2>Logic</h2>

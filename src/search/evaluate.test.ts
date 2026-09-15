@@ -127,6 +127,19 @@ describe("flags", () => {
     expect(names("is:reprint")).toEqual(["Apprentice Wizard", "Polar Bears"]);
     expect(names("is:unique-printing")).toEqual(["Broken Site", "Druid", "Witch"]);
   });
+  it("counts elements rather than naming them", () => {
+    // Witch is Water and Air; the Broken Site's ["None"] is no element at all,
+    // so it is neither multi nor mono.
+    expect(names("is:multi-element")).toEqual(["Witch"]);
+    expect(names("is:mono-element")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);
+    expect(names("e:none")).toEqual(["Broken Site"]);
+    expect(names("is:multi-element")).toEqual(names("is:multi"));
+    expect(names("is:mono-element")).toEqual(names("is:monoelement"));
+    // It composes like any other flag.
+    expect(names("is:multi-element e:water")).toEqual(["Witch"]);
+    expect(names("is:multi-element e:fire")).toEqual([]);
+    expect(names("-is:multi-element t:minion")).toEqual(["Apprentice Wizard", "Polar Bears"]);
+  });
   it("printing flags", () => {
     expect(names("is:promo")).toEqual(["Druid", "Polar Bears"]);
     expect(names("is:foil")).toEqual(["Apprentice Wizard"]);

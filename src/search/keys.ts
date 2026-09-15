@@ -62,8 +62,8 @@ export const KEYS: KeyDef[] = [
     doc: "The cross-subtype groups rules text refers to: Evil, Knight, Royalty.",
     examples: ["u:knight", "u:evil t:minion"] },
   { name: "element", aliases: ["e", "element"], scope: "card", kind: "element", field: "elements", values: ELEMENTS,
-    doc: "e:water matches any card that has Water (multi-element cards match each of theirs); e:water e:air needs both; e=water means Water and nothing else; e:none is colourless. First letters work: e:w, e=wa.",
-    examples: ["e:water", "e=fire", "e:none"] },
+    doc: "e:water matches any card that has Water (multi-element cards match each of theirs); e:water e:air needs both; e=water means Water and nothing else; e:none is colourless. First letters work: e:w, e=wa. For how many elements rather than which, use is:multi-element or is:mono-element.",
+    examples: ["e:water", "e=fire", "e:none", "is:multi-element e:fire"] },
   { name: "air", aliases: ["air", "thr.air", "threshold.air"], scope: "card", kind: "number", field: "thr_air",
     doc: "Air threshold, with the numeric operators.", examples: ["air>=2", "air:1"] },
   { name: "earth", aliases: ["earth", "thr.earth", "threshold.earth"], scope: "card", kind: "number", field: "thr_earth",
@@ -115,6 +115,8 @@ export const KEYS: KeyDef[] = [
 
 export interface FlagDef {
   name: string;
+  /** Shorthands accepted in a query; the canonical name is what /syntax shows. */
+  aliases?: string[];
   scope: Scope;
   doc: string;
 }
@@ -122,6 +124,10 @@ export interface FlagDef {
 /** is: flags */
 export const IS_FLAGS: FlagDef[] = [
   { name: "errata", scope: "card", doc: "the card's text or stats changed since it was printed (registry errata flag)" },
+  { name: "multi-element", aliases: ["multi", "multielement"], scope: "card",
+    doc: "two or more elements: Invigorate is Earth and Water, King Arthur is all four" },
+  { name: "mono-element", aliases: ["mono", "monoelement"], scope: "card",
+    doc: "exactly one element; e:none finds the cards with no element at all" },
   { name: "dfc", scope: "card", doc: "double-faced: the card has a back face" },
   { name: "token", scope: "card", doc: "category Token" },
   { name: "avatar", scope: "card", doc: "category Avatar" },
