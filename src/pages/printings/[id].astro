@@ -1,6 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { cardPath, loadRegistry, printingPath, setPath, views } from "../../data/registry";
+import { cardPath, loadRegistry, printingPath, setPath, showsCurrentValues, views } from "../../data/registry";
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
   return registry.printings.map((printing) => ({ params: { id: printing.printing_id }, props: { printing } }));
@@ -29,7 +29,7 @@ const slugs = v.slugsByPrinting.get(printing.printing_id) ?? [];
         <dt>Artist</dt><dd>{printing.artist ?? "—"}</dd>
         <dt>Typeline</dt><dd>{printing.typeline || "—"}</dd>
         {printing.flavour_text && <><dt>Flavour</dt><dd>{printing.flavour_text}</dd></>}
-        <dt>Shows current values</dt><dd>{printing.printed_as_current === null ? "unknown" : printing.printed_as_current ? "yes" : "no — printed with older values; see the card's history"}</dd>
+        <dt>Shows current values</dt><dd>{showsCurrentValues(printing).long}</dd>
         {printing.retired_at && <><dt>Retired</dt><dd>{printing.retired_at} (removed upstream; the record stays)</dd></>}
         <dt>Current slug</dt><dd><code>{printing.slug}</code></dd>
       </dl>

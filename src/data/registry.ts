@@ -34,7 +34,13 @@ export interface RegistryPrinting extends PrintingFace {
   image_status: "missing" | "lowres" | "ok";
 }
 export interface RegistrySet { set_code: string | null; set_name: string; released_at: string | null; cards: number; printings: number; api_url: string | null; kairos_url: string | null }
-export interface HistoryRow extends Face { codex_id: string; valid_from: string; valid_to: string | null; back: Face | null }
+export interface HistoryRow extends Face {
+  codex_id: string; valid_from: string; valid_to: string | null; back: Face | null;
+  /** Where the face came from: "api" when the registry observed it in the
+   * official API, "card" when a maintainer transcribed it from the printed
+   * card (schema 11; absent in older releases, which held only "api" rows). */
+  source?: "api" | "card";
+}
 export interface Registry {
   header: { schema_version: number; source: string; sets: number; cards: number; printings: number; slug_history: number; name_history: number; card_history: number };
   sets: RegistrySet[]; cards: RegistryCard[]; printings: RegistryPrinting[];
@@ -148,6 +154,33 @@ export function rowInForce<T extends { valid_from: string }>(rows: T[], date: st
   let chosen = sorted[0];
   for (const row of sorted) if (row.valid_from <= date) chosen = row;
   return chosen;
+}
+
+/** How to read a history row's dates. An observed row is dated by the sync
+ * that detected the change - "recorded on". A row transcribed from a printed
+ * card was never observed: it runs from the day the first printing showing it
+ * reached the public until the current face took over, so "as printed" is the
+ * honest label and its dates are release dates, not detection dates. */
+export function historySource(row: { source?: "api" | "card" }): { fromCard: boolean; dated: string; label: string } {
+  const fromCard = row.source === "card";
+  return fromCard
+    ? { fromCard, dated: "in force from", label: "read from the printed card" }
+    : { fromCard, dated: "recorded on", label: "observed in the official API" };
+}
+
+/** What "Shows current values" says for one printing. null has two causes and
+ * they read differently: a printing that shows no rules text at all cannot be
+ * compared (a textless promo), and a printing with no release date cannot be
+ * placed in the card's history. */
+export function showsCurrentValues(printing: { printed_as_current: boolean | null; released_at: string | null }):
+    { verdict: "yes" | "no" | "no-text" | "undated"; short: string; long: string } {
+  if (printing.printed_as_current === true)
+    return { verdict: "yes", short: "current", long: "yes" };
+  if (printing.printed_as_current === false)
+    return { verdict: "no", short: "older values", long: "no \u2014 printed with older values; see the card's history" };
+  if (printing.released_at !== null)
+    return { verdict: "no-text", short: "no card text", long: "not applicable \u2014 this printing shows no rules text" };
+  return { verdict: "undated", short: "unknown", long: "unknown \u2014 this printing has no release date to place it in the card's history" };
 }
 
 export function formatValue(value: unknown): string {
