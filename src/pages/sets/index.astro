@@ -1,12 +1,13 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { loadRegistry, setPath } from '../../data/registry';
+import { loadRegistry, orderedSets, setFace, setPath } from '../../data/registry';
 const { registry } = await loadRegistry();
-const sets = [...registry.sets].sort((a, b) => (a.released_at ?? '9999').localeCompare(b.released_at ?? '9999') || (a.set_code ?? '').localeCompare(b.set_code ?? ''));
+const sets = orderedSets(registry.sets);
+const faces = new Map(sets.map(s => [s.set_code ?? 'none', setFace(s, registry.printings)]));
 ---
 <Base title="Browse sets" canonical="/sets">
   <p class="eyebrow">Explore the releases</p><h1>Browse sets</h1><p class="intro">Every release has a place in the archive.</p><p class="muted">{sets.length} sets · {registry.header.cards.toLocaleString('en')} cards · {registry.header.printings.toLocaleString('en')} printings</p>
-  <div class="set-catalogue">{sets.map(s => { const image = registry.printings.find(p => p.set_code === s.set_code && p.image_status === 'ok' && p.image_urls)?.image_urls?.small; return <a class="set-entry" href={setPath(s)}>{image && <img class="card-img" src={image} width="65" height="91" alt="" loading="lazy" />}<div><span class="eyebrow">Set {s.set_code ?? 'without code'} · {s.released_at ?? 'Date unknown'}</span><h2>{s.set_name}</h2><p>{s.cards} cards · {s.printings} printings</p></div></a>; })}</div>
+  <div class="set-catalogue">{sets.map(s => { const face = faces.get(s.set_code ?? 'none'); return <a class="set-entry" href={setPath(s)}>{face?.image_urls && <img class="card-img" src={face.image_urls.small} width="146" height="204" alt={`${face.card_name}, from ${s.set_name}`} loading="lazy" />}<div><span class="eyebrow">Set {s.set_code ?? 'without code'} · {s.released_at ?? 'Date unknown'}</span><h2>{s.set_name}</h2><p>{s.cards} cards · {s.printings} printings</p></div></a>; })}</div>
   <details class="disclosure"><summary>About set codes</summary><p>Set codes come from the official data; 003 is deliberately unused upstream. A set page lists cards alphabetically because the official data has no collector numbers.</p></details>
   <p><a href="https://api.kairosarchive.net/v3/sets.json">View set catalogue JSON</a> · <a href="/docs/endpoints">API reference</a></p>
 </Base>

@@ -1,7 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import CardTile from "../components/CardTile.astro";
-import { loadRegistry, setPath, views } from "../data/registry";
+import { loadRegistry, orderedSets, setPath, views } from "../data/registry";
 
 // Tokens aren't a set of their own upstream, so give them a catalogue page
 // like /sets: every card whose category is Token, grouped by the set of
@@ -20,7 +20,11 @@ for (const card of tokens) {
   if (!groups.has(key)) groups.set(key, { set, cards: [] });
   groups.get(key)!.cards.push(card);
 }
-const sorted = [...groups.values()].sort((a, b) => (a.set?.released_at ?? "9999").localeCompare(b.set?.released_at ?? "9999") || (a.set?.set_code ?? "").localeCompare(b.set?.set_code ?? ""));
+// Set order, so the promo bucket lands last here too; a token with no
+// printing on record has no set and goes after them.
+const order = new Map(orderedSets(registry.sets).map((s, i) => [s.set_code ?? "none", i]));
+const sorted = [...groups.values()].sort((a, b) =>
+  (order.get(a.set?.set_code ?? "none") ?? 999) - (order.get(b.set?.set_code ?? "none") ?? 999));
 for (const g of sorted) g.cards.sort((a, b) => a.name.localeCompare(b.name));
 ---
 <Base title="Tokens" canonical="/tokens">

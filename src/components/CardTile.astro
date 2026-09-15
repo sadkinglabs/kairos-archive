@@ -6,7 +6,10 @@ const { card, printing } = Astro.props;
 const urls = printing?.image_urls ?? card.image_urls;
 ---
 <a class="tile" href={cardPath(card)}>
-  {urls ? <img class="card-img" src={urls.small} width="146" height="204" alt={card.name} loading="lazy" /> : <div class="placeholder">{card.name}</div>}
+  {/* The medium rendition: a tile is at least 146px wide and usually wider,
+      so the small one (146x204) was being upscaled - blurry on every screen
+      and worse on a dense one. Same reason search uses it. */}
+  {urls ? <img class="card-img" src={urls.normal} width="488" height="680" alt={card.name} loading="lazy" decoding="async" /> : <div class="placeholder">{card.name}</div>}
   <div class="name">{card.name}</div>
   <div class="sub">{printing ? `${printing.set_name} · ${printing.finish}` : card.type}</div>
 </a>

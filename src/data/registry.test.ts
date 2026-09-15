@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { changedFields, fetchWithRetry, historySource, rowInForce, showsCurrentValues } from "./registry";
+import { changedFields, fetchWithRetry, historySource, orderedSets, rowInForce, setFace,
+         SET_FACES, showsCurrentValues, type RegistryPrinting, type RegistrySet } from "./registry";
 
 describe("rowInForce", () => {
   const rows = [
@@ -93,5 +94,62 @@ describe("fetchWithRetry", () => {
     vi.stubGlobal("fetch", fetchMock);
     await expect(fetchWithRetry("https://example.test/x", {}, 4, 0)).rejects.toThrow("HTTP 404");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+const aSet = (over: Partial<RegistrySet> & { set_name: string }): RegistrySet => ({
+  set_code: null, released_at: null, cards: 0, printings: 0, api_url: null, kairos_url: null, ...over,
+});
+const aPrinting = (over: Partial<RegistryPrinting> & { printing_id: string }): RegistryPrinting => ({
+  codex_id: "C000001", card_name: "A Card", set_name: "Alpha", set_code: "001", released_at: null,
+  product: "Booster", finish: "Standard", slug: "001-a_card-b-s", back: null, image_hash: "aaaa",
+  printed_as_current: true, retired_at: null, api_url: "", kairos_url: "", image_status: "ok",
+  artist: null, artist_slug: null, flavour_text: null, typeline: null,
+  image_urls: { small: "s", normal: "n", large: "l", original: "o" }, ...over,
+});
+
+describe("orderedSets", () => {
+  it("runs from Alpha to the promo bucket, whatever the release dates say", () => {
+    // The promo set holds the earliest promo, so its released_at (2022-03-15)
+    // is before Alpha's (2023-06-22): by date it came first, which is wrong.
+    const sets = [
+      aSet({ set_name: "Promo", set_code: "999", released_at: "2022-03-15" }),
+      aSet({ set_name: "Gothic", set_code: "006", released_at: "2025-12-05" }),
+      aSet({ set_name: "Alpha", set_code: "001", released_at: "2023-06-22" }),
+      aSet({ set_name: "Dragonlord", set_code: "005", released_at: "2025-07-31" }),
+    ];
+    expect(orderedSets(sets).map((s) => s.set_name)).toEqual(["Alpha", "Dragonlord", "Gothic", "Promo"]);
+    // A set with no code sorts after every coded one, promos included.
+    expect(orderedSets([...sets, aSet({ set_name: "Nameless" })]).at(-1)!.set_name).toBe("Nameless");
+    // The input is left alone.
+    expect(sets[0].set_name).toBe("Promo");
+  });
+});
+
+describe("setFace", () => {
+  const gothic = aSet({ set_name: "Gothic", set_code: "006" });
+  it("takes the chosen printing when it is served", () => {
+    const printings = [
+      aPrinting({ printing_id: "P002700", set_code: "006", card_name: "Somebody Else" }),
+      aPrinting({ printing_id: SET_FACES["006"], set_code: "006", card_name: "Necromancer" }),
+    ];
+    expect(setFace(gothic, printings)?.card_name).toBe("Necromancer");
+  });
+  it("falls back to the first served printing of the set", () => {
+    // A new set, before anyone chooses a face for it.
+    const fresh = aSet({ set_name: "Newest", set_code: "007" });
+    const printings = [aPrinting({ printing_id: "P003000", set_code: "007", card_name: "First In" })];
+    expect(setFace(fresh, printings)?.card_name).toBe("First In");
+    // And when the chosen printing has no image yet, rather than nothing.
+    const unserved = [
+      aPrinting({ printing_id: SET_FACES["006"], set_code: "006", card_name: "Necromancer",
+                  image_status: "missing", image_urls: null }),
+      aPrinting({ printing_id: "P002700", set_code: "006", card_name: "Somebody Else" }),
+    ];
+    expect(setFace(gothic, unserved)?.card_name).toBe("Somebody Else");
+  });
+  it("is null when the set has no served printing at all", () => {
+    expect(setFace(gothic, [aPrinting({ printing_id: "P1", set_code: "006", image_status: "missing", image_urls: null })])).toBeNull();
   });
 });
