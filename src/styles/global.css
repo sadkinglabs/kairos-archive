@@ -63,3 +63,13 @@ code { background: var(--badge); padding: .05rem .3rem; border-radius: 4px; font
 .chips select { font: inherit; padding: .3rem; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); }
 .pager { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin: 1.2rem 0; }
 .pager .btn.disabled { opacity: .5; pointer-events: none; border-color: var(--line); background: var(--badge); color: var(--muted); }
+.suggest-wrap { position: relative; flex: 1; min-width: 0; }
+.suggest-wrap input[type=search] { width: 100%; }
+.suggest-list {
+  position: absolute; top: calc(100% + .3rem); left: 0; right: 0; z-index: 20;
+  margin: 0; padding: .3rem; list-style: none; background: var(--card); border: 1px solid var(--line);
+  border-radius: 6px; box-shadow: 0 8px 20px rgba(0, 0, 0, .18); max-height: min(60vh, 360px); overflow-y: auto;
+}
+.suggest-list li { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; padding: .4rem .5rem; border-radius: 4px; cursor: pointer; }
+.suggest-list li .type { color: var(--muted); font-size: .8rem; white-space: nowrap; flex: none; }
+.suggest-list li.active, .suggest-list li:hover { background: var(--badge); }
