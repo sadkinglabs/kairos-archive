@@ -35,7 +35,7 @@ import Base from "../layouts/Base.astro";
     function tile(cardName: string, codexId: string, printing: { printing_id: string; image_hash: string | null; image_status: string; set_name: string; finish: string | null } | null, sub: string) {
       const href = `/cards/${codexId}/${slugify(cardName)}`;
       const img = printing && printing.image_hash && printing.image_status !== "missing"
-        ? `<img class="card-img" src="${IMAGE_BASE}/${printing.printing_id}.${printing.image_hash}.small.webp" width="146" height="204" alt="" loading="lazy">`
+        ? `<img class="card-img" src="${IMAGE_BASE}/${printing.printing_id}.${printing.image_hash}.normal.webp" width="488" height="680" alt="" loading="lazy" decoding="async">`
         : `<div class="placeholder">${escapeHtml(cardName)}</div>`;
       return `<a class="tile" href="${href}">${img}<div class="name">${escapeHtml(cardName)}</div><div class="sub">${escapeHtml(sub)}</div></a>`;
     }
