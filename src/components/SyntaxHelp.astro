@@ -1,0 +1,26 @@
+---
+/** The cheat sheet behind the ? on the search box. Its examples are built
+ * from the same key table the parser and /syntax come from, so a renamed
+ * key renames it here too - there is no second copy of the language. */
+import { KEYS } from '../search/keys';
+const alias = (name: string): string => KEYS.find(k => k.name === name)!.aliases[0];
+const rows: [string, string][] = [
+  ['polar bears', 'words match the card name'],
+  [`${alias('rules')}:"draw a spell"`, 'rules text; quote a phrase'],
+  [`${alias('type')}:minion ${alias('element')}:water`, 'terms combine with and'],
+  [`${alias('element')}:water+fire`, 'both elements'],
+  [`${alias('element')}:water,fire`, 'either element'],
+  [`${alias('element')}=water+fire`, 'exactly those, nothing else'],
+  [`${alias('cost')}<=3 ${alias('threshold')}>=2`, `numbers take : = < <= > >= !=`],
+  [`${alias('rarity')}:unique ${alias('set')}:006`, 'rarity, set'],
+  [`${alias('artist')}:menges unique:prints`, 'artist; one row per printing'],
+  ['is:multi-element -is:errata', 'flags, and - to negate'],
+];
+---
+<div class="syntax-panel">
+  <p class="eyebrow muted">Quick syntax</p>
+  <dl>{rows.map(([query, meaning]) => (
+    <><dt><a href={`/search?q=${encodeURIComponent(query)}`}><code>{query}</code></a></dt><dd>{meaning}</dd></>
+  ))}</dl>
+  <p class="panel-foot"><a href="/syntax">Full syntax reference →</a><span aria-hidden="true"> · </span><a href="/advanced">Advanced search</a></p>
+</div>

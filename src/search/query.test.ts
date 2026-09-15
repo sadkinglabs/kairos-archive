@@ -22,6 +22,34 @@ describe("tokenize", () => {
   });
 });
 
+describe("the key table", () => {
+  it("leads with the short key and keeps the descriptive spellings as aliases", () => {
+    // The first alias is the key: /syntax heads its row with it and the
+    // advanced form writes it, so it is always the shortest spelling.
+    for (const key of KEYS) {
+      const [first, ...rest] = key.aliases;
+      for (const alias of rest) expect(first.length, `${key.name}: ${first} vs ${alias}`).toBeLessThanOrEqual(alias.length);
+    }
+  });
+  it("spells each key exactly once, and never as a reserved word", () => {
+    const seen = new Map<string, string>();
+    for (const key of KEYS) for (const alias of key.aliases) {
+      expect(seen.get(alias), `${alias} is claimed by both ${seen.get(alias)} and ${key.name}`).toBeUndefined();
+      seen.set(alias, key.name);
+    }
+    for (const reserved of ["is", "has", "unique", "sort", "order"]) expect(seen.has(reserved), reserved).toBe(false);
+  });
+  it("keeps the short keys the owner settled on", () => {
+    const keyOf = (name: string) => KEYS.find((k) => k.name === name)!.aliases[0];
+    expect(keyOf("rarity")).toBe("rar");
+    expect(keyOf("cost")).toBe("m");
+    expect(keyOf("life")).toBe("l");
+    expect(parse("rar:unique m<=2 l>=20").errors).toEqual([]);
+    // The descriptive spellings keep working.
+    expect(parse("rarity:unique cost<=2 life>=20").ast).toEqual(parse("rar:unique m<=2 l>=20").ast);
+  });
+});
+
 describe("parse", () => {
   it("builds and/or/not with precedence and parentheses", () => {
     const { ast, errors } = parse("t:minion (e:water or e:air) -k:genesis");
@@ -51,13 +79,116 @@ describe("parse", () => {
     expect(parse("(t:minion").errors[0]).toMatch(/missing closing/);
   });
   it("resolves every alias in the key table and every flag", () => {
+    // A value the key would actually accept, since an unusable one is now an
+    // error rather than a term that matches nothing.
+    const sample = (key: (typeof KEYS)[number]): string => {
+      switch (key.kind) {
+        case "element": return "water";
+        case "enum": case "list": return key.values?.[0] ?? "beast";
+        case "finish": return "foil";
+        case "product": return "booster";
+        case "date": return "2024";
+        case "id": return "C000001";
+        case "slug": return "004-witch-b-s";
+        case "number": return "1";
+        default: return "a";
+      }
+    };
     for (const key of KEYS) for (const alias of key.aliases) {
-      const p = parse(`${alias}:1`);
-      expect(p.errors, alias).toEqual([]);
+      const p = parse(`${alias}:${sample(key)}`);
+      expect(p.errors, `${alias}:${sample(key)}`).toEqual([]);
       expect(p.ast).toMatchObject({ kind: "term", key: { name: key.name } });
     }
     for (const f of IS_FLAGS) expect(parse(`is:${f.name}`).errors).toEqual([]);
     for (const f of HAS_FLAGS) expect(parse(`has:${f.name}`).errors).toEqual([]);
+  });
+  it("accepts every example this page and /syntax put in front of a reader", () => {
+    // Each example is rendered as a link that runs the query, on /syntax, in
+    // the search box's help panel and on the home page.
+    for (const key of KEYS) for (const example of key.examples) {
+      expect(parse(example).errors, example).toEqual([]);
+      expect(parse(example).ast, example).not.toBeNull();
+    }
+    for (const flag of IS_FLAGS) expect(parse(`is:${flag.name}`).ast, flag.name).not.toBeNull();
+    for (const flag of HAS_FLAGS) expect(parse(`has:${flag.name}`).ast, flag.name).not.toBeNull();
+  });
+  it("names a value the evaluator could never match, instead of finding nothing", () => {
+    expect(parse("e:wateer").errors[0]).toMatch(/^e: "wateer" is not an element - Air, Earth, Fire, Water, None$/);
+    expect(parse("e=Water+unknown").errors[0]).toMatch(/is not an element/);
+    expect(parse("t:creature").errors[0]).toMatch(/^t: "creature" is not a type - Avatar, Minion, Magic, Aura, Artifact, Site$/);
+    expect(parse("rar:e").errors[0]).toMatch(/^rar: "e" could be Exceptional or Elite - spell more of it$/);
+    expect(parse("f:shiny").errors[0]).toMatch(/is not a finish - Standard, Foil, Rainbow/);
+    expect(parse("pro:nonsense").errors[0]).toMatch(/is not a product - Booster, BoxTopper/);
+    expect(parse("u:wizard").errors[0]).toMatch(/is not a umbrella - Evil, Knight, Royalty/);
+    expect(parse("m:banana").errors[0]).toMatch(/^m: "banana" is not a number - try m:3, m>=3, m:x, m:even, m:odd, or another numeric key like m>thr$/);
+    expect(parse("atk:tall").errors[0]).toMatch(/^atk: "tall" is not a number - try atk:3, atk>=3, or another numeric key like atk>thr$/);
+    expect(parse("date:soon").errors[0]).toMatch(/is not a date - use 2024, 2024-05 or 2024-05-01/);
+    expect(parse("id:1").errors[0]).toMatch(/is not a registry id - C000230 for a card, P000937 for a printing/);
+    // Every one of them refuses to build a term, so nothing runs half-asked.
+    for (const q of ["e:wateer", "t:creature", "rar:e", "f:shiny", "m:banana", "date:soon", "id:1"]) {
+      expect(parse(q).ast, q).toBeNull();
+    }
+    // What stays legal: shorthands, prefixes, key-to-key comparisons, and the
+    // open vocabularies that come from the data rather than the key table.
+    for (const q of ["e:w", "e:none", "e:colourless", "t:art", "rar:ex", "f:rf", "pro:bt", "m:x", "m:even", "atk>def",
+                     "m>=thr", "date:2024-05", "id:P000937", "sub:whatever", "k:whatever", "s:whatever", "a:whatever"]) {
+      expect(parse(q).errors, q).toEqual([]);
+    }
+  });
+  it("expands a value list into or (,) and and (+)", () => {
+    const comma = parse("e:water,fire");
+    expect(comma.errors).toEqual([]);
+    expect(comma.ast).toEqual({ kind: "or", items: [
+      { kind: "term", key: expect.objectContaining({ name: "element" }), op: ":", value: "water" },
+      { kind: "term", key: expect.objectContaining({ name: "element" }), op: ":", value: "fire" },
+    ] });
+    const plus = parse("e:water+fire");
+    expect(plus.errors).toEqual([]);
+    expect(plus.ast?.kind).toBe("and");
+    // Whitespace inside a quoted list, and more than two values.
+    expect(parse('s:"alpha, beta, 006"').ast).toMatchObject({ kind: "or", items: [{ value: "alpha" }, { value: "beta" }, { value: "006" }] });
+  });
+  it("keeps e= with a + list as one term for the evaluator to judge", () => {
+    expect(parse("e=water+fire").ast).toMatchObject({ kind: "term", op: "=", value: "water+fire" });
+    // Only elements, and only with =: everything else still expands.
+    expect(parse("e:water+fire").ast?.kind).toBe("and");
+    expect(parse("t=minion+site").ast?.kind).toBe("and");
+  });
+  it("flips the join for != so a list negates as a whole", () => {
+    // e!=water,fire is "neither water nor fire", which is and-of-not-each.
+    expect(parse("e!=water,fire").ast?.kind).toBe("and");
+    // e!=water+fire is "not both", which is or-of-not-each.
+    expect(parse("e!=water+fire").ast?.kind).toBe("or");
+  });
+  it("leaves commas alone in text values, and will not read one as a number", () => {
+    expect(parse('r:"draw a spell, then"').ast).toMatchObject({ kind: "term", value: "draw a spell, then" });
+    // A numeric key never splits on the comma - and "1,2" is not a number, so
+    // it is reported rather than quietly matching nothing.
+    const p = parse("cost:1,2");
+    expect(p.ast).toBeNull();
+    expect(p.errors[0]).toMatch(/is not a number/);
+  });
+  it("rejects a mixed, a one-sided and a stray separator", () => {
+    expect(parse("e:water,+fire").errors[0]).toMatch(/mixing , and \+ is ambiguous/);
+    expect(parse("e:water,").errors[0]).toMatch(/, needs a value on both sides/);
+    expect(parse("e:water + fire").errors[0]).toMatch(/^stray \+ - a value list takes no spaces/);
+    // A one-sided list and a stray separator both contribute no node.
+    expect(parse("e:water,").ast).toBeNull();
+    expect(parse('!"+"').errors).toEqual([]);
+  });
+  it("rejects empty entries even within an exact set or a longer list", () => {
+    for (const key of ["e", "f", "sub", "k"]) {
+      for (const op of [":", "=", "!="]) {
+        for (const value of ["Water+", "+Water", "Water++Air", "Water,,Air", ",Water", "Water,", '"Water+ +Air"']) {
+          const result = parse(`${key}${op}${value}`);
+          expect(result.errors, `${key}${op}${value}`).toHaveLength(1);
+          expect(result.errors[0]).toMatch(/needs a value on both sides/);
+          expect(result.ast).toBeNull();
+        }
+      }
+    }
+    expect(parse("e=Water+Air,Fire").errors[0]).toMatch(/mixing/);
+    expect(parse('r:"draw,, then"').errors).toEqual([]);
   });
   it("collects bare words for the rules-text group", () => {
     const p = parse('polar !"Bears" t:minion');

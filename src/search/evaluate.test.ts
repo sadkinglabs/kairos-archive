@@ -28,8 +28,9 @@ describe("card keys", () => {
     expect(names("n:witch")).toEqual(["Witch"]);
   });
   it("enums accept unambiguous prefixes and reject ambiguous ones", () => {
-    expect(names("rarity:ex")).toEqual(["Polar Bears"]);
-    expect(names("rarity:el")).toEqual(["Witch"]);
+    expect(names("rar:ex")).toEqual(["Polar Bears"]);
+    expect(names("rar:el")).toEqual(["Witch"]);
+    expect(names("rarity:ex")).toEqual(names("rar:ex"));
     expect(names("t:art")).toEqual([]);
     expect(names("t:si")).toEqual(["Broken Site"]);
     expect(names("cat:token")).toEqual([]);
@@ -53,11 +54,15 @@ describe("card keys", () => {
   it("thresholds and numbers with every operator", () => {
     expect(names("water>=1")).toEqual(["Polar Bears", "Witch"]);
     expect(names("air:1")).toEqual(["Apprentice Wizard", "Druid", "Witch"]);
-    expect(names("cost<=2")).toEqual(["Witch"]);
-    expect(names("cost!=3")).toEqual(["Broken Site", "Druid", "Witch"]);
-    expect(names("cost:x")).toEqual(["Broken Site", "Druid"]);
-    expect(names("cost:odd")).toEqual(["Apprentice Wizard", "Polar Bears"]);
-    expect(names("life>=20")).toEqual(["Druid"]);
+    expect(names("m<=2")).toEqual(["Witch"]);
+    expect(names("m!=3")).toEqual(["Broken Site", "Druid", "Witch"]);
+    expect(names("m:x")).toEqual(["Broken Site", "Druid"]);
+    expect(names("m:odd")).toEqual(["Apprentice Wizard", "Polar Bears"]);
+    expect(names("l>=20")).toEqual(["Druid"]);
+    // The descriptive spellings are the same key.
+    expect(names("cost:odd")).toEqual(names("m:odd"));
+    expect(names("mana:x")).toEqual(names("m:x"));
+    expect(names("life>=20")).toEqual(names("l>=20"));
   });
   it("power is the derived value; atk and def are the raw ones; keys compare to keys", () => {
     expect(names("pow:3")).toEqual(["Druid", "Polar Bears"]);
@@ -139,6 +144,56 @@ describe("flags", () => {
     expect(names("is:multi-element e:water")).toEqual(["Witch"]);
     expect(names("is:multi-element e:fire")).toEqual([]);
     expect(names("-is:multi-element t:minion")).toEqual(["Apprentice Wizard", "Polar Bears"]);
+  });
+  it("thr: is the four thresholds added up", () => {
+    // Apprentice Wizard and Druid ask for 1 Air, Polar Bears 1 Water,
+    // Witch 1 Air and 1 Water, the Broken Site nothing.
+    expect(names("thr:2")).toEqual(["Witch"]);
+    expect(names("thr:0")).toEqual(["Broken Site"]);
+    expect(names("thr>=1")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears", "Witch"]);
+    expect(names("threshold<2 -thr:0")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);
+    expect(names("thr.total:2")).toEqual(names("thr:2"));
+    // It reads as a right-hand side too, like the other numeric keys.
+    expect(names("cost>=thr")).toEqual(["Apprentice Wizard", "Polar Bears", "Witch"]);
+    // And it sorts.
+    expect(names("t:minion sort:threshold order:desc")).toEqual(["Witch", "Apprentice Wizard", "Polar Bears"]);
+  });
+  it("e= with a list is the exact set of elements", () => {
+    // Witch is Water and Air and nothing else.
+    expect(names("e=water+air")).toEqual(["Witch"]);
+    expect(names("e=w+a")).toEqual(["Witch"]);
+    expect(names("e=water+fire")).toEqual([]);
+    // One element behaves as before: exactly that element.
+    expect(names("e=water")).toEqual(["Polar Bears"]);
+    // A comma list stays a list of exact matches.
+    expect(names("e=water,air")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears"]);
+  });
+  it("compares exact element sets after resolving and deduplicating aliases", () => {
+    expect(names("e=Water+Water")).toEqual(["Polar Bears"]);
+    expect(names("e=w+water")).toEqual(["Polar Bears"]);
+    expect(names("e=Air+Water+w")).toEqual(["Witch"]);
+    expect(names("e=None+colourless+c")).toEqual(["Broken Site"]);
+    expect(names("e=Water+unknown")).toEqual([]);
+  });
+  it("value lists: , is either, + is every one", () => {
+    // The pair a player actually wants: both elements on one card, versus
+    // either element on any card.
+    expect(names("e:water+air")).toEqual(["Witch"]);
+    expect(names("e:water,air")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears", "Witch"]);
+    expect(names("e:w+a")).toEqual(names("e:water e:air"));
+    // Any listable key, not just elements.
+    expect(names("t:minion,site")).toEqual(["Apprentice Wizard", "Broken Site", "Polar Bears", "Witch"]);
+    expect(names("id:C000003,C000004")).toEqual(["Broken Site", "Witch"]);
+    // != negates the list as a whole: neither element, not "not both".
+    expect(names("e!=water,air")).toEqual(["Broken Site"]);
+    expect(names("-e:water,air")).toEqual(["Broken Site"]);
+  });
+  it("a list of printing values still binds to one printing", () => {
+    // Either finish on any printing of the card...
+    expect(names("f:foil,rainbow")).toEqual(["Apprentice Wizard", "Polar Bears"]);
+    // ...but + asks one printing to be both, which no printing is.
+    expect(names("f:foil+rainbow")).toEqual([]);
+    expect(prints("unique:prints s:001,999")).toEqual(["P000001", "P000002", "P000005", "P000004"]);
   });
   it("printing flags", () => {
     expect(names("is:promo")).toEqual(["Druid", "Polar Bears"]);

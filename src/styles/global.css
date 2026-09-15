@@ -52,7 +52,22 @@ header.site .inner { position: relative; max-width: 1120px; margin: auto; paddin
 .search-box { display: flex; gap: 0; min-width: 0; }
 header .search-box { flex: 1; max-width: 530px; margin-left: auto; }
 .search-box input { width: 100%; flex: 1; min-width: 0; border-radius: 7px 0 0 7px; border-right: 0; background: var(--card); }
-.search-box button { border-radius: 0 7px 7px 0; min-width: 50px; }
+.search-box button { border-radius: 0; min-width: 50px; }
+/* The ? is the third segment of the search control, and its panel hangs
+   under the box. */
+.syntax-help { position: relative; display: flex; }
+.syntax-help summary { list-style: none; cursor: pointer; display: grid; place-items: center; min-width: 44px; padding-inline: .1rem;
+  border: 1px solid var(--line); border-left: 0; border-radius: 0 7px 7px 0; background: var(--card); color: var(--muted); font-weight: 600; }
+.syntax-help summary::-webkit-details-marker { display: none; }
+.syntax-help summary:hover, .syntax-help[open] summary { color: var(--accent); background: var(--badge); }
+.syntax-panel { position: absolute; right: 0; top: calc(100% + .35rem); z-index: 30; width: min(430px, 88vw); padding: .85rem 1rem 1rem;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px #0003; text-align: left; }
+.syntax-panel dl { display: grid; grid-template-columns: auto 1fr; gap: .3rem .8rem; margin: .6rem 0 .8rem; font-size: .8rem; }
+.syntax-panel dt { margin: 0; }
+.syntax-panel dt code { white-space: nowrap; }
+.syntax-panel dd { margin: 0; color: var(--muted); }
+.syntax-panel .panel-foot { margin: 0; font-size: .82rem; }
+.hero-search .syntax-help summary { min-width: 52px; font-size: 1.05rem; }
 footer.site { border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
 footer.site .inner { max-width: 1120px; margin: auto; padding: 1.5rem 28px 2rem; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 1.3rem; font-size: .87rem; margin-bottom: 1rem; }
@@ -196,10 +211,31 @@ th { color: var(--muted); font-weight: 600; }
 .docs-content .endpoint { overflow-wrap: anywhere; }
 .docs-content .table-wrap td { overflow-wrap: anywhere; }
 @media (prefers-color-scheme: dark) { .astro-code, .astro-code span { color: var(--shiki-dark) !important; background-color: var(--shiki-dark-bg) !important; } }
-.advanced-form { max-width: 740px; }
-.advanced-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
-.advanced-fields label { display: grid; gap: .35rem; font-size: .86rem; }
-.advanced-form code { display: block; margin: .8rem 0; min-height: 2rem; }
+.advanced-form { max-width: 880px; }
+.advanced-form .query-label { display: block; font-size: .86rem; margin-bottom: .35rem; }
+.advanced-form #advanced-query { width: 100%; }
+.advanced-form .query-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.advanced-form details.group { border: 1px solid var(--line); border-radius: 10px; padding: 0 1.1rem; margin: .7rem 0; }
+.advanced-form details.group[open] { padding-bottom: 1.1rem; }
+.advanced-form details.group > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .25rem .6rem; min-height: 48px; padding: .7rem 0;
+  font-family: inherit; font-weight: 600; font-size: .72rem; line-height: 1.5; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); }
+.advanced-form details.group > summary::-webkit-details-marker { display: none; }
+.advanced-form details.group > summary::before { content: '+'; font-size: 1rem; line-height: 1; color: var(--muted); }
+.advanced-form details.group[open] > summary::before { content: '−'; }
+.advanced-form details.group > summary .badge { grid-column: 2; font-family: inherit; font-weight: 400; font-size: .82rem; line-height: 1.4; letter-spacing: 0; text-transform: none;
+  color: var(--muted); overflow-wrap: anywhere; white-space: normal; }
+.advanced-form details.group > summary .badge:empty { display: none; }
+.grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .9rem 1rem; }
+.advanced-form label.field { display: grid; gap: .35rem; font-size: .86rem; align-content: start; }
+.advanced-form .numeric .row { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem; gap: .4rem; }
+.advanced-form .hint { color: var(--muted); font-size: .76rem; line-height: 1.5; }
+.advanced-form p.hint { margin: .9rem 0 0; font-size: .8rem; }
+.advanced-form .boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: .45rem .9rem; margin: .7rem 0 .9rem; }
+.advanced-form details.group.picker .grid-fields { margin-top: .2rem; }
+.advanced-form label.box { display: flex; align-items: center; gap: .4rem; min-height: 44px; cursor: pointer; font-size: .9rem; overflow-wrap: anywhere; }
+.advanced-form label.box input { width: auto; min-height: 0; }
+.advanced-form .reset-row { margin: 0; }
+#reset-fields { min-height: 44px; padding: .5rem 0; border: 0; background: none; color: var(--muted); text-decoration: underline; font-size: .8rem; }
 @media (max-width: 740px) {
   main { padding: 1.8rem 20px 3rem; }
   header.site .inner { padding: .7rem 20px; flex-wrap: wrap; gap: .7rem; }
@@ -208,6 +244,7 @@ th { color: var(--muted); font-weight: 600; }
   .site-menu { order: 0; }
   .site-menu nav { top: 60px; right: 20px; }
   header .search-box { order: 4; flex: 1 1 100%; max-width: none; }
+  .syntax-panel { width: min(430px, calc(100vw - 40px)); }
   footer.site .inner { padding: 1.3rem 20px; }
   .hero { padding-top: .6rem; }
   .hero .eyebrow { font-size: .65rem; }
@@ -248,7 +285,8 @@ th { color: var(--muted); font-weight: 600; }
   .docs-nav nav { display: flex; flex-wrap: wrap; gap: .2rem; }
   .docs-nav a { font-size: .78rem; }
   .docs-content h1 { font-size: 2.15rem; }
-  .advanced-fields { grid-template-columns: 1fr; }
+  .grid-fields { grid-template-columns: 1fr; }
+  .advanced-form .boxes { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: .45rem .7rem; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }

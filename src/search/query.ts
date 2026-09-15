@@ -3,7 +3,7 @@
  * are not filters (unique:, sort:, order:) and a list of errors a user
  * can act on. Pure: no DOM, no data. */
 
-import { HAS_FLAGS, IS_FLAGS, KEY_BY_ALIAS, SORT_FIELDS, UNITS, type KeyDef, type Op, type SortField, type Unit } from "./keys";
+import { HAS_FLAGS, IS_FLAGS, KEY_BY_ALIAS, SORT_FIELDS, UNITS, resolveValue, vocabulary, type KeyDef, type Op, type SortField, type Unit } from "./keys";
 
 export type Node =
   | { kind: "and"; items: Node[] }
@@ -94,10 +94,61 @@ export function tokenize(input: string): { tokens: Token[]; errors: string[] } {
   return { tokens, errors };
 }
 
+/** A number, one of the words a numeric key accepts, or another numeric
+ * key to compare against (atk>def, m>=thr). */
+function numericValue(def: KeyDef, raw: string): boolean {
+  const v = raw.trim().toLowerCase();
+  if (def.name === "cost" && (v === "x" || v === "even" || v === "odd")) return true;
+  const other = KEY_BY_ALIAS.get(v);
+  if (other && other.scope === "card" && other.kind === "number") return true;
+  return Number.isInteger(Number(v)) && v !== "";
+}
+
+/** Reject a value the evaluator could never match, here where it is still
+ * text and the reader can be told what to type instead. An empty page is
+ * an answer ("no card is Water and Fire"); a misspelt element is not. Only
+ * closed vocabularies are checked - a set name, subtype, keyword or artist
+ * comes from the data, not from the key table. */
+function valueIsUsable(def: KeyDef, key: string, raw: string, errors: string[]): boolean {
+  const words = vocabulary(def);
+  if (words) {
+    const resolved = resolveValue(raw, words.values, words.aliases);
+    if ("value" in resolved) return true;
+    if ("ambiguous" in resolved) {
+      errors.push(`${key}: "${raw}" could be ${resolved.ambiguous.join(" or ")} - spell more of it`);
+      return false;
+    }
+    const shown = words.values.length > 6 ? `${words.values.slice(0, 5).join(", ")} and ${words.values.length - 5} more` : words.values.join(", ");
+    errors.push(`${key}: "${raw}" is not ${words.noun} - ${shown}`);
+    return false;
+  }
+  if (def.kind === "number" && !numericValue(def, raw)) {
+    const extras = def.name === "cost" ? `, ${key}:x, ${key}:even, ${key}:odd` : "";
+    errors.push(`${key}: "${raw}" is not a number - try ${key}:3, ${key}>=3${extras}, or another numeric key like ${key}>thr`);
+    return false;
+  }
+  if (def.kind === "date" && !/^\d{4}(-\d{2}(-\d{2})?)?$/.test(raw.trim())) {
+    errors.push(`${key}: "${raw}" is not a date - use 2024, 2024-05 or 2024-05-01`);
+    return false;
+  }
+  if (def.kind === "id" && !/^[cp]\d{6}$/i.test(raw.trim())) {
+    errors.push(`${key}: "${raw}" is not a registry id - C000230 for a card, P000937 for a printing`);
+    return false;
+  }
+  return true;
+}
+
 function resolveTerm(token: Token, options: Options, errors: string[]): Node | null {
   if (token.key === undefined) {
     if (token.value === "") return null;
-    return { kind: "bare", text: token.value ?? "", exact: token.exact ?? false };
+    const text = token.value ?? "";
+    // "e:water + fire" splits into three tokens, and a lone separator would
+    // otherwise become a name search for "+" that quietly matches nothing.
+    if (!token.exact && /^[,+]+$/.test(text)) {
+      errors.push(`stray ${text} - a value list takes no spaces (e:water${text[0]}fire), and separate terms are already combined with and`);
+      return null;
+    }
+    return { kind: "bare", text, exact: token.exact ?? false };
   }
   const key = token.key;
   const value = token.value ?? "";
@@ -132,6 +183,30 @@ function resolveTerm(token: Token, options: Options, errors: string[]): Node | n
     errors.push(`${key}${op} - only numbers and dates take <, <=, > or >=`);
     return null;
   }
+  // A value can list alternatives or conjuncts: e:water,fire is either,
+  // e:water+fire is both. Only for keys whose values are names rather than
+  // free text, since a comma is legitimate inside a name or a rules phrase.
+  const listable = !numeric && def.kind !== "text";
+  // e=water+fire is a set: "these elements and no others", which only the
+  // evaluator can judge, so it stays one term instead of expanding.
+  const exactSet = def.kind === "element" && op === "=" && value.includes("+") && !value.includes(",");
+  const separator = listable && /[,+]/.test(value) ? (value.includes("+") ? "+" : ",") : null;
+  if (separator) {
+    if (value.includes(",") && value.includes("+")) {
+      errors.push(`${key}: mixing , and + is ambiguous - use parentheses, e.g. (${key}:a+b or ${key}:c)`);
+      return null;
+    }
+    const parts = value.split(separator).map((part) => part.trim());
+    if (parts.some((part) => part === "")) { errors.push(`${key}: ${separator} needs a value on both sides`); return null; }
+    if (parts.some((part) => !valueIsUsable(def, key, part, errors))) return null;
+    if (exactSet) return { kind: "term", key: def, op, value };
+    const items: Node[] = parts.map((part) => ({ kind: "term", key: def, op, value: part }));
+    // De Morgan: each term already carries the negation, so the join has to
+    // flip with it. e!=water,fire is "neither", not "not both".
+    const both = separator === "+";
+    return { kind: (op === "!=" ? !both : both) ? "and" : "or", items };
+  }
+  if (!valueIsUsable(def, key, value, errors)) return null;
   return { kind: "term", key: def, op, value };
 }
 

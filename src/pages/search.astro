@@ -1,12 +1,18 @@
 ---
 import Base from "../layouts/Base.astro";
+import { SORT_FIELDS, UNITS } from "../search/keys";
+/** The chips offer exactly what sort: and unique: accept, read from the
+ * key table, so a field added to the language appears here too. */
+const SORT_LABELS: Record<string, string> = { name: "name", cost: "mana cost", threshold: "threshold total",
+  power: "power", atk: "attack", def: "defense", life: "life", set: "set", date: "release date", rarity: "rarity", type: "type" };
+const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "every printing", art: "one per artwork" };
 ---
 <Base title="Search" canonical="/search">
   <h1 id="heading">Search</h1>
   <div id="errors" class="notice" hidden></div>
   <div class="chips">
-    <label>Show <select id="unique"><option value="cards">one per card</option><option value="prints">every printing</option><option value="art">one per artwork</option></select></label>
-    <label>Sort <select id="sort"><option value="">name</option><option value="cost">cost</option><option value="power">power</option><option value="atk">attack</option><option value="def">defense</option><option value="life">life</option><option value="set">set</option><option value="date">release date</option><option value="rarity">rarity</option><option value="type">type</option></select></label>
+    <label>Show <select id="unique">{UNITS.map(u => <option value={u}>{UNIT_LABELS[u] ?? u}</option>)}</select></label>
+    <label>Sort <select id="sort"><option value="">name</option>{SORT_FIELDS.filter(f => f !== "name").map(f => <option value={f}>{SORT_LABELS[f] ?? f}</option>)}</select></label>
     <label>Order <select id="order"><option value="">default</option><option value="asc">ascending</option><option value="desc">descending</option></select></label>
     <span id="count" class="muted"></span>
   </div>

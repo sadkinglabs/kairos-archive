@@ -8,7 +8,7 @@
  * is still judged printing by printing. A card with no printings is
  * evaluated with no printing bound, where every printing term is false. */
 
-import { ELEMENTS, FINISH_CODES, PRODUCT_CODES, type KeyDef, type Op } from "./keys";
+import { ELEMENT_ALIASES, ELEMENTS, FINISH_CODES, FINISHES, KEY_BY_ALIAS, PRODUCT_CODES, PRODUCTS, resolveValue, squash, type KeyDef, type Op } from "./keys";
 import { parse, type Node, type Options, type Parsed } from "./query";
 import type { Card, Printing, SearchData } from "./types";
 
@@ -26,16 +26,14 @@ export interface SearchResult {
 // ---------------------------------------------------------------- helpers
 
 const fold = (s: string | null | undefined) => (s ?? "").toLowerCase();
-const squash = (s: string) => s.toLowerCase().replace(/[\s_\-]/g, "");
 
-/** Prefix-resolve `value` against a closed vocabulary. Exact wins;
- * otherwise a unique prefix; ambiguity or no match returns null. */
-export function resolveEnum(value: string, values: string[]): string | null {
-  const v = squash(value);
-  const exact = values.find((x) => squash(x) === v);
-  if (exact) return exact;
-  const prefixed = values.filter((x) => squash(x).startsWith(v));
-  return prefixed.length === 1 ? prefixed[0] : null;
+/** Resolve `value` against a closed vocabulary, or null when it is
+ * unknown or too short to tell two values apart. The resolution itself
+ * lives in keys.ts, because the parser now rejects an unusable value
+ * before the evaluator ever sees it. */
+export function resolveEnum(value: string, values: string[], aliases?: Record<string, string>): string | null {
+  const resolved = resolveValue(value, values, aliases);
+  return "value" in resolved ? resolved.value : null;
 }
 
 function compareNumbers(actual: number | null, op: Op, wanted: number): boolean {
@@ -68,8 +66,15 @@ function compareDates(actual: string | null, op: Op, wanted: string): boolean {
   }
 }
 
+/** Card numbers, including the ones the registry does not store: the
+ * total threshold is the four element requirements added up. */
+function cardNumber(card: Card, field: string): number | null {
+  if (field === "thr_total") return card.thr_air + card.thr_earth + card.thr_fire + card.thr_water;
+  return (card as unknown as Record<string, number | null>)[field] ?? null;
+}
+
 function numberValue(card: Card, key: KeyDef, op: Op, value: string): boolean {
-  const actual = (card as unknown as Record<string, number | null>)[key.field] ?? null;
+  const actual = cardNumber(card, key.field);
   const v = value.toLowerCase();
   if (key.name === "cost" && v === "x") return actual === null;
   if (key.name === "cost" && (v === "even" || v === "odd")) {
@@ -79,7 +84,7 @@ function numberValue(card: Card, key: KeyDef, op: Op, value: string): boolean {
   // a numeric comparison against another numeric key: atk>def
   const other = numericKeyField(v);
   if (other) {
-    const rhs = (card as unknown as Record<string, number | null>)[other] ?? null;
+    const rhs = cardNumber(card, other);
     return rhs === null ? false : compareNumbers(actual, op, rhs);
   }
   const n = Number(v);
@@ -87,10 +92,12 @@ function numberValue(card: Card, key: KeyDef, op: Op, value: string): boolean {
   return compareNumbers(actual, op, n);
 }
 
-function numericKeyField(alias: string): string | null {
-  const map: Record<string, string> = { atk: "attack", attack: "attack", def: "defense", defense: "defense",
-    defence: "defense", pow: "power", power: "power", cost: "cost", m: "cost", mana: "cost", life: "life" };
-  return map[alias] ?? null;
+/** The field a numeric key reads, for a comparison whose right-hand side
+ * is another key (atk>def, m>=thr). Read off the key table, so the parser
+ * and the evaluator cannot disagree about which keys are numbers. */
+export function numericKeyField(alias: string): string | null {
+  const key = KEY_BY_ALIAS.get(alias.trim().toLowerCase());
+  return key && key.scope === "card" && key.kind === "number" ? key.field : null;
 }
 
 function listMatch(values: string[], value: string, vocabulary?: string[]): boolean {
@@ -99,16 +106,20 @@ function listMatch(values: string[], value: string, vocabulary?: string[]): bool
   return values.some((x) => squash(x) === v || squash(x).startsWith(v));
 }
 
+function resolveElement(value: string): string | null {
+  return resolveEnum(value, ELEMENTS, ELEMENT_ALIASES);
+}
+
 function elementMatch(card: Card, op: Op, value: string): boolean {
-  const raw = value.toLowerCase();
-  const aliases: Record<string, string> = { none: "None", colorless: "None", colourless: "None", c: "None",
-    w: "Water", a: "Air", e: "Earth", f: "Fire" };
-  const wanted = aliases[raw] ?? resolveEnum(value, ELEMENTS);
-  if (!wanted) return false;
-  const has = card.elements.includes(wanted);
-  if (op === "=") return has && card.elements.length === 1;
-  if (op === "!=") return !has;
-  return has;
+  // The parser expands a value list for every operator but "=", which needs
+  // the whole list at once: e=water+fire is those two elements and no third.
+  const wanted = value.split("+").map(resolveElement);
+  if (wanted.some((w) => w === null)) return false;
+  // Resolve aliases before deduplicating: w+Water is one affinity, not two.
+  const names = [...new Set(wanted as string[])];
+  if (op === "=") return card.elements.length === names.length && names.every((n) => card.elements.includes(n));
+  const has = names.every((n) => card.elements.includes(n));
+  return op === "!=" ? !has : has;
 }
 
 function setMatch(printing: Printing, value: string, setNames: Map<string, string>): boolean {
@@ -122,14 +133,12 @@ function setMatch(printing: Printing, value: string, setNames: Map<string, strin
 }
 
 function productMatch(printing: Printing, value: string): boolean {
-  const code = PRODUCT_CODES[value.toLowerCase()];
-  const wanted = code ?? resolveEnum(value, Object.values(PRODUCT_CODES));
+  const wanted = resolveEnum(value, PRODUCTS, PRODUCT_CODES);
   return wanted !== null && printing.product === wanted;
 }
 
 function finishMatch(printing: Printing, value: string): boolean {
-  const code = FINISH_CODES[value.toLowerCase()];
-  const wanted = code ?? resolveEnum(value, Object.values(FINISH_CODES));
+  const wanted = resolveEnum(value, FINISHES, FINISH_CODES);
   return wanted !== null && printing.finish === wanted;
 }
 
@@ -255,6 +264,7 @@ function sortKey(hit: Hit, field: string): string | number {
   const num = (v: number | null) => (v === null ? Number.POSITIVE_INFINITY : v);
   switch (field) {
     case "cost": return num(c.cost);
+    case "threshold": return c.thr_air + c.thr_earth + c.thr_fire + c.thr_water;
     case "power": return num(c.power);
     case "atk": return num(c.attack);
     case "def": return num(c.defense);

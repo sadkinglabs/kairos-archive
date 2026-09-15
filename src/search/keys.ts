@@ -12,7 +12,10 @@ export type Op = ":" | "=" | "<" | "<=" | ">" | ">=" | "!=";
 export interface KeyDef {
   /** canonical name, e.g. "rules" */
   name: string;
-  /** every spelling the parser accepts, shortest first */
+  /** Every spelling the parser accepts. The first is the key itself -
+   * always the short one, since that is what /syntax heads the row with
+   * and what the advanced form writes; the rest are the descriptive
+   * spellings. Enforced by a test. */
   aliases: string[];
   scope: Scope;
   kind: KeyKind;
@@ -37,6 +40,47 @@ export const PRODUCT_CODES: Record<string, string> = {
   k: "Kickstarter", tc: "TeamCovenant", ai: "AlphaInvestments", scg: "StarCityGames", op: "OrganizedPlay",
 };
 export const FINISH_CODES: Record<string, string> = { s: "Standard", f: "Foil", rf: "Rainbow" };
+/** How a query may spell an element besides its name: e:w, e:none. */
+export const ELEMENT_ALIASES: Record<string, string> = { none: "None", colorless: "None", colourless: "None", c: "None",
+  w: "Water", a: "Air", e: "Earth", f: "Fire" };
+
+/** Values are compared with spaces, underscores and hyphens removed, so
+ * pro:"box topper", pro:box_topper and pro:boxtopper are one value. */
+export function squash(value: string): string {
+  return value.toLowerCase().replace(/[\s_-]/g, "");
+}
+
+export type Resolution = { value: string } | { ambiguous: string[] } | { unknown: true };
+
+/** Resolve a value against a closed vocabulary: a known shorthand first
+ * (pro:bt, e:none), then an exact name, then a unique prefix. It reports
+ * which of the two failures happened, so the parser can say whether a
+ * value is unknown or merely too short to tell apart. */
+export function resolveValue(value: string, values: string[], aliases: Record<string, string> = {}): Resolution {
+  const raw = value.trim().toLowerCase();
+  if (raw === "") return { unknown: true };
+  if (aliases[raw]) return { value: aliases[raw] };
+  const v = squash(value);
+  const exact = values.find((x) => squash(x) === v);
+  if (exact) return { value: exact };
+  const prefixed = values.filter((x) => squash(x).startsWith(v));
+  if (prefixed.length === 1) return { value: prefixed[0] };
+  if (prefixed.length > 1) return { ambiguous: prefixed };
+  return { unknown: true };
+}
+
+/** The closed vocabulary a key accepts, with the shorthands for it, or
+ * null when the values come from the data rather than from this table
+ * (a set name, a subtype, an artist). */
+export function vocabulary(key: KeyDef): { values: string[]; aliases: Record<string, string>; noun: string } | null {
+  switch (key.kind) {
+    case "element": return { values: ELEMENTS, aliases: ELEMENT_ALIASES, noun: "an element" };
+    case "finish": return { values: FINISHES, aliases: FINISH_CODES, noun: "a finish" };
+    case "product": return { values: PRODUCTS, aliases: PRODUCT_CODES, noun: "a product" };
+    case "enum": case "list": return key.values ? { values: key.values, aliases: {}, noun: `a ${key.name}` } : null;
+    default: return null;
+  }
+}
 
 export const KEYS: KeyDef[] = [
   // ---- card keys
@@ -46,9 +90,9 @@ export const KEYS: KeyDef[] = [
   { name: "rules", aliases: ["r", "rules"], scope: "card", kind: "text", field: "rules_text",
     doc: "Rules text, substring. r: is rules in Sorcery (there is no oracle text); quote phrases.",
     examples: ["r:\"draw a spell\"", "r:genesis t:minion"] },
-  { name: "rarity", aliases: ["rarity"], scope: "card", kind: "enum", field: "rarity", values: RARITIES,
-    doc: "Ordinary, Exceptional, Elite or Unique; any unambiguous prefix works. Spelled out on purpose: r is rules.",
-    examples: ["rarity:unique", "rarity:ex"] },
+  { name: "rarity", aliases: ["rar", "rarity"], scope: "card", kind: "enum", field: "rarity", values: RARITIES,
+    doc: "Ordinary, Exceptional, Elite or Unique; any unambiguous prefix works. Three letters, not one: r: is rules.",
+    examples: ["rar:unique", "rar:ex"] },
   { name: "type", aliases: ["t", "type"], scope: "card", kind: "enum", field: "type", values: TYPES,
     doc: "Avatar, Minion, Magic, Aura, Artifact or Site; prefixes work. Type only, never a subtype.",
     examples: ["t:minion", "t:art"] },
@@ -62,8 +106,11 @@ export const KEYS: KeyDef[] = [
     doc: "The cross-subtype groups rules text refers to: Evil, Knight, Royalty.",
     examples: ["u:knight", "u:evil t:minion"] },
   { name: "element", aliases: ["e", "element"], scope: "card", kind: "element", field: "elements", values: ELEMENTS,
-    doc: "e:water matches any card that has Water (multi-element cards match each of theirs); e:water e:air needs both; e=water means Water and nothing else; e:none is colourless. First letters work: e:w, e=wa. For how many elements rather than which, use is:multi-element or is:mono-element.",
-    examples: ["e:water", "e=fire", "e:none", "is:multi-element e:fire"] },
+    doc: "e:water matches any card that has Water (multi-element cards match each of theirs); e:water e:air needs both; e=water means Water and nothing else; e:none is colourless. First letters work: e:w, e=wa. List values to combine them: e:water+fire has both, e:water,fire has either, e=water+fire is exactly those two and nothing else. For how many elements rather than which, use is:multi-element or is:mono-element.",
+    examples: ["e:water", "e:water+fire", "e=water+fire", "e:water,fire", "is:multi-element e:fire"] },
+  { name: "threshold", aliases: ["thr", "threshold", "thr.total"], scope: "card", kind: "number", field: "thr_total",
+    doc: "Total threshold: the four element requirements added up, which is what a deck has to reach to play the card. Derived, so it needs no lookup: thr:0 is every card with no requirement at all.",
+    examples: ["thr:1", "thr>=3", "thr<=2 e:fire"] },
   { name: "air", aliases: ["air", "thr.air", "threshold.air"], scope: "card", kind: "number", field: "thr_air",
     doc: "Air threshold, with the numeric operators.", examples: ["air>=2", "air:1"] },
   { name: "earth", aliases: ["earth", "thr.earth", "threshold.earth"], scope: "card", kind: "number", field: "thr_earth",
@@ -75,9 +122,9 @@ export const KEYS: KeyDef[] = [
   { name: "keyword", aliases: ["k", "keyword"], scope: "card", kind: "list", field: "keywords",
     doc: "A keyword (Airborne, Genesis, Spellcaster, Submerge, ...); repeat for AND; prefixes work.",
     examples: ["k:airborne", "k:spellcaster k:genesis"] },
-  { name: "cost", aliases: ["cost", "m", "mana"], scope: "card", kind: "number", field: "cost",
-    doc: "Mana cost with the numeric operators; cost:x for cards with no fixed cost; cost:even, cost:odd.",
-    examples: ["cost<=2", "cost:x", "cost:odd"] },
+  { name: "cost", aliases: ["m", "mana", "cost"], scope: "card", kind: "number", field: "cost",
+    doc: "Mana cost with the numeric operators; m:x for the cards with no fixed cost; m:even, m:odd.",
+    examples: ["m<=2", "m:x", "m:odd"] },
   { name: "power", aliases: ["pow", "power"], scope: "card", kind: "number", field: "power",
     doc: "Power is derived: equal to attack when attack equals defense, otherwise floor((attack + defense) / 2). pow: searches that value, as the registry publishes it.",
     examples: ["pow>=4", "pow:3 cost<=3"] },
@@ -85,8 +132,8 @@ export const KEYS: KeyDef[] = [
     doc: "The raw attack value - a different key from power on purpose.", examples: ["atk>def", "atk>=5"] },
   { name: "defense", aliases: ["def", "defense", "defence"], scope: "card", kind: "number", field: "defense",
     doc: "The raw defense value.", examples: ["def>=4"] },
-  { name: "life", aliases: ["life"], scope: "card", kind: "number", field: "life",
-    doc: "Life; only Avatars have one.", examples: ["life>=20"] },
+  { name: "life", aliases: ["l", "life"], scope: "card", kind: "number", field: "life",
+    doc: "Life; only Avatars have one.", examples: ["l>=20", "l>20 t:avatar"] },
   { name: "id", aliases: ["id", "codex", "printing"], scope: "card", kind: "id", field: "codex_id",
     doc: "A registry id, C000230 (card) or P000937 (printing). A query that is exactly an id jumps straight to that page.",
     examples: ["id:C000230", "id:P000937"] },
@@ -151,7 +198,7 @@ export const HAS_FLAGS: FlagDef[] = [
   { name: "image", scope: "printing", doc: "image_status ok or lowres: an image is served" },
 ];
 
-export const SORT_FIELDS = ["name", "cost", "power", "atk", "def", "life", "set", "date", "rarity", "type"] as const;
+export const SORT_FIELDS = ["name", "cost", "threshold", "power", "atk", "def", "life", "set", "date", "rarity", "type"] as const;
 export type SortField = (typeof SORT_FIELDS)[number];
 export const UNITS = ["cards", "prints", "art"] as const;
 export type Unit = (typeof UNITS)[number];
