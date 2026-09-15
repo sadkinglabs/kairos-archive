@@ -200,6 +200,12 @@ th { color: var(--muted); font-weight: 600; }
 .advanced-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
 .advanced-fields label { display: grid; gap: .35rem; font-size: .86rem; }
 .advanced-form code { display: block; margin: .8rem 0; min-height: 2rem; }
+.element-picker { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 8px; padding: .6rem .9rem .9rem; }
+.element-picker legend { font-size: .86rem; padding: 0 .3rem; }
+.element-picker .boxes { display: flex; flex-wrap: wrap; gap: .4rem .9rem; }
+.element-picker label.box { display: flex; align-items: center; gap: .35rem; font-size: .86rem; }
+.element-picker label.box input { width: auto; }
+.element-picker label.mode { margin-top: .7rem; }
 @media (max-width: 740px) {
   main { padding: 1.8rem 20px 3rem; }
   header.site .inner { padding: .7rem 20px; flex-wrap: wrap; gap: .7rem; }
@@ -249,6 +255,7 @@ th { color: var(--muted); font-weight: 600; }
   .docs-nav a { font-size: .78rem; }
   .docs-content h1 { font-size: 2.15rem; }
   .advanced-fields { grid-template-columns: 1fr; }
+  .element-picker .boxes { gap: .4rem .7rem; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }

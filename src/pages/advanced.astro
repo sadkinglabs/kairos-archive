@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import { KEYS, IS_FLAGS } from '../search/keys';
 import { loadRegistry } from '../data/registry';
 const { registry } = await loadRegistry();
-const selectKeys = KEYS.filter(k => ['type', 'rarity', 'element', 'finish'].includes(k.name));
+const selectKeys = KEYS.filter(k => ['type', 'rarity', 'finish'].includes(k.name));
 const nameKey = KEYS.find(k => k.name === 'name')!;
 const rulesKey = KEYS.find(k => k.name === 'rules')!;
 const costKey = KEYS.find(k => k.name === 'cost')!;
@@ -11,6 +11,7 @@ const setKey = KEYS.find(k => k.name === 'set')!;
 const errata = IS_FLAGS.find(f => f.name === 'errata')!;
 const multi = IS_FLAGS.find(f => f.name === 'multi-element')!;
 const mono = IS_FLAGS.find(f => f.name === 'mono-element')!;
+const elementKey = KEYS.find(k => k.name === 'element')!;
 ---
 <Base title="Advanced search" canonical="/advanced">
   <p class="eyebrow">Find your next card</p><h1>Advanced search</h1><p class="intro">Build a query with a few choices, then share the results.</p>
@@ -22,7 +23,14 @@ const mono = IS_FLAGS.find(f => f.name === 'mono-element')!;
       {selectKeys.map(k => <label>{k.name.charAt(0).toUpperCase() + k.name.slice(1)}<select data-key={k.aliases[0]}><option value="">Any</option>{k.values?.map(value => <option value={value}>{value}</option>)}</select></label>)}
       <label>Set<select data-key={setKey.aliases[0]}><option value="">Any set</option>{registry.sets.map(s => <option value={s.set_code ?? s.set_name}>{s.set_name}</option>)}</select></label>
       <label>Maximum cost<input type="number" min="0" step="1" data-key={costKey.aliases[0]} data-operator="<=" /></label>
-      <label>Elements<select data-key="is"><option value="">Any number</option><option value={multi.name}>Two or more elements</option><option value={mono.name}>Exactly one element</option><option value="none" data-key-override="e">No element</option></select></label>
+      <fieldset class="element-picker" id="element-picker">
+        <legend>Elements</legend>
+        <div class="boxes">{(elementKey.values ?? []).filter(v => v !== 'None').map(value => (
+          <label class="box"><input type="checkbox" data-element value={value} />{value}</label>
+        ))}</div>
+        <label class="mode">Match<select id="element-mode"><option value="+">all of the ticked elements</option><option value=",">any of the ticked elements</option></select></label>
+      </fieldset>
+      <label>How many elements<select data-key="is"><option value="">Any number</option><option value={multi.name}>Two or more elements</option><option value={mono.name}>Exactly one element</option><option value="none" data-key-override="e">No element</option></select></label>
       <label>Errata<select data-key="is"><option value="">Any card</option><option value={errata.name}>Cards with errata</option></select></label>
     </div>
     <p id="query-hint" class="muted">Use the <a href="/syntax">search syntax reference</a> for all supported keys.</p>
@@ -36,6 +44,15 @@ const mono = IS_FLAGS.find(f => f.name === 'mono-element')!;
     let baseQuery = '';
     let lastGenerated = '';
     const controls = Array.from(fields.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-key]'));
+    const boxes = Array.from(fields.querySelectorAll<HTMLInputElement>('input[data-element]'));
+    const mode = document.querySelector<HTMLSelectElement>('#element-mode')!;
+    // Ticking two or more elements builds a value list: + needs every one of
+    // them on the card, , takes any. One tick is a plain e: term.
+    function elementTerm() {
+      const picked = boxes.filter(b => b.checked).map(b => b.value);
+      if (picked.length === 0) return [];
+      return [`e:${picked.join(picked.length > 1 ? mode.value : '')}`];
+    }
     function update() {
       if (query.value !== lastGenerated) baseQuery = query.value.trim();
       const terms = controls.flatMap(control => {
@@ -47,11 +64,18 @@ const mono = IS_FLAGS.find(f => f.name === 'mono-element')!;
         const operator = control.dataset.operator;
         return [`${key}${operator ?? ':'}${operator ? value : JSON.stringify(value)}`];
       });
-      lastGenerated = [baseQuery, ...terms].filter(Boolean).join(' ');
+      lastGenerated = [baseQuery, ...elementTerm(), ...terms].filter(Boolean).join(' ');
       query.value = lastGenerated;
     }
-    query.addEventListener('input', () => { baseQuery = query.value.trim(); controls.forEach(c => { c.value = ''; }); lastGenerated = query.value; });
+    query.addEventListener('input', () => {
+      baseQuery = query.value.trim();
+      controls.forEach(c => { c.value = ''; });
+      boxes.forEach(b => { b.checked = false; });
+      lastGenerated = query.value;
+    });
     controls.forEach(control => control.addEventListener('input', update));
+    boxes.forEach(box => box.addEventListener('change', update));
+    mode.addEventListener('input', update);
     form.addEventListener('submit', update);
   </script>
 </Base>

@@ -140,6 +140,26 @@ describe("flags", () => {
     expect(names("is:multi-element e:fire")).toEqual([]);
     expect(names("-is:multi-element t:minion")).toEqual(["Apprentice Wizard", "Polar Bears"]);
   });
+  it("value lists: , is either, + is every one", () => {
+    // The pair a player actually wants: both elements on one card, versus
+    // either element on any card.
+    expect(names("e:water+air")).toEqual(["Witch"]);
+    expect(names("e:water,air")).toEqual(["Apprentice Wizard", "Druid", "Polar Bears", "Witch"]);
+    expect(names("e:w+a")).toEqual(names("e:water e:air"));
+    // Any listable key, not just elements.
+    expect(names("t:minion,site")).toEqual(["Apprentice Wizard", "Broken Site", "Polar Bears", "Witch"]);
+    expect(names("id:C000003,C000004")).toEqual(["Broken Site", "Witch"]);
+    // != negates the list as a whole: neither element, not "not both".
+    expect(names("e!=water,air")).toEqual(["Broken Site"]);
+    expect(names("-e:water,air")).toEqual(["Broken Site"]);
+  });
+  it("a list of printing values still binds to one printing", () => {
+    // Either finish on any printing of the card...
+    expect(names("f:foil,rainbow")).toEqual(["Apprentice Wizard", "Polar Bears"]);
+    // ...but + asks one printing to be both, which no printing is.
+    expect(names("f:foil+rainbow")).toEqual([]);
+    expect(prints("unique:prints s:001,999")).toEqual(["P000001", "P000002", "P000005", "P000004"]);
+  });
   it("printing flags", () => {
     expect(names("is:promo")).toEqual(["Druid", "Polar Bears"]);
     expect(names("is:foil")).toEqual(["Apprentice Wizard"]);

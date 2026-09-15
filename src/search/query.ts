@@ -97,7 +97,14 @@ export function tokenize(input: string): { tokens: Token[]; errors: string[] } {
 function resolveTerm(token: Token, options: Options, errors: string[]): Node | null {
   if (token.key === undefined) {
     if (token.value === "") return null;
-    return { kind: "bare", text: token.value ?? "", exact: token.exact ?? false };
+    const text = token.value ?? "";
+    // "e:water + fire" splits into three tokens, and a lone separator would
+    // otherwise become a name search for "+" that quietly matches nothing.
+    if (!token.exact && /^[,+]+$/.test(text)) {
+      errors.push(`stray ${text} - a value list takes no spaces (e:water${text[0]}fire), and separate terms are already combined with and`);
+      return null;
+    }
+    return { kind: "bare", text, exact: token.exact ?? false };
   }
   const key = token.key;
   const value = token.value ?? "";
@@ -131,6 +138,24 @@ function resolveTerm(token: Token, options: Options, errors: string[]): Node | n
   if (!numeric && op !== ":" && op !== "=" && op !== "!=") {
     errors.push(`${key}${op} - only numbers and dates take <, <=, > or >=`);
     return null;
+  }
+  // A value can list alternatives or conjuncts: e:water,fire is either,
+  // e:water+fire is both. Only for keys whose values are names rather than
+  // free text, since a comma is legitimate inside a name or a rules phrase.
+  const listable = !numeric && def.kind !== "text";
+  const separator = listable && /[,+]/.test(value) ? (value.includes("+") ? "+" : ",") : null;
+  if (separator) {
+    if (value.includes(",") && value.includes("+")) {
+      errors.push(`${key}: mixing , and + is ambiguous - use parentheses, e.g. (${key}:a+b or ${key}:c)`);
+      return null;
+    }
+    const parts = value.split(separator).map((part) => part.trim()).filter(Boolean);
+    if (parts.length < 2) { errors.push(`${key}: ${separator} needs a value on both sides`); return null; }
+    const items: Node[] = parts.map((part) => ({ kind: "term", key: def, op, value: part }));
+    // De Morgan: each term already carries the negation, so the join has to
+    // flip with it. e!=water,fire is "neither", not "not both".
+    const both = separator === "+";
+    return { kind: (op === "!=" ? !both : both) ? "and" : "or", items };
   }
   return { kind: "term", key: def, op, value };
 }

@@ -59,6 +59,37 @@ describe("parse", () => {
     for (const f of IS_FLAGS) expect(parse(`is:${f.name}`).errors).toEqual([]);
     for (const f of HAS_FLAGS) expect(parse(`has:${f.name}`).errors).toEqual([]);
   });
+  it("expands a value list into or (,) and and (+)", () => {
+    const comma = parse("e:water,fire");
+    expect(comma.errors).toEqual([]);
+    expect(comma.ast).toEqual({ kind: "or", items: [
+      { kind: "term", key: expect.objectContaining({ name: "element" }), op: ":", value: "water" },
+      { kind: "term", key: expect.objectContaining({ name: "element" }), op: ":", value: "fire" },
+    ] });
+    const plus = parse("e:water+fire");
+    expect(plus.errors).toEqual([]);
+    expect(plus.ast?.kind).toBe("and");
+    // Whitespace inside a quoted list, and more than two values.
+    expect(parse('s:"alpha, beta, 006"').ast).toMatchObject({ kind: "or", items: [{ value: "alpha" }, { value: "beta" }, { value: "006" }] });
+  });
+  it("flips the join for != so a list negates as a whole", () => {
+    // e!=water,fire is "neither water nor fire", which is and-of-not-each.
+    expect(parse("e!=water,fire").ast?.kind).toBe("and");
+    // e!=water+fire is "not both", which is or-of-not-each.
+    expect(parse("e!=water+fire").ast?.kind).toBe("or");
+  });
+  it("leaves commas alone in text and numeric values", () => {
+    expect(parse('r:"draw a spell, then"').ast).toMatchObject({ kind: "term", value: "draw a spell, then" });
+    expect(parse("cost:1,2").ast).toMatchObject({ kind: "term", value: "1,2" });
+  });
+  it("rejects a mixed, a one-sided and a stray separator", () => {
+    expect(parse("e:water,+fire").errors[0]).toMatch(/mixing , and \+ is ambiguous/);
+    expect(parse("e:water,").errors[0]).toMatch(/, needs a value on both sides/);
+    expect(parse("e:water + fire").errors[0]).toMatch(/^stray \+ - a value list takes no spaces/);
+    // A one-sided list and a stray separator both contribute no node.
+    expect(parse("e:water,").ast).toBeNull();
+    expect(parse('!"+"').errors).toEqual([]);
+  });
   it("collects bare words for the rules-text group", () => {
     const p = parse('polar !"Bears" t:minion');
     expect(p.bare).toEqual([{ text: "polar", exact: false }, { text: "Bears", exact: true }]);
