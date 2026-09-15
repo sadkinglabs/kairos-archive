@@ -132,6 +132,7 @@ pre.rules { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; backg
 .record-buttons .btn { flex: 1 1 auto; font-size: .88rem; padding: .5rem .8rem; min-height: 40px; }
 .download-status { width: 100%; font-size: .8rem; }
 .copy { min-height: 32px; padding: .2rem .5rem; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: .73rem; }
+code, pre, .address-buttons .copy { font-variant-ligatures: none; }
 code { background: var(--badge); padding: .12rem .3rem; border-radius: 4px; font-size: .85em; overflow-wrap: anywhere; }
 .section-links { display: flex; flex-wrap: wrap; gap: .8rem 1.3rem; font-size: .83rem; }
 .page-section { margin-top: 3rem; }

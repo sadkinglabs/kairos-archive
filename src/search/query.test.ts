@@ -206,3 +206,34 @@ describe("directLookup", () => {
     expect(directLookup("bears")).toBeNull();
   });
 });
+
+describe("a symbol that is not an operator", () => {
+  it("says so rather than searching for a card of that name", () => {
+    // ≠ is what a phone keyboard offers when you reach for !=.
+    const { errors } = parse("t≠site");
+    expect(errors).toEqual(['t: "≠" is not an operator - use t:site to include, -t:site or t!=site to exclude']);
+  });
+  it("catches the other near misses, and names the value when there is one", () => {
+    expect(parse("e~water").errors[0]).toContain('e: "~" is not an operator');
+    expect(parse("t≠").errors[0]).toContain("use t:value to include");
+  });
+  it("leaves a mistyped operator that still begins with a real one to the value check", () => {
+    // m=>3 is key m, operator =, value ">3" - already a clear message about
+    // the value, which beats a second one about the operator.
+    expect(parse("m=>3").errors[0]).toContain('m: ">3" is not a number');
+  });
+  it("leaves card names alone, including the eight that end in !", () => {
+    // Guards! is a card; Guards is not a key, so this is a name search.
+    for (const q of ["Guards!", "Castle's Ablaze!", "Fire Harpoons!", "Polar Bears"]) {
+      expect(parse(q).errors).toEqual([]);
+    }
+  });
+  it("does not fire when the symbol follows something that is not a key", () => {
+    expect(parse("zzz≠site").errors).toEqual([]);
+  });
+  it("still accepts the operators it knows", () => {
+    for (const q of ["t!=site", "-t:site", "not t:site", "m>=3", "m<=3"]) {
+      expect(parse(q).errors).toEqual([]);
+    }
+  });
+});
