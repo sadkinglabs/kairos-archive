@@ -7,6 +7,7 @@ import PrintingEntry from '../../../components/PrintingEntry.astro';
 import CardHistory from '../../../components/CardHistory.astro';
 import { cardPath, loadRegistry, setPath, slugify, views } from '../../../data/registry';
 import { officialCardUrl, officialSlugFromName } from '../../../presentation/officialCardUrl';
+import { embedColour, embedDescription } from '../../../presentation/embed';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
   // Two ways of naming the publisher's page for a card: read their spelling
@@ -43,7 +44,8 @@ const names = v.namesByCard.get(card.codex_id) ?? [];
 const setsIn = registry.sets.filter(s => card.set_codes.includes(s.set_code ?? '')).map(s => ({ code: s.set_code, name: s.set_name, href: setPath(s) }));
 
 ---
-<Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}>
+<Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}
+  embed={embedDescription(card, setsIn.map(s => s.name))} colour={embedColour(card.elements)}>
   <div class="card-overview">
     <div class="art-column"><CardArt urls={card.image_urls} status={card.image_status} name={card.name} type={card.type} />{defaultPrinting?.back && <CardArt urls={defaultPrinting.back.image_urls} status={defaultPrinting.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
     <div class="card-content">

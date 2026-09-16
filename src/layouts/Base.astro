@@ -3,8 +3,14 @@ import "../styles/global.css";
 import SearchBox from "../components/SearchBox.astro";
 import { loadRegistry } from "../data/registry";
 import { pagePath } from "../presentation/pagePath";
-interface Props { title: string; description?: string; canonical?: string; image?: string | null }
-const { title, description = "Search, card pages and full history for Sorcery: Contested Realm, built on the Sorcery Card Registry.", canonical, image } = Astro.props;
+interface Props {
+  title: string; description?: string; canonical?: string; image?: string | null;
+  /** What a link unfurls to in Discord and the like: several lines; falls back to description. */
+  embed?: string;
+  /** The bar down the side of the unfurled link (theme-color). */
+  colour?: string;
+}
+const { title, description = "Search, card pages and full history for Sorcery: Contested Realm, built on the Sorcery Card Registry.", canonical, image, embed, colour } = Astro.props;
 const { source } = await loadRegistry();
 const here = pagePath(Astro.url.pathname);
 const isHome = here === "/";
@@ -33,7 +39,8 @@ const footerGroups: [string, [string, string][]][] = [
     <meta name="description" content={description} />
     {canonical && <link rel="canonical" href={new URL(canonical, Astro.site)} />}
     <meta property="og:title" content={pageTitle} />
-    <meta property="og:description" content={description} />
+    <meta property="og:description" content={embed ?? description} />
+    {colour && <meta name="theme-color" content={colour} />}
     <meta property="og:image" content={image ?? new URL("/brand/og.png", Astro.site)} />
     <meta property="og:site_name" content="Kairos Archive" />
     <meta name="twitter:card" content="summary_large_image" />

@@ -6,6 +6,7 @@ import PrintingEntry from '../../components/PrintingEntry.astro';
 import ImageAddresses from '../../components/ImageAddresses.astro';
 import HistoryHelp from '../../components/HistoryHelp.astro';
 import { cardPath, loadRegistry, printingPath, setPath, showsCurrentValues, views } from '../../data/registry';
+import { embedColour, embedDescription } from '../../presentation/embed';
 import { officialPrintingUrl } from '../../presentation/officialCardUrl';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
@@ -18,7 +19,8 @@ const card = v.cardById.get(printing.codex_id)!;
 const slugs = v.slugsByPrinting.get(printing.printing_id) ?? [];
 const verdict = showsCurrentValues(printing);
 ---
-<Base title={`${card.name} (${printing.set_name}, ${printing.finish})`} canonical={printingPath(printing)} image={printing.image_urls?.normal ?? null}>
+<Base title={`${card.name} (${printing.set_name}, ${printing.finish})`} canonical={printingPath(printing)} image={printing.image_urls?.normal ?? null}
+  embed={embedDescription(card, [[printing.set_name, printing.product, printing.finish].filter(Boolean).join(' · '), printing.artist ? `Art by ${printing.artist}` : ''])} colour={embedColour(card.elements)}>
   <div class="card-overview">
     <div class="card-heading"><p class="eyebrow">Printing record</p><h1>{card.name}</h1><p class="intro">{[printing.set_name, printing.product, printing.finish].filter(Boolean).join(' · ')}</p></div>
     <div class="art-column"><CardArt urls={printing.image_urls} status={printing.image_status} name={card.name} type={card.type} />{printing.back && <CardArt urls={printing.back.image_urls} status={printing.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
