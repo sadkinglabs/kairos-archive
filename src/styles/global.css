@@ -237,6 +237,9 @@ th { color: var(--muted); font-weight: 600; }
 .table-wrap { overflow-x: auto; }
 table.files td:nth-child(3), table.files td:nth-child(4) { white-space: nowrap; }
 code.digest { overflow-wrap: anywhere; }
+table.fields td.type { color: var(--muted); font-size: .84rem; min-width: 9rem; }
+table.fields td:first-child { white-space: nowrap; }
+.docs-content td.nowrap { white-space: nowrap; }
 .set-catalogue { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem; }
 .set-entry { display: flex; gap: 1rem; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 1.2rem; text-decoration: none; color: var(--fg); background: var(--card); }
 .set-entry:hover { border-color: var(--accent); }

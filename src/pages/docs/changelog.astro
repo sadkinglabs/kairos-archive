@@ -1,0 +1,32 @@
+---
+/** Every release the discovery document lists, newest first, with what a
+ * client needs to decide whether to move: tag, date, schema version and
+ * the digest. Generated at build from versions.json. */
+import Docs from '../../layouts/Docs.astro';
+import { API_BASE, loadRegistry } from '../../data/registry';
+const { source } = await loadRegistry();
+const releases = source.releases;
+const github = (tag: string) => `https://github.com/sadkinglabs/sorcery-registry/releases/tag/${tag}`;
+---
+<Docs title="Releases" description="Every release of the registry, newest first, and what changed in the shape of the data.">
+  <p>The registry is released a few times a year. Each release is an immutable folder on the API and a tagged release on GitHub; the notes on GitHub say what changed in the data. The <strong>schema version</strong> is what a client cares about: while it stays the same, the shape of every record is the same.</p>
+  {releases.length === 0
+    ? <p class="notice">This build read a local file, so the release list is not available here. The published site lists every release; so does <a href={`${API_BASE}/versions.json`}><code>versions.json</code></a>.</p>
+    : <div class="table-wrap"><table>
+        <thead><tr><th>Release</th><th>Date</th><th>Schema</th><th>registry.json SHA-256</th><th></th></tr></thead>
+        <tbody>{releases.map((r) => <tr>
+          <td><a href={`${API_BASE}/${r.tag}/index.json`}><code>{r.tag}</code></a>{r.tag === source.tag && <> <span class="badge ok">this site</span></>}</td>
+          <td class="nowrap">{r.released_at}</td>
+          <td>{r.schema_version}</td>
+          <td><code class="digest">{r.sha256}</code></td>
+          <td class="nowrap"><a href={github(r.tag)}>Notes</a></td>
+        </tr>)}</tbody>
+      </table></div>}
+  <h2>Schema changes</h2>
+  <p>A change that only adds fields raises the schema version and ships as a new v3 release. A change that would break an existing reader becomes a new major with its own alias. The <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/docs/migrating-to-v2.md">migration guide</a> maps every field that changed at each schema version, from v1.x onward.</p>
+  <h2>Follow releases</h2>
+  <ul>
+    <li>Poll <a href={`${API_BASE}/versions.json`}><code>versions.json</code></a>: once an hour is plenty. See <a href="/docs/releases">releases and versioning</a>.</li>
+    <li>Watch the <a href="https://github.com/sadkinglabs/sorcery-registry/releases">GitHub releases</a>, which carry the notes and can notify you.</li>
+  </ul>
+</Docs>
