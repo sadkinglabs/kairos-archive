@@ -149,23 +149,6 @@ export const cardPath = (card: { codex_id: string; name: string }) => `/cards/${
 export const printingPath = (printing: { printing_id: string }) => `/printings/${printing.printing_id}`;
 export const setPath = (set: { set_code: string | null }) => `/sets/${set.set_code ?? "none"}`;
 
-export const OFFICIAL_BASE = "https://sorcerytcg.com";
-/** The publisher's own page for a card: sorcerytcg.com/cards/vile_imp.
- *
- * Read out of a printing's official slug, never derived from the name. A
- * slug is `{set}-{name}-{product}-{finish}` and the name segment is the
- * publisher's own normalisation of the card name - it drops apostrophes
- * rather than replacing them (mariners_curse) and folds diacritics
- * (alvalinne_dryads), which a rule of ours would have to guess at and get
- * wrong for 31 cards. Their slug already knows.
- *
- * Slugs are mutable - they have changed for whole sets before - so this is
- * a link, correct as of the release the site was built from, and never an
- * identifier. It moves when the registry next syncs. */
-export function officialCardUrl(printing: { slug: string } | null | undefined): string | null {
-  const segment = printing?.slug.split("-")[1];
-  return segment ? `${OFFICIAL_BASE}/cards/${segment}` : null;
-}
 
 export function toSearchData(registry: Registry): SearchData {
   const cards: Card[] = registry.cards.map((c) => ({
