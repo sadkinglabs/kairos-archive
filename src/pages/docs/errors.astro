@@ -1,0 +1,35 @@
+---
+import Docs from '../../layouts/Docs.astro';
+import CodeExample from '../../components/CodeExample.astro';
+const js = `const response = await fetch(url);
+if (response.status === 404) return null;          // no such object
+if (response.status === 429) { await sleep(10_000); return retry(); }
+if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
+const data = await response.json();               // only now`;
+---
+<Docs title="Errors" description="Branch on the status code. The body of an error is never JSON.">
+  <p>The API is static files behind a CDN, so an error response comes from the edge, not from an application. The status codes are exact and are what to branch on. The bodies are the CDN's own pages (HTML, or a line of plain text) and none of them is JSON: calling <code>.json()</code> on a failed response throws. Check <code>response.ok</code> first.</p>
+  <CodeExample code={js} title="Browser · handle a response" />
+
+  <h2>Status codes</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Status</th><th>When</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td><code>200</code></td><td>The file exists.</td><td>Parse it.</td></tr>
+      <tr><td><code>302</code></td><td>You asked through the <code>/v3/</code> alias; the <code>Location</code> header names the same path under the newest release.</td><td>Follow it. Browsers and <code>fetch</code> do; <code>curl</code> needs <code>--location</code>.</td></tr>
+      <tr><td><code>304</code></td><td>You sent <code>If-None-Match</code> and the file has not changed.</td><td>Use your cached copy.</td></tr>
+      <tr><td><code>403</code></td><td>Two cases: the request carried no <code>User-Agent</code> at all, or it used a method other than <code>GET</code>, <code>HEAD</code> or <code>OPTIONS</code>.</td><td>Send a <code>User-Agent</code> naming your project and a contact, and only read. There is no write API and no credential that would enable one.</td></tr>
+      <tr><td><code>404</code></td><td>No file at that path: an ID that does not exist, a slug never issued, a typo, or a path outside any release folder.</td><td>Check the ID against an index or <code>versions.json</code>. Under a pinned release a 404 is permanent; under <code>/v3/</code> a later release may add the file. The body is a 27 KB HTML page, so do not read it.</td></tr>
+      <tr><td><code>429</code></td><td>More than 30 requests in 10 seconds from your IP address.</td><td>Wait 10 seconds. Then fetch <code>registry.json</code> or an index once instead of the objects one by one.</td></tr>
+      <tr><td><code>5xx</code></td><td>The storage or the edge is having trouble.</td><td>Retry with backoff. Every release is also on GitHub, and a pinned release's bytes never change, so a copy you already hold stays valid.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Details worth knowing</h2>
+  <ul>
+    <li>A write is refused with <code>403</code>, not <code>405</code>, and carries no <code>Allow</code> header. That is a limit of the edge's plan, not a statement about your request. The methods that work are <code>GET</code>, <code>HEAD</code> and <code>OPTIONS</code>.</li>
+    <li>A <code>404</code> carries <code>Access-Control-Allow-Origin: *</code>, so page JavaScript sees the status. A <code>403</code> from the edge does not, so in a browser it surfaces as a network error instead. Browsers always send a <code>User-Agent</code> and cannot write, so this only affects non-browser clients, which can read the status directly. <a href="/docs/cors">CORS and browsers</a> has more.</li>
+    <li><code>GET https://api.kairosarchive.net/</code> redirects to <code>versions.json</code>, which is where a client should start anyway.</li>
+  </ul>
+  <p>If you were blocked and believe you should not have been, <a href="https://github.com/sadkinglabs/sorcery-registry/issues">open an issue</a> with your <code>User-Agent</code> and the time.</p>
+</Docs>

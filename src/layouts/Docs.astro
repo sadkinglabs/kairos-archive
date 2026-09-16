@@ -4,8 +4,17 @@ import Base from './Base.astro';
 interface Props { title: string; description: string }
 const { title, description } = Astro.props;
 const here = pagePath(Astro.url.pathname);
-const pages = [['/docs', 'Getting started'], ['/docs/data', 'Download the data'], ['/docs/endpoints', 'Endpoints & releases'], ['/docs/cards', 'Cards & printings'], ['/docs/history', 'History & errata'], ['/docs/images', 'Images'], ['/usage', 'Usage & attribution']];
+/** The sidebar, in groups: what you need to know, what the objects are,
+ * and what changed. A page belongs to exactly one group. */
+export const groups: [string, [string, string][]][] = [
+  ['Core docs', [
+    ['/docs', 'Overview & rules'], ['/docs/data', 'Download the data'], ['/docs/releases', 'Releases & versioning'],
+    ['/docs/endpoints', 'Endpoints'], ['/docs/identifiers', 'Identifiers'], ['/docs/cards', 'Cards & printings'],
+    ['/docs/history', 'History & errata'], ['/docs/images', 'Images'], ['/docs/errors', 'Errors'], ['/docs/cors', 'CORS & browsers'],
+    ['/usage', 'Usage & attribution'],
+  ]],
+];
 ---
 <Base title={`${title} · API docs`} description={description} canonical={here}>
-  <div class="docs-layout"><aside class="docs-nav"><p class="eyebrow">API documentation</p><nav aria-label="Documentation">{pages.map(([href, label]) => <a href={href} aria-current={here === href ? 'page' : undefined}>{label}</a>)}</nav></aside><article class="docs-content"><h1>{title}</h1><p class="intro">{description}</p><slot /><hr /><p class="source-note">Reference: <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/docs/api.md">registry API contract</a> and <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/registry/publish.py">published object definitions</a>. <a href="https://github.com/sadkinglabs/sorcery-registry/issues">Report a data or documentation issue</a>.</p></article></div>
+  <div class="docs-layout"><aside class="docs-nav"><p class="eyebrow">API documentation</p><nav aria-label="Documentation">{groups.map(([group, pages]) => <div class="group"><p class="group-name">{group}</p>{pages.map(([href, label]) => <a href={href} aria-current={here === href ? 'page' : undefined}>{label}</a>)}</div>)}</nav></aside><article class="docs-content"><h1>{title}</h1><p class="intro">{description}</p><slot /><hr /><p class="source-note">Reference: <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/docs/api.md">registry API contract</a> and <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/registry/publish.py">published object definitions</a>. <a href="https://github.com/sadkinglabs/sorcery-registry/issues">Report a data or documentation issue</a>.</p></article></div>
 </Base>

@@ -2,25 +2,25 @@
 import Docs from '../../layouts/Docs.astro';
 import CodeExample from '../../components/CodeExample.astro';
 const example = `if (card.image_urls) {
-  const image = document.createElement("img");
-  image.src = card.image_urls.normal;
-  image.alt = card.name;
-  image.width = 488;
-  image.height = 680;
-  image.style.maxWidth = "100%";
-  image.style.height = "auto";
-  image.style.borderRadius = "4.75% / 3.5%";
-  document.body.append(image);
+const image = document.createElement("img");
+image.src = card.image_urls.normal;
+image.alt = card.name;
+image.width = 488;
+image.height = 680;
+image.style.maxWidth = "100%";
+image.style.height = "auto";
+image.style.borderRadius = "4.75% / 3.5%";
+document.body.append(image);
 } else {
-  // Render a labelled 63:88 placeholder.
+// Render a labelled 63:88 placeholder.
 }`;
 ---
-<Docs title="Images" description="Four renditions, permanent addresses and an honest indication of source quality.">
-  <p>Use the provided <code>image_urls</code> from <code>api.kairosarchive.net</code>. Cards use their default printing’s front image. Printings carry their own image URLs, with reverse images under <code>back.image_urls</code> when available.</p>
-  <div class="table-wrap"><table><thead><tr><th>Rendition</th><th>Nominal size</th><th>Format / use</th></tr></thead><tbody><tr><td><code>small</code></td><td>146 × 204</td><td>WebP · thumbnails</td></tr><tr><td><code>normal</code></td><td>488 × 680</td><td>WebP · card pages</td></tr><tr><td><code>large</code></td><td>672 × 936</td><td>WebP · enlarged inspection</td></tr><tr><td><code>original</code></td><td>Source dimensions</td><td>The untouched publisher file, in its original format</td></tr></tbody></table></div>
-  <p>Renditions preserve aspect ratio and may be a pixel narrower than nominal. Keep the image’s natural proportions, use a 63:88 placeholder, and never stretch art to fill a slot. Site cards are served upright even when their printed orientation is landscape.</p>
-  <h2>Image status</h2><dl class="facts"><dt><code>ok</code></dt><dd>Full-size source held.</dd><dt><code>lowres</code></dt><dd>All sizes are served, but larger renditions were upscaled. Enlargement cannot recover missing detail.</dd><dt><code>missing</code></dt><dd>No image held; image_urls is null. Display a placeholder.</dd></dl>
-  <CodeExample code={example} title="Browser · display an available card image" />
-  <h2>Cache by URL</h2><p>Addresses contain the printing ID and an art-version key. New art or encoding produces a new address; an existing address never changes its bytes. Cache these images indefinitely.</p><p>Index consumers can construct rendition paths from a printing’s <code>printing_id</code> and <code>image_hash</code>: <code>/images/&#123;printing_id&#125;.&#123;image_hash&#125;.normal.webp</code>. A reverse adds <code>.back</code> before the rendition. For originals, use the supplied URL because the format may differ.</p>
-  <h2>Attribution and delivery</h2><p>Images belong to Erik’s Curiosa. Hotlinking the registry’s image URLs is allowed with publisher credit; see <a href="/usage">usage and attribution</a>. The site does not request images from the publisher’s servers on page load.</p><p>Keep transparent corners intact and apply proportional corner rounding: <code>border-radius: 4.75% / 3.5%</code>.</p>
+<Docs title="Images" description="Four sizes of every card, at addresses that never change.">
+<p>Every printing that has art carries <code>image_urls</code> with four sizes. A card carries its default printing's. A double-faced printing carries the reverse under <code>back.image_urls</code>. Images are served from <code>api.kairosarchive.net/images/</code>, are not rate-limited, and may be hotlinked with credit to Erik's Curiosa.</p>
+<div class="table-wrap"><table><thead><tr><th>Rendition</th><th>Nominal size</th><th>Format / use</th></tr></thead><tbody><tr><td><code>small</code></td><td>146 × 204</td><td>WebP · thumbnails</td></tr><tr><td><code>normal</code></td><td>488 × 680</td><td>WebP · card pages</td></tr><tr><td><code>large</code></td><td>672 × 936</td><td>WebP · enlarged inspection</td></tr><tr><td><code>original</code></td><td>Source dimensions</td><td>The untouched publisher file, in its original format</td></tr></tbody></table></div>
+<p>Sizes keep the card's aspect ratio, so a rendition may be a pixel narrower than nominal. Keep the proportions, use a 63:88 placeholder when there is no image, and never stretch art to fill a slot. Sites are served upright even though they are played sideways; rotate them in your own layout if you want the printed orientation.</p>
+<h2>Image status</h2><p><code>image_status</code> says how good the source was.</p><dl class="facts"><dt><code>ok</code></dt><dd>The publisher's file was full size.</dd><dt><code>lowres</code></dt><dd>All four sizes exist, but the larger ones were upscaled from a small source and look soft.</dd><dt><code>missing</code></dt><dd>No image yet. <code>image_urls</code> is null; show a placeholder.</dd></dl>
+<CodeExample code={example} title="Browser · display an available card image" />
+<h2>Addresses never change</h2><p>An image address is the printing ID plus an art-version key: <code>/images/P000937.ab12cd34ef56.normal.webp</code>. New art, or a new encoding, gets a new key and a new address. The bytes at an old address never change, so cache them forever.</p><p>Index consumers can construct rendition paths from a printing’s <code>printing_id</code> and <code>image_hash</code>: <code>/images/&#123;printing_id&#125;.&#123;image_hash&#125;.normal.webp</code>. A reverse adds <code>.back</code> before the rendition. For originals, use the supplied URL because the format may differ.</p>
+<h2>Credit and corners</h2><p>Images are © Erik's Curiosa, hosted here as the official API's own guidance asks. Hotlink them with credit; see <a href="/usage">usage and attribution</a>.</p><p>WebP keeps the corners transparent where the source had them. Round them in CSS with <code>border-radius: 4.75% / 3.5%</code>, which lands on the physical corner at any size.</p>
 </Docs>
