@@ -1,0 +1,12 @@
+---
+/** A card's threshold the way the card shows it: one symbol per point,
+ * grouped by element. The symbols are the game's own. The count is in
+ * the group's label for a screen reader and in the card details below
+ * the strip as a number, so the picture is never the only reading. */
+interface Props { air: number; earth: number; fire: number; water: number }
+const { air, earth, fire, water } = Astro.props;
+const groups = ([['Air', air], ['Earth', earth], ['Fire', fire], ['Water', water]] as const).filter(([, n]) => n > 0);
+---
+{groups.map(([element, n]) => <span class="thr-group" role="img" aria-label={`${n} ${element}`} title={`${n} ${element}`}>
+  {Array.from({ length: n }, () => <img src={`/symbols/${element.toLowerCase()}.png`} alt="" width="29" height="27" />)}
+</span>)}

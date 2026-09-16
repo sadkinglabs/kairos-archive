@@ -1,6 +1,7 @@
 ---
 import { formatValue, type Face } from '../data/registry';
 import { powerReading } from '../presentation/cardLine';
+import Threshold from './Threshold.astro';
 interface Props { face: Face }
 const { face } = Astro.props;
 // Power alone when attack and defense agree (509 of 535 cards); both
@@ -8,18 +9,14 @@ const { face } = Astro.props;
 // The computed power is always in the details below.
 const fight = powerReading(face);
 const thresholds = [['Air', face.thr_air], ['Earth', face.thr_earth], ['Fire', face.thr_fire], ['Water', face.thr_water]].filter(([, n]) => Number(n) > 0);
-// A threshold is a number of one element, so the element names the number
-// rather than labelling the cell: "3 Air", not "Air: 3". Cards needing more
-// than one element are rare (62 of 1,100) and set their values smaller so
-// four of them still fit the strip.
+// The strip shows threshold as the card does, one symbol per point; the
+// details below give the same as numbers, "1 Fire, 1 Water".
 ---
 <dl class="stat-strip">
   {face.cost !== null && <div><dt>Cost</dt><dd>{face.cost}</dd></div>}
   {thresholds.length > 0 && <div>
     <dt>{thresholds.length > 1 ? 'Thresholds' : 'Threshold'}</dt>
-    <dd class={thresholds.length > 1 ? 'thresholds many' : 'thresholds'}>{thresholds.map(([element, n], i) => <>
-      {i > 0 && <span class="sep">·</span>}{n}<span class="unit">{element}</span>
-    </>)}</dd>
+    <dd class="thresholds"><Threshold air={face.thr_air} earth={face.thr_earth} fire={face.thr_fire} water={face.thr_water} /></dd>
   </div>}
   {fight && <div><dt>{fight.label}</dt><dd>{fight.value}</dd></div>}
   {face.life !== null && <div><dt>Life</dt><dd>{face.life}</dd></div>}
