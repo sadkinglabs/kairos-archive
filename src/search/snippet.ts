@@ -79,6 +79,15 @@ function mark(text: string, re: RegExp): string {
   return out + escapeHtml(text.slice(last));
 }
 
+/** The whole rules text, escaped, with every phrase match marked; the
+ * text escaped and unmarked when there are no phrases. For the full view,
+ * which shows the text entire rather than the sentence that matched. */
+export function markText(rulesText: string | null | undefined, phrases: string[]): string {
+  const text = rulesText ?? "";
+  const re = matcher(phrases);
+  return re ? mark(text, re) : escapeHtml(text);
+}
+
 /** The first sentence of the rules text containing any of the phrases,
  * as HTML with the phrases marked; null when nothing matches or there is
  * nothing to look for. */

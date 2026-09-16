@@ -183,6 +183,20 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; }
 .tile .sub { font-size: .73rem; color: var(--muted); margin-top: .25rem; }
 .tile .why { font-size: .76rem; color: var(--muted); line-height: 1.4; margin-top: .4rem; overflow-wrap: anywhere; }
 mark { background: var(--mark-bg); color: inherit; border-radius: 2px; padding: 0 .12em; }
+.results-table .name a { font-weight: 600; color: var(--fg); text-decoration: none; }
+.results-table .name a:hover { text-decoration: underline; }
+.results-table .why { font-size: .78rem; color: var(--muted); line-height: 1.4; margin-top: .25rem; max-width: 34ch; }
+.results-table .name { min-width: 15rem; }
+.results-table .type { white-space: nowrap; }
+.results-table .nowrap { white-space: nowrap; }
+.full-list { display: grid; gap: 1.2rem; }
+.full-entry { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 1.2rem; align-items: start; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 1rem; }
+.full-entry .art { display: block; }
+.full-entry h3 { margin: 0; font-size: 1.15rem; line-height: 1.3; }
+.full-entry h3 a { color: var(--fg); text-decoration: none; }
+.full-entry h3 a:hover { text-decoration: underline; }
+.full-entry .meta { color: var(--muted); font-size: .85rem; margin: .35rem 0 0; }
+.full-entry .rules { white-space: pre-line; overflow-wrap: anywhere; line-height: 1.65; margin: .8rem 0; }
 .chips { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin: 1.5rem 0; font-size: .85rem; }
 .chips label { display: flex; align-items: center; gap: .4rem; }
 .pager { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin: 1.5rem 0; font-size: .85rem; }
@@ -256,6 +270,8 @@ th { color: var(--muted); font-weight: 600; }
 #reset-fields { min-height: 44px; padding: .5rem 0; border: 0; background: none; color: var(--muted); text-decoration: underline; font-size: .8rem; }
 @media (max-width: 740px) {
   main { padding: 1.8rem 20px 3rem; }
+  .full-entry { grid-template-columns: 110px minmax(0, 1fr); gap: .9rem; padding: .8rem; }
+  .full-entry h3 { font-size: 1.02rem; }
   header.site .inner { padding: .7rem 20px; flex-wrap: wrap; gap: .7rem; }
   .brand span { font-size: 1.4rem; }
   .brand img { width: 36px; height: 36px; }
