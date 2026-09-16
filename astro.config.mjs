@@ -45,7 +45,10 @@ export default defineConfig({
   // and any stylesheet it judges small enough - which the browser would
   // then refuse to run.
   build: { format: "file", inlineStylesheets: "never" },
-  vite: { build: { assetsInlineLimit: 0 } },
+  // esbuild for CSS, as before Vite 8: Lightning CSS would rewrite
+  // @media (max-width: 740px) as (width <= 740px), which Safari before
+  // 16.4 does not read - the phone layout would silently vanish there.
+  vite: { build: { assetsInlineLimit: 0, cssMinify: "esbuild" } },
   integrations: [
     cardRedirects(),
     sitemap({

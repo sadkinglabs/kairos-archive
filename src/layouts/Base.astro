@@ -2,10 +2,12 @@
 import "../styles/global.css";
 import SearchBox from "../components/SearchBox.astro";
 import { loadRegistry } from "../data/registry";
+import { pagePath } from "../presentation/pagePath";
 interface Props { title: string; description?: string; canonical?: string; image?: string | null }
 const { title, description = "Search, card pages and full history for Sorcery: Contested Realm, built on the Sorcery Card Registry.", canonical, image } = Astro.props;
 const { source } = await loadRegistry();
-const isHome = Astro.url.pathname === "/";
+const here = pagePath(Astro.url.pathname);
+const isHome = here === "/";
 // Three groups, ruled apart: what the archive holds, what changed in it,
 // and how to read it.
 const menu: [string, string][][] = [
@@ -45,7 +47,7 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
           <summary aria-label="Navigation menu"><span class="menu-lines" aria-hidden="true"></span><span class="sr-only">Menu</span></summary>
           <nav aria-label="Main navigation">{menu.map((group, i) => <>
             {i > 0 && <hr />}
-            {group.map(([href, label]) => <a href={href} aria-current={Astro.url.pathname === href || Astro.url.pathname.startsWith(`${href}/`) ? 'page' : undefined}>{label}</a>)}
+            {group.map(([href, label]) => <a href={href} aria-current={here === href || here.startsWith(`${href}/`) ? 'page' : undefined}>{label}</a>)}
           </>)}</nav>
         </details>
         {!isHome && <SearchBox />}
@@ -57,8 +59,7 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
         <div class="footer-links"><a href="/about">About</a><a href="/docs">API documentation</a><a href="/usage">Data & credits</a></div>
         Card names, text and images © <a href="https://sorcerytcg.com">Erik's Curiosa</a>, shown with credit for archive, identification and site function.
         Identifiers, structure and history: Kairos Archive, free for any use (<a href="/usage">usage</a>).
-        Data: <a href="https://api.kairosarchive.net/versions.json">Sorcery Card Registry</a> release <code>{source.tag}</code> ·
-        <a href="https://github.com/sadkinglabs/sorcery-registry">registry source</a> · <a href="https://github.com/sadkinglabs/kairos-archive">site source</a>
+        Data: <a href="https://api.kairosarchive.net/versions.json">Sorcery Card Registry</a> release <code>{source.tag}</code> · <a href="https://github.com/sadkinglabs/sorcery-registry">registry source</a> · <a href="https://github.com/sadkinglabs/kairos-archive">site source</a>
       </div>
     </footer>
     <script>
