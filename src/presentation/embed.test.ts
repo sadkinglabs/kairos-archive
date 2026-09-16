@@ -6,21 +6,22 @@ const avatar = { ...knight, type: "Avatar", subtypes: [], rarity: null, elements
 const site = { ...knight, type: "Site", subtypes: [], rarity: "Unique", elements: ["Air"], cost: null, attack: null, defense: null, power: null, thr_fire: 0, thr_water: 0, rules_text: "" };
 
 describe("embedTypeLine", () => {
-  it("reads rarity, type, subtypes and elements", () => {
-    expect(embedTypeLine(knight)).toBe("Exceptional Minion — Mortal · Fire, Water");
+  it("reads the type, then rarity and subtypes as the card prints them, with no element", () => {
+    expect(embedTypeLine(knight)).toBe("Minion — Exceptional Mortal");
+    expect(embedTypeLine({ ...knight, subtypes: ["Mortal", "Beast"] })).toBe("Minion — Exceptional Mortal, Beast");
   });
-  it("leaves out what the face lacks, and never says None", () => {
+  it("leaves out what the face lacks", () => {
     expect(embedTypeLine(avatar)).toBe("Avatar");
-    expect(embedTypeLine(site)).toBe("Unique Site · Air");
+    expect(embedTypeLine(site)).toBe("Site — Unique");
   });
 });
 
 describe("embedStatsLine", () => {
   it("names each number, with attack and defense when they differ", () => {
-    expect(embedStatsLine(knight)).toBe("Mana 5 · Threshold 1 Fire, 1 Water · Attack 5 / Defense 3 · Power 4");
+    expect(embedStatsLine(knight)).toBe("Mana: 5 · Threshold: 1 Fire, 1 Water · Attack: 5 / Defense: 3 · Power: 4");
   });
   it("reads power alone when attack equals defense, and life for an avatar", () => {
-    expect(embedStatsLine(avatar)).toBe("Power 1 · Life 20");
+    expect(embedStatsLine(avatar)).toBe("Power: 1 · Life: 20");
   });
   it("is empty for a face with no numbers", () => {
     expect(embedStatsLine(site)).toBe("");
@@ -30,10 +31,10 @@ describe("embedStatsLine", () => {
 describe("embedDescription", () => {
   it("stacks the lines and puts the rules text after a blank line", () => {
     expect(embedDescription(knight, ["Arthurian Legends"])).toBe(
-      "Exceptional Minion — Mortal · Fire, Water\nMana 5 · Threshold 1 Fire, 1 Water · Attack 5 / Defense 3 · Power 4\nArthurian Legends\n\nCosts (2) less to cast if you have more life than each opponent.");
+      "Minion — Exceptional Mortal\nMana: 5 · Threshold: 1 Fire, 1 Water · Attack: 5 / Defense: 3 · Power: 4\nArthurian Legends\n\nCosts (2) less to cast if you have more life than each opponent.");
   });
   it("skips empty lines: no stats, no places, no rules", () => {
-    expect(embedDescription(site, [])).toBe("Unique Site · Air");
+    expect(embedDescription(site, [])).toBe("Site — Unique");
   });
   it("cuts a long text on a word with an ellipsis", () => {
     const long = { ...knight, rules_text: "word ".repeat(300).trim() };

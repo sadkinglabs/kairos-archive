@@ -17,23 +17,24 @@ interface EmbedFace {
  * last, so a cut lands on the text. */
 export const MAX_EMBED = 600;
 
-/** "Exceptional Minion — Mortal · Fire, Water", worded as the card page's face box is. */
-export function embedTypeLine(face: Pick<EmbedFace, "type" | "subtypes" | "rarity" | "elements">): string {
-  const line = [face.rarity, face.type].filter(Boolean).join(" ") + (face.subtypes.length ? ` — ${face.subtypes.join(", ")}` : "");
-  const elements = face.elements.filter((e) => e !== "None");
-  return elements.length ? `${line} · ${elements.join(", ")}` : line;
+/** "Minion — Ordinary Giant": the type, then rarity and subtypes the way
+ * the card prints them ("An Ordinary Giant"). The element is not named;
+ * the threshold and the embed's colour carry it. */
+export function embedTypeLine(face: Pick<EmbedFace, "type" | "subtypes" | "rarity">): string {
+  const printed = [face.rarity, face.subtypes.join(", ")].filter(Boolean).join(" ");
+  return [face.type, printed].filter(Boolean).join(" — ");
 }
 
-/** "Mana 5 · Threshold 1 Fire, 1 Water · Attack 5 / Defense 3 · Power 4", each part only when the face has it. */
+/** "Mana: 5 · Threshold: 1 Fire, 1 Water · Attack: 5 / Defense: 3 · Power: 4", each part only when the face has it. */
 export function embedStatsLine(face: Pick<EmbedFace, "cost" | "attack" | "defense" | "power" | "life" | "thr_air" | "thr_earth" | "thr_fire" | "thr_water">): string {
   const parts: string[] = [];
-  if (face.cost !== null) parts.push(`Mana ${face.cost}`);
+  if (face.cost !== null) parts.push(`Mana: ${face.cost}`);
   const thr = thresholdLine(face);
-  if (thr) parts.push(`Threshold ${thr}`);
+  if (thr) parts.push(`Threshold: ${thr}`);
   const fight = powerReading(face);
-  if (fight && fight.label === "Power") parts.push(`Power ${fight.value}`);
-  else if (fight) { parts.push(`Attack ${face.attack} / Defense ${face.defense}`); if (face.power !== null) parts.push(`Power ${face.power}`); }
-  if (face.life !== null) parts.push(`Life ${face.life}`);
+  if (fight && fight.label === "Power") parts.push(`Power: ${fight.value}`);
+  else if (fight) { parts.push(`Attack: ${face.attack} / Defense: ${face.defense}`); if (face.power !== null) parts.push(`Power: ${face.power}`); }
+  if (face.life !== null) parts.push(`Life: ${face.life}`);
   return parts.join(" · ");
 }
 
