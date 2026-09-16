@@ -123,11 +123,10 @@ footer.site .credit { max-width: 62ch; margin: 0 auto; }
 .face-box .row p + p { margin-top: .3rem; }
 .face-box .title { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1.2rem; }
 .face-box .title :is(h1, h2, h3, h4) { margin: 0; flex: 1 1 auto; text-wrap: balance; }
-.face-box .title h1 { font-size: clamp(1.8rem, 3.2vw, 2.4rem); }
+.face-box .title h1 { font-size: clamp(1.55rem, 2.8vw, 2rem); }
 .face-box .title h2 { font-size: 1.45rem; }
 .face-box .title h4 { font-size: 1.05rem; }
 .face-box .title .badge { vertical-align: middle; margin-left: .2rem; }
-.cost-threshold { display: inline-flex; align-items: center; gap: .65rem; flex: 0 0 auto; }
 .cost { display: inline-grid; place-items: center; min-width: 2rem; height: 2rem; padding: 0 .4rem; border: 1.5px solid var(--fg); border-radius: 999px; font-size: 1.1rem; font-weight: 600; line-height: 1; }
 .thr-group { display: inline-flex; align-items: center; gap: .12rem; }
 .thr-group img { display: block; width: 1.5rem; height: auto; }
@@ -136,14 +135,20 @@ footer.site .credit { max-width: 62ch; margin: 0 auto; }
 .face-box .rules-text { white-space: pre-line; overflow-wrap: anywhere; line-height: 1.7; }
 .face-box .rules .errata-notice { margin: 0 0 .7rem; }
 .face-box .tags { display: flex; flex-wrap: wrap; gap: .3rem 1.4rem; font-size: .88rem; }
-.face-box .stats { display: flex; flex-wrap: wrap; gap: .4rem 2rem; font-size: 1.35rem; }
-.face-box .stats .label { display: block; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.face-box .stats { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem 1.8rem; font-size: 1.35rem; line-height: 1.2; }
+.face-box .stats .stat { display: flex; flex-direction: column; gap: .2rem; }
+.face-box .stats .symbols { flex-direction: row; align-items: center; gap: .65rem; padding-right: .4rem; border-right: 1px solid var(--line); margin-right: -.6rem; }
+.face-box .stats .symbols:last-child { border-right: 0; padding-right: 0; margin-right: 0; }
+.face-box .stats .label { display: block; font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .face-box .flavour { font-style: italic; color: var(--muted); }
 .face-box .artist { font-size: .88rem; }
-.face-box .facts dl { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0; font-size: .82rem; }
-.face-box .facts dl > div { display: flex; gap: .4rem; }
-.face-box .facts dt { color: var(--muted); }
-.face-box .facts dd { margin: 0; }
+.face-box .id { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .9rem; }
+.face-box .sets { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; font-size: .9rem; }
+.face-box .sets .badge.set { text-decoration: none; color: var(--fg); font-size: .78rem; }
+.face-box .sets .badge.set:hover { color: var(--accent); }
+/* Finishes: Foil catches a silver edge, Rainbow a rainbow one, so the two pills tell each other apart. */
+.badge.finish-foil { border: 1px solid transparent; background: linear-gradient(var(--badge), var(--badge)) padding-box, linear-gradient(135deg, #9a9a9a, #e8e8e8 45%, #8f8f8f 70%, #dcdcdc) border-box; }
+.badge.finish-rainbow { border: 1px solid transparent; background: linear-gradient(var(--badge), var(--badge)) padding-box, linear-gradient(135deg, #d66 0%, #dc6 25%, #6c8 50%, #68d 75%, #b6c 100%) border-box; }
 /* The back face of a double-faced card, folded behind its name: the
    front is what the page is about, the back is one click away. */
 .face-disclosure { margin: .5rem 0 1.2rem; }
@@ -339,6 +344,7 @@ table.fields td:first-child { white-space: nowrap; }
   .art-column { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
   .card-art { width: min(68vw, 270px); margin-bottom: .5rem; }
   .face-box > .row { padding: .75rem .9rem; }
+  .face-box .stats { gap: .5rem 1.2rem; font-size: 1.2rem; }
   .card-content h2 { margin-top: 1.4rem; }
   .comparison { grid-template-columns: 1fr; }
   .comparison > div + div { border-left: 0; border-top: 1px solid var(--line); }

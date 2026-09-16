@@ -15,7 +15,7 @@ const links = Boolean(url || official);
   {id && <p class="record-id"><span class="muted">{label}</span> <code>{id}</code> <button class="copy" data-copy={id} aria-label={`Copy ${label} ${id}`}>Copy</button></p>}
   {links && <div class="record-buttons">
     {url && <a class="btn secondary" href={url}>Show JSON</a>}
-    {url && <a class="btn secondary" href={url} data-download={id ?? 'record'}><Icon name="download" size={16} /> Download JSON</a>}
+    {url && <a class="btn secondary" href={url} data-download={id ?? url.split('/').pop()?.replace(/\.json$/, '') ?? 'record'}><Icon name="download" size={16} /> Download JSON</a>}
     {official && <a class="btn secondary" href={official}>SorceryTCG.com <Icon name="external" size={15} /></a>}
   </div>}
 </div>
