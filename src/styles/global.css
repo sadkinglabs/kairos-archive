@@ -463,3 +463,13 @@ table.fields td:first-child { white-space: nowrap; }
 .site-lightbox-frame { position: relative; }
 .site-lightbox-frame img { position: absolute; left: 50%; top: 50%; max-width: none; display: block; }
 @media (prefers-reduced-motion: reduce) { .art-link[data-orientation] { transition: none; } }
+
+/* The changelog's per-release blocks: a summary line, then folded lists. */
+.release-changes { border-top: 1px solid var(--line); padding-top: 1rem; margin-top: 1.25rem; }
+.release-changes h3 { margin: 0 0 .35rem; font-size: 1.05rem; }
+.release-changes .summary { color: var(--muted); margin: 0 0 .5rem; }
+.release-changes details { margin: .35rem 0; }
+.release-changes summary { cursor: pointer; }
+.release-changes ul { margin: .4rem 0 .6rem 1.2rem; }
+.release-changes ul.ids { display: flex; flex-wrap: wrap; gap: .25rem .75rem; list-style: none; margin-left: 0; padding: 0; }
+.release-changes ul.ids li { margin: 0; }

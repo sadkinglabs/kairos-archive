@@ -13,7 +13,9 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Card, Printing, SearchData } from "../search/types";
 
-export const API_BASE = "https://api.kairosarchive.net";
+/** Overridable for a build against a local stand-in of the API (tests of
+ * the release-dependent pages); production builds never set it. */
+export const API_BASE = process.env.KAIROS_API_BASE ?? "https://api.kairosarchive.net";
 export const MAJOR = "v3";
 export const USER_AGENT = "kairos-archive-build (+https://kairosarchive.net)";
 
