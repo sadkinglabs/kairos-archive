@@ -38,10 +38,17 @@ export function embedStatsLine(face: Pick<EmbedFace, "cost" | "attack" | "defens
   return parts.join(" · ");
 }
 
-/** The whole description: type line, stats, where it is printed, a blank
- * line, then the rules text, cut to MAX_EMBED on a word. */
-export function embedDescription(face: EmbedFace, where: string[]): string {
-  const head = [embedTypeLine(face), embedStatsLine(face), where.filter(Boolean).join(" · ")].filter(Boolean).join("\n");
+/** "C000927 · P002451": the card's codex id and the printing the page is
+ * about (the default printing on a card page). The ids are the point of
+ * the archive, so every unfurl carries them. */
+export function embedIdLine(ids: { codex: string; printing?: string | null }): string {
+  return [ids.codex, ids.printing].filter(Boolean).join(" · ");
+}
+
+/** The whole description: type line, stats, where it is printed, the ids,
+ * a blank line, then the rules text, cut to MAX_EMBED on a word. */
+export function embedDescription(face: EmbedFace, where: string[], ids?: { codex: string; printing?: string | null }): string {
+  const head = [embedTypeLine(face), embedStatsLine(face), where.filter(Boolean).join(" · "), ids ? embedIdLine(ids) : ""].filter(Boolean).join("\n");
   const rules = face.rules_text.trim();
   const text = rules ? `${head}\n\n${rules}` : head;
   if (text.length <= MAX_EMBED) return text;
