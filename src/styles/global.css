@@ -120,9 +120,9 @@ footer.site .credit { max-width: 62ch; margin: 0 auto; }
 .stat-strip > div:first-child { padding-left: 0; border: 0; }
 .stat-strip dt { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .stat-strip dd { margin: .2rem 0 0; font-size: 1.65rem; line-height: 1.2; }
-.stat-strip dd.thresholds .unit { font-size: .46em; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-left: .25em; }
-.stat-strip dd.thresholds .sep { color: var(--line); margin: 0 .3em; }
-.stat-strip dd.thresholds.many { font-size: 1.2rem; }
+.stat-strip dd.thresholds { display: flex; justify-content: center; align-items: center; gap: .55rem; min-height: 1.98rem; }
+.thr-group { display: inline-flex; align-items: center; gap: .12rem; }
+.thr-group img { display: block; width: 1.5rem; height: auto; }
 pre.rules { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 1.1rem; margin: .7rem 0 1rem; line-height: 1.75; }
 .errata-notice { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .35rem 1rem; color: var(--warn); font-size: .84rem; border-left: 2px solid var(--warn); padding-left: .7rem; margin: .8rem 0; }
 .badge { display: inline-block; padding: .2rem .55rem; border-radius: 999px; background: var(--badge); color: var(--muted); font: 500 .72rem/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; }
