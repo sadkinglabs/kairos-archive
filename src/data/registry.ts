@@ -10,6 +10,7 @@
 import { createHash } from "node:crypto";
 import { brotliCompressSync } from "node:zlib";
 import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import type { Card, Printing, SearchData } from "../search/types";
 
 export const API_BASE = "https://api.kairosarchive.net";
@@ -49,8 +50,11 @@ export interface Registry {
   name_history: { name: string; codex_id: string; valid_from: string; valid_to: string | null }[];
   card_history: HistoryRow[];
 }
+export interface Release { tag: string; schema_version: number; released_at: string; sha256: string }
 export interface Source {
   tag: string; root: string | null; sha256: string; releasedAt: string | null;
+  /** Every release versions.json lists, newest first; empty for a local build. */
+  releases: Release[];
   /** registry.json as stored, and as the edge sends it (Brotli, our own
    * compression of the same bytes - a close estimate of the transfer). */
   bytes: number; compressed: number;
@@ -85,14 +89,20 @@ async function fetchJson<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function load(): Promise<{ registry: Registry; source: Source }> {
+export type JsonSchema = Record<string, unknown>;
+export interface Loaded { registry: Registry; source: Source; /** the release's schema.json, for the type reference pages */ schema: JsonSchema }
+
+async function load(): Promise<Loaded> {
   const file = process.env.KAIROS_REGISTRY_FILE;
   if (file) {
     const bytes = await readFile(file);
     const sha256 = createHash("sha256").update(bytes).digest("hex");
-    return { registry: JSON.parse(bytes.toString("utf-8")) as Registry, source: { tag: "local", root: null, sha256, releasedAt: null, ...sizes(bytes) } };
+    // A checkout of the registry keeps the schema beside the export.
+    const schemaFile = process.env.KAIROS_REGISTRY_SCHEMA_FILE ?? resolve(dirname(file), "..", "schema", "registry.schema.json");
+    const schema = JSON.parse((await readFile(schemaFile)).toString("utf-8")) as JsonSchema;
+    return { registry: JSON.parse(bytes.toString("utf-8")) as Registry, source: { tag: "local", root: null, sha256, releasedAt: null, releases: [], ...sizes(bytes) }, schema };
   }
-  const versions = await fetchJson<{ base_url: string; latest: Record<string, string>; releases: { tag: string; sha256: string; released_at: string }[] }>(`${API_BASE}/versions.json`);
+  const versions = await fetchJson<{ base_url: string; latest: Record<string, string>; releases: Release[] }>(`${API_BASE}/versions.json`);
   const tag = process.env.KAIROS_REGISTRY_TAG ?? versions.latest[MAJOR];
   if (!tag) throw new Error(`versions.json lists no ${MAJOR} release`);
   const release = versions.releases.find((r) => r.tag === tag);
@@ -102,14 +112,15 @@ async function load(): Promise<{ registry: Registry; source: Source }> {
   const bytes = Buffer.from(await response.arrayBuffer());
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   if (sha256 !== release.sha256) throw new Error(`${root}/registry.json digest ${sha256} does not match versions.json (${release.sha256})`);
-  return { registry: JSON.parse(bytes.toString("utf-8")) as Registry, source: { tag, root, sha256, releasedAt: release.released_at, ...sizes(bytes) } };
+  const schema = await fetchJson<JsonSchema>(`${root}/schema.json`);
+  return { registry: JSON.parse(bytes.toString("utf-8")) as Registry, source: { tag, root, sha256, releasedAt: release.released_at, releases: versions.releases, ...sizes(bytes) }, schema };
 }
 
 function sizes(bytes: Buffer): { bytes: number; compressed: number } {
   return { bytes: bytes.length, compressed: brotliCompressSync(bytes).length };
 }
 
-let cached: Promise<{ registry: Registry; source: Source }> | null = null;
+let cached: Promise<Loaded> | null = null;
 /** Sets in set-code order: Alpha, Beta, Arthurian Legends, Dragonlord,
  * Gothic, then the promo bucket. Not by release date - the promo set's
  * released_at is 2022-03-15, before Alpha's 2023-06-22, because it holds
@@ -145,7 +156,7 @@ export function setFace(set: RegistrySet, printings: RegistryPrinting[]): Regist
   return printings.find((p) => p.set_code === set.set_code && served(p)) ?? null;
 }
 
-export function loadRegistry(): Promise<{ registry: Registry; source: Source }> {
+export function loadRegistry(): Promise<Loaded> {
   cached ??= load();
   return cached;
 }

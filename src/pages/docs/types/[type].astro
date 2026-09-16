@@ -1,0 +1,60 @@
+---
+/** One reference page per record type, generated from the release's own
+ * schema.json: field, type and meaning, with a real record as the
+ * example. Nothing here is typed in except the notes for fields the
+ * schema does not yet describe (src/docs/fieldNotes.ts). */
+import Docs from '../../../layouts/Docs.astro';
+import CodeExample from '../../../components/CodeExample.astro';
+import { loadRegistry } from '../../../data/registry';
+import { typeDocs, type TypeDoc } from '../../../docs/schemaTypes';
+import { FIELD_NOTES } from '../../../docs/fieldNotes';
+export async function getStaticPaths() {
+  const { schema } = await loadRegistry();
+  return typeDocs(schema, FIELD_NOTES).map((doc) => ({ params: { type: doc.slug }, props: { doc } }));
+}
+const { doc } = Astro.props as { doc: TypeDoc };
+const { registry, source } = await loadRegistry();
+const card = registry.cards.find((c) => c.codex_id === 'C000139') ?? registry.cards[0];
+const sample: Record<string, unknown> = {
+  card,
+  printing: registry.printings.find((p) => p.printing_id === card.default_printing_id) ?? registry.printings[0],
+  set: registry.sets[0],
+  'card-history': registry.card_history.find((r) => r.codex_id === card.codex_id) ?? registry.card_history[0],
+  'name-history': registry.name_history.find((r) => r.codex_id === card.codex_id) ?? registry.name_history[0],
+  'slug-history': registry.slug_history.find((r) => r.printing_id === card.default_printing_id) ?? registry.slug_history[0],
+  header: registry.header,
+};
+const example = JSON.stringify(sample[doc.slug], null, 2);
+/** Where each type shows up: the registry.json section, and the files that carry the same record. */
+const where: Record<string, string[]> = {
+  card: ['registry.json → cards[]', 'cards/{codex_id}.json, which adds printings, name_history and card_history', 'index/cards.json, a subset of the fields'],
+  printing: ['registry.json → printings[]', 'printings/{printing_id}.json, which adds slug_history', 'index/printings.json, a subset of the fields', 'as a summary inside cards/{codex_id}.json'],
+  set: ['registry.json → sets[]', 'sets.json, the catalogue', 'sets/{set_code}.json, which replaces the cards count with the list of cards'],
+  'card-history': ['registry.json → card_history[]', 'history/cards.json', 'inside cards/{codex_id}.json, without codex_id'],
+  'name-history': ['registry.json → name_history[]', 'history/names.json', 'inside cards/{codex_id}.json as name, valid_from, valid_to'],
+  'slug-history': ['registry.json → slug_history[]', 'history/slugs.json', 'inside printings/{printing_id}.json as slug, valid_from, valid_to'],
+  header: ['registry.json → header', 'index.json carries the same counts under counts'],
+};
+const intro: Record<string, string> = {
+  card: 'A card is the game piece: its rules, cost and stats. Reprints share one record. Gameplay data lives here and applies to every printing of the card.',
+  printing: 'A printing is one physical version of a card: a set, a product and a finish. Physical facts live here. For the rules and stats, follow codex_id to the card.',
+  set: 'A set is a release of cards. The catalogue entry carries the official code and name, the release date and counts.',
+  'card-history': 'One row per state a card\'s gameplay face has been in, with the dates it was in force. Every card has exactly one open row, and it equals the card record.',
+  'name-history': 'One row per name a card has carried, with the dates. The current name has a null valid_to.',
+  'slug-history': 'One row per slug the official API has ever issued for a printing, with the dates. The current slug has a null valid_to.',
+  header: 'The first object in registry.json: the schema version, the source and a count per section. There is no timestamp, so an unchanged registry produces a byte-identical file.',
+};
+---
+<Docs title={doc.title} description={doc.summary || intro[doc.slug]}>
+  <p>{intro[doc.slug]}</p>
+  <h2>Where it appears</h2>
+  <ul>{(where[doc.slug] ?? []).map((w) => <li><code>{w}</code></li>)}</ul>
+  <h2>Fields</h2>
+  <p>Every field is present on every record; a value that does not apply is <code>null</code>, never missing. Types are from the release's schema; <a href={`https://api.kairosarchive.net/v3/schema.json`}>the schema itself</a> is the contract.</p>
+  <div class="table-wrap"><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Meaning</th></tr></thead>
+    <tbody>{doc.fields.map((f) => <tr><td><code>{f.name}</code></td><td class="type">{f.type}</td><td>{f.description || <span class="muted">—</span>}</td></tr>)}</tbody>
+  </table></div>
+  <h2>Example</h2>
+  <CodeExample code={example} lang="json" title={`${doc.title} · from release ${source.tag}`} />
+</Docs>
