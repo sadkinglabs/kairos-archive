@@ -79,7 +79,7 @@ const VIEW_LABELS: Record<View, string> = { images: "images", text: "text", full
     }
     function textRow(row: Row) {
       const c = row.card;
-      return `<tr><td class="name"><a href="${href(row)}">${escapeHtml(c.name)}</a>${why(row)}</td><td class="type">${escapeHtml(typeLine(c))}</td><td class="nowrap">${escapeHtml(costLine(c))}</td><td class="nowrap">${escapeHtml(statLine(c))}</td><td>${escapeHtml(c.rarity ?? "")}</td><td class="nowrap">${escapeHtml(printingLine(row))}</td></tr>`;
+      return `<tr><td class="name"><a href="${href(row)}">${escapeHtml(c.name)}</a>${why(row)}</td><td class="type">${escapeHtml(typeLine(c, 4))}</td><td class="nowrap">${escapeHtml(costLine(c))}</td><td class="nowrap">${escapeHtml(statLine(c))}</td><td>${escapeHtml(c.rarity ?? "")}</td><td class="nowrap">${escapeHtml(printingLine(row))}</td></tr>`;
     }
     function textTable(rows: Row[]) {
       if (rows.length === 0) return "";

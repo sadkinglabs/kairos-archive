@@ -1,7 +1,12 @@
 ---
 import { formatValue, type Face } from '../data/registry';
+import { powerReading } from '../presentation/cardLine';
 interface Props { face: Face }
 const { face } = Astro.props;
+// Power alone when attack and defense agree (509 of 535 cards); both
+// numbers when they differ, since power alone would hide the card's shape.
+// The computed power is always in the details below.
+const fight = powerReading(face);
 const thresholds = [['Air', face.thr_air], ['Earth', face.thr_earth], ['Fire', face.thr_fire], ['Water', face.thr_water]].filter(([, n]) => Number(n) > 0);
 // A threshold is a number of one element, so the element names the number
 // rather than labelling the cell: "3 Air", not "Air: 3". Cards needing more
@@ -16,7 +21,7 @@ const thresholds = [['Air', face.thr_air], ['Earth', face.thr_earth], ['Fire', f
       {i > 0 && <span class="sep">·</span>}{n}<span class="unit">{element}</span>
     </>)}</dd>
   </div>}
-  {face.power !== null && <div><dt>Power</dt><dd>{face.power}</dd></div>}
+  {fight && <div><dt>{fight.label}</dt><dd>{fight.value}</dd></div>}
   {face.life !== null && <div><dt>Life</dt><dd>{face.life}</dd></div>}
 </dl>
 <details class="disclosure face-details">
