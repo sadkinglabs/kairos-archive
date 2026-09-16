@@ -1,0 +1,21 @@
+# Keeps the pins fresh: one pull request per update, weekly, for the
+# Actions the workflows run (pinned to commits) and the npm packages.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci"
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps"
+    groups:
+      astro:
+        patterns: ["astro", "@astrojs/*"]
