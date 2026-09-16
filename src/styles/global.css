@@ -91,7 +91,8 @@ footer.site .credit { max-width: 62ch; margin: 0 auto; }
    on both sides split what the fold leaves over. */
 .fold .hero { margin: auto 0; padding-top: 0; }
 /* The fan runs edge to edge, wider than the page column, and is cropped at the sides as well as the bottom. */
-.card-fan { position: relative; height: 250px; margin-top: 1rem; overflow: hidden; width: 100vw; left: 50%; transform: translateX(-50%); }
+/* 270px tall with the cards bottomed at -100px leaves 21px of headroom above the middle card, so the 14px hover lift is never clipped. */
+.card-fan { position: relative; height: 270px; margin-top: 1rem; overflow: hidden; width: 100vw; left: 50%; transform: translateX(-50%); }
 .fan-card { position: absolute; bottom: -100px; left: 50%; width: 250px; transform: translateX(calc(-50% + var(--x))) translateY(var(--y)) rotate(var(--r)); transition: transform .2s ease; }
 .fan-card img { display: block; width: 100%; height: auto; border-radius: 4.75% / 3.5%; box-shadow: 0 6px 22px #0006; background: var(--badge); }
 .fan-card:nth-child(1) { --x: -480px; --r: -15deg; --y: 64px; z-index: 1; }
