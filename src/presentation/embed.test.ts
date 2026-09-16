@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_EMBED, embedColour, embedDescription, embedStatsLine, embedTypeLine } from "./embed";
+import { MAX_EMBED, embedColour, embedDescription, embedIdLine, embedStatsLine, embedTypeLine } from "./embed";
 
 const knight = { type: "Minion", subtypes: ["Mortal"], rarity: "Exceptional", elements: ["Fire", "Water"], cost: 5, attack: 5, defense: 3, power: 4, life: null, thr_air: 0, thr_earth: 0, thr_fire: 1, thr_water: 1, rules_text: "Costs (2) less to cast if you have more life than each opponent." };
 const avatar = { ...knight, type: "Avatar", subtypes: [], rarity: null, elements: ["None"], cost: null, attack: 1, defense: 1, power: 1, life: 20, thr_fire: 0, thr_water: 0, rules_text: "Tap → Play or draw a site." };
@@ -28,10 +28,21 @@ describe("embedStatsLine", () => {
   });
 });
 
+describe("embedIdLine", () => {
+  it("joins the codex id and the printing id, or reads the codex id alone", () => {
+    expect(embedIdLine({ codex: "C000927", printing: "P002451" })).toBe("C000927 · P002451");
+    expect(embedIdLine({ codex: "C000927", printing: null })).toBe("C000927");
+  });
+});
+
 describe("embedDescription", () => {
-  it("stacks the lines and puts the rules text after a blank line", () => {
-    expect(embedDescription(knight, ["Arthurian Legends"])).toBe(
-      "Minion — Exceptional Mortal\nMana: 5 · Threshold: 1 Fire, 1 Water · Attack: 5 / Defense: 3 · Power: 4\nArthurian Legends\n\nCosts (2) less to cast if you have more life than each opponent.");
+  it("stacks the lines, ids last, and puts the rules text after a blank line", () => {
+    expect(embedDescription(knight, ["Arthurian Legends"], { codex: "C000927", printing: "P002451" })).toBe(
+      "Minion — Exceptional Mortal\nMana: 5 · Threshold: 1 Fire, 1 Water · Attack: 5 / Defense: 3 · Power: 4\nArthurian Legends\nC000927 · P002451\n\nCosts (2) less to cast if you have more life than each opponent.");
+  });
+  it("keeps the ids ahead of the cut on a long text", () => {
+    const long = { ...knight, rules_text: "word ".repeat(300).trim() };
+    expect(embedDescription(long, ["Alpha"], { codex: "C000927", printing: "P002451" })).toContain("\nC000927 · P002451\n\n");
   });
   it("skips empty lines: no stats, no places, no rules", () => {
     expect(embedDescription(site, [])).toBe("Site — Unique");

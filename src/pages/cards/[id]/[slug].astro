@@ -45,7 +45,7 @@ const setsIn = registry.sets.filter(s => card.set_codes.includes(s.set_code ?? '
 
 ---
 <Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}
-  embed={embedDescription(card, setsIn.map(s => s.name))} colour={embedColour(card.elements)}>
+  embed={embedDescription(card, setsIn.map(s => s.name), { codex: card.codex_id, printing: defaultPrinting?.printing_id })} colour={embedColour(card.elements)}>
   <div class="card-overview">
     <div class="art-column"><CardArt urls={card.image_urls} status={card.image_status} name={card.name} type={card.type} />{defaultPrinting?.back && <CardArt urls={defaultPrinting.back.image_urls} status={defaultPrinting.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
     <div class="card-content">
