@@ -7,6 +7,7 @@
  * The URL stays the single source of truth for state (q, page), whichever
  * path it is: the script rewrites location.pathname, never a literal. */
 import { SORT_FIELDS, UNITS } from "../search/keys";
+import { VIEWS, type View } from "../search/browserState";
 interface Props {
   heading: string;
   /** Used when the URL carries no ?q= - "every card" for /cards. */
@@ -18,6 +19,9 @@ const { heading, defaultQuery = "" } = Astro.props;
 const SORT_LABELS: Record<string, string> = { name: "name", cost: "mana cost", threshold: "threshold total",
   power: "power", atk: "attack", def: "defense", life: "life", set: "set", date: "release date", rarity: "rarity", type: "type" };
 const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "every printing", art: "one per artwork" };
+/** How results are laid out - a URL parameter of its own, not part of q,
+ * because it is presentation rather than a question about cards. */
+const VIEW_LABELS: Record<View, string> = { images: "images", text: "text", full: "full" };
 ---
 <div id="browser" data-default-query={defaultQuery}>
   <h1 id="heading">{heading}</h1>
@@ -26,6 +30,7 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
     <label>Show <select id="unique">{UNITS.map(u => <option value={u}>{UNIT_LABELS[u] ?? u}</option>)}</select></label>
     <label>Sort <select id="sort"><option value="">name</option>{SORT_FIELDS.filter(f => f !== "name").map(f => <option value={f}>{SORT_LABELS[f] ?? f}</option>)}</select></label>
     <label>Order <select id="order"><option value="">default</option><option value="asc">ascending</option><option value="desc">descending</option></select></label>
+    <label>View <select id="view">{VIEWS.map(v => <option value={v}>{VIEW_LABELS[v]}</option>)}</select></label>
     <span id="count" class="muted"></span>
   </div>
   <div id="results" class="grid"></div>
@@ -36,10 +41,11 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
     <div id="rules-results" class="grid"></div>
   </section>
   <script>
-    import { search, directLookup, paginate, parse, rulesPhrases, snippet, type PageInfo } from "../search";
-    import type { SearchData } from "../search";
+    import { search, directLookup, paginate, parse, rulesPhrases, snippet, markText, type PageInfo } from "../search";
+    import type { Card, Printing, SearchData } from "../search";
     import type { Unit } from "../search/keys";
-    import { browserHeading, refinementUrl, resultHref, resultNoun } from "../search/browserState";
+    import { browserHeading, refinementUrl, resultHref, resultNoun, viewFrom, viewUrl, type View } from "../search/browserState";
+    import { costLine, statLine, typeLine } from "../presentation/cardLine";
 
     interface Payload extends SearchData { tag: string; slug_history: { slug: string; printing_id: string }[] }
     const IMAGE_BASE = "https://api.kairosarchive.net/images";
@@ -51,15 +57,43 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       return payload!;
     }
 
-    // `why` is the rules-text snippet, already HTML from snippet(): it is
-    // the one argument that is not escaped here.
-    function tile(cardName: string, codexId: string, printing: { printing_id: string; image_hash: string | null; image_status: string; set_name: string; finish: string | null } | null, sub: string, unit: Unit = "cards", why: string | null = null) {
-      const href = resultHref({ codex_id: codexId, name: cardName }, printing?.printing_id ?? null, unit);
-      const img = printing && printing.image_hash && printing.image_status !== "missing"
-        ? `<img class="card-img" src="${IMAGE_BASE}/${printing.printing_id}.${printing.image_hash}.normal.webp" width="488" height="680" alt="" loading="lazy" decoding="async">`
-        : `<div class="placeholder">${escapeHtml(cardName)}</div>`;
-      const reason = why ? `<div class="why">${why}</div>` : "";
-      return `<a class="tile" href="${href}">${img}<div class="name">${escapeHtml(cardName)}</div><div class="sub">${escapeHtml(sub)}</div>${reason}</a>`;
+    /** One result, whichever group it came from: the card, the printing
+     * that stands for it here, and the phrases to mark in its rules text. */
+    interface Row { card: Card; printing: Printing | null; phrases: string[]; unit: Unit }
+    const CLASS_BY_VIEW: Record<View, string> = { images: "grid", text: "results-table", full: "full-list" };
+
+    function art(row: Row) {
+      const p = row.printing;
+      return p && p.image_hash && p.image_status !== "missing"
+        ? `<img class="card-img" src="${IMAGE_BASE}/${p.printing_id}.${p.image_hash}.normal.webp" width="488" height="680" alt="" loading="lazy" decoding="async">`
+        : `<div class="placeholder">${escapeHtml(row.card.name)}</div>`;
+    }
+    const href = (row: Row) => resultHref(row.card, row.printing?.printing_id ?? null, row.unit);
+    const printingLine = (row: Row) => row.printing ? `${row.printing.set_name} · ${row.printing.finish ?? ""}` : row.card.type ?? "";
+    // snippet() and markText() return finished HTML, escaped inside; they
+    // are the only strings below that are not passed through escapeHtml.
+    const why = (row: Row) => { const html = snippet(row.card.rules_text, row.phrases); return html ? `<div class="why">${html}</div>` : ""; };
+
+    function tile(row: Row) {
+      return `<a class="tile" href="${href(row)}">${art(row)}<div class="name">${escapeHtml(row.card.name)}</div><div class="sub">${escapeHtml(printingLine(row))}</div>${why(row)}</a>`;
+    }
+    function textRow(row: Row) {
+      const c = row.card;
+      return `<tr><td class="name"><a href="${href(row)}">${escapeHtml(c.name)}</a>${why(row)}</td><td class="type">${escapeHtml(typeLine(c))}</td><td class="nowrap">${escapeHtml(costLine(c))}</td><td class="nowrap">${escapeHtml(statLine(c))}</td><td>${escapeHtml(c.rarity ?? "")}</td><td class="nowrap">${escapeHtml(printingLine(row))}</td></tr>`;
+    }
+    function textTable(rows: Row[]) {
+      if (rows.length === 0) return "";
+      return `<div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Cost</th><th>Stats</th><th>Rarity</th><th>Printing</th></tr></thead><tbody>${rows.map(textRow).join("")}</tbody></table></div>`;
+    }
+    function fullEntry(row: Row) {
+      const c = row.card;
+      const meta = [typeLine(c), costLine(c), statLine(c), c.rarity ?? ""].filter(Boolean).map(escapeHtml).join(" · ");
+      const where = [printingLine(row), row.printing?.artist ? `Art: ${row.printing.artist}` : ""].filter(Boolean).map(escapeHtml).join(" · ");
+      return `<article class="full-entry"><a class="art" href="${href(row)}">${art(row)}</a><div class="body"><h3><a href="${href(row)}">${escapeHtml(c.name)}</a></h3><p class="meta">${meta}</p><p class="rules">${markText(c.rules_text, row.phrases) || '<span class="muted">No rules text</span>'}</p><p class="meta">${where}</p></div></article>`;
+    }
+    function render(target: HTMLElement, rows: Row[], view: View) {
+      target.className = CLASS_BY_VIEW[view];
+      target.innerHTML = view === "text" ? textTable(rows) : rows.map(view === "full" ? fullEntry : tile).join("");
     }
     function escapeHtml(s: string) { return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!); }
 
@@ -114,6 +148,8 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       ($("unique") as HTMLSelectElement).value = result.options.unique;
       ($("sort") as HTMLSelectElement).value = result.options.sort ?? "";
       ($("order") as HTMLSelectElement).value = result.options.order ?? "";
+      const view = viewFrom(location.search);
+      ($("view") as HTMLSelectElement).value = view;
       // A rejected term is dropped, so the rest of the query still runs and
       // answers a question nobody asked - a plausible list under a warning
       // reads as though the filter worked. Say what is wrong and show
@@ -136,14 +172,13 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       const parsed = parse(q);
       const phrases = rulesPhrases(parsed.ast);
       const groupPhrases = [...phrases, ...parsed.bare.map((b) => b.text)];
-      $("results").innerHTML = pageHits.map((h) => tile(h.card.name, h.card.codex_id, h.printing, h.printing ? `${h.printing.set_name} · ${h.printing.finish ?? ""}` : h.card.type ?? "", result.options.unique, snippet(h.card.rules_text, phrases))).join("");
+      render($("results"), pageHits.map((h) => ({ card: h.card, printing: h.printing, phrases, unit: result.options.unique })), view);
       renderPager(info, params);
       const group = $("rules-group");
       group.hidden = result.rulesTextHits.length === 0;
-      $("rules-results").innerHTML = result.rulesTextHits.map((c) => {
-        const p = d.printings.find((x) => x.printing_id === c.default_printing_id) ?? null;
-        return tile(c.name, c.codex_id, p, c.type ?? "", "cards", snippet(c.rules_text, groupPhrases));
-      }).join("");
+      render($("rules-results"), result.rulesTextHits.map((c) => ({
+        card: c, printing: d.printings.find((x) => x.printing_id === c.default_printing_id) ?? null, phrases: groupPhrases, unit: "cards" as Unit,
+      })), view);
     }
 
     // Chips rewrite the query: the URL is the single source of truth.
@@ -161,6 +196,11 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
     $("unique").addEventListener("change", (e) => rewrite("unique", (e.target as HTMLSelectElement).value === "cards" ? "" : (e.target as HTMLSelectElement).value));
     $("sort").addEventListener("change", (e) => rewrite("sort", (e.target as HTMLSelectElement).value));
     $("order").addEventListener("change", (e) => rewrite("order", (e.target as HTMLSelectElement).value));
+    // The view is presentation, not part of q: same results, same page.
+    $("view").addEventListener("change", (e) => {
+      history.replaceState(null, "", viewUrl(here(), location.search, (e.target as HTMLSelectElement).value as View));
+      void run();
+    });
 
     // Pagination: page state lives in ?page=N, same as q. Plain <a href>
     // links keep it keyboard-accessible and working without JS; the click

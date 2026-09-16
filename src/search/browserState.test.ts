@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { browserHeading, refineQuery, refinementUrl, resultHref, resultNoun, slugify } from "./browserState";
+import { browserHeading, refineQuery, refinementUrl, resultHref, resultNoun, slugify, viewFrom, viewUrl } from "./browserState";
 import { parse } from "./query";
 import { search } from "./evaluate";
 import { DATA, SLUG_HISTORY } from "./fixture";
@@ -80,5 +80,24 @@ describe("the slug rule", () => {
     const { slugify: built } = await import("../data/registry");
     const names = [...DATA.cards.map((card) => card.name), "Æther Wind", "Sting, of Shelob's Lair", "---", "Ka'Thul  Deep", "水"];
     for (const name of names) expect(slugify(name)).toBe(built(name));
+  });
+});
+
+describe("viewFrom", () => {
+  it("reads a known view and falls back to images for anything else", () => {
+    expect(viewFrom("?q=bear&view=text")).toBe("text");
+    expect(viewFrom("?q=bear&view=full")).toBe("full");
+    expect(viewFrom("?q=bear&view=images")).toBe("images");
+    expect(viewFrom("?q=bear&view=grid")).toBe("images");
+    expect(viewFrom("?q=bear")).toBe("images");
+  });
+});
+
+describe("viewUrl", () => {
+  it("keeps the query and page, sets the view, and never writes the default", () => {
+    expect(viewUrl("/search", "?q=bear&page=2", "text")).toBe("/search?q=bear&page=2&view=text");
+    expect(viewUrl("/search", "?q=bear&view=text", "full")).toBe("/search?q=bear&view=full");
+    expect(viewUrl("/search", "?q=bear&view=full", "images")).toBe("/search?q=bear");
+    expect(viewUrl("/cards", "?view=text", "images")).toBe("/cards");
   });
 });

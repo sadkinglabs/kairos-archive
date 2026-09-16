@@ -43,3 +43,22 @@ export function resultHref(card: { codex_id: string; name: string }, printingId:
   if (printingId && unit !== "cards") return `/printings/${printingId}`;
   return `/cards/${card.codex_id}/${slugify(card.name)}`;
 }
+
+/** How results are laid out. Presentation, not a question about cards, so
+ * it lives in its own URL parameter rather than in q: a future API answers
+ * the same q and has no view. Images is the default and is never written. */
+export const VIEWS = ["images", "text", "full"] as const;
+export type View = (typeof VIEWS)[number];
+
+export function viewFrom(search: string): View {
+  const v = new URLSearchParams(search).get("view");
+  return (VIEWS as readonly string[]).includes(v ?? "") ? (v as View) : "images";
+}
+
+/** The same query and page in another view. */
+export function viewUrl(path: string, search: string, view: View): string {
+  const params = new URLSearchParams(search);
+  if (view === "images") params.delete("view"); else params.set("view", view);
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}

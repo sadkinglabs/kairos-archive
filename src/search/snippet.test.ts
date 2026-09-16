@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parse } from "./query";
-import { MAX_LENGTH, rulesPhrases, snippet } from "./snippet";
+import { MAX_LENGTH, markText, rulesPhrases, snippet } from "./snippet";
 
 describe("rulesPhrases", () => {
   it("collects the values of r: terms", () => {
@@ -72,5 +72,15 @@ describe("snippet", () => {
   it("leaves a sentence at the limit uncut", () => {
     const exact = "x".repeat(MAX_LENGTH - 5) + " draw";
     expect(snippet(exact, ["draw"])).toBe(`${"x".repeat(MAX_LENGTH - 5)} <mark>draw</mark>`);
+  });
+});
+
+describe("markText", () => {
+  it("marks every match across the whole text and keeps line breaks", () => {
+    expect(markText("Draw a spell.\nThen draw another.", ["draw"])).toBe("<mark>Draw</mark> a spell.\nThen <mark>draw</mark> another.");
+  });
+  it("escapes without marking when there are no phrases, and reads null as empty", () => {
+    expect(markText("a < b & c", [])).toBe("a &lt; b &amp; c");
+    expect(markText(null, ["x"])).toBe("");
   });
 });
