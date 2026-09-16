@@ -37,7 +37,7 @@ print(tag, registry["header"]["cards"], "cards")`;
   <h2>Find the newest release</h2>
   <p><a href="https://api.kairosarchive.net/versions.json"><code>/versions.json</code></a> is the discovery document. It names the newest release of each major version and lists every release with its tag, schema version, release date and the SHA-256 of its <code>registry.json</code>.</p>
   <CodeExample code={versions} lang="json" title="versions.json · shape (values illustrative)" />
-  <p>A release appears here only after the release workflow has downloaded the new folder from the CDN and checked it byte for byte. <code>latest</code> only ever moves forward.</p>
+  <p>A release appears here only after the release workflow has downloaded that release's <code>registry.json</code> back from the CDN, checked its digest against the build, and checked that <code>index.json</code> names the release and that a card file and a slug file are served. <code>latest</code> only ever moves forward.</p>
 
   <h2>Two ways to address a file</h2>
   <dl class="facts">

@@ -38,7 +38,7 @@ curl --fail --location --silent '${alias}/registry.json.sha256' | sha256sum --ch
     {source.releasedAt && <><dt>Released</dt><dd>{source.releasedAt}</dd></>}
     <dt>Schema</dt><dd>{h.schema_version}</dd>
     <dt>Contents</dt><dd>{h.sets} sets · {h.cards.toLocaleString('en')} cards · {h.printings.toLocaleString('en')} printings · {h.card_history.toLocaleString('en')} history rows</dd>
-    <dt>Size</dt><dd>{formatBytes(source.bytes)} as stored, about {formatBytes(source.compressed)} over the wire (the edge serves it compressed)</dd>
+    <dt>Size</dt><dd>{formatBytes(source.bytes)} as stored. The edge serves it compressed, so a download is roughly {formatBytes(source.compressed)}.</dd>
     <dt>SHA-256</dt><dd><code class="digest">{source.sha256}</code> <button class="copy" data-copy={source.sha256} aria-label="Copy the SHA-256 digest">Copy</button></dd>
   </dl>
   <p class="source-note">Every page on this site was built from that release, after the build verified this digest against <code>versions.json</code>. What you see here and what the API serves are one file.</p>
@@ -57,7 +57,7 @@ curl --fail --location --silent '${alias}/registry.json.sha256' | sha256sum --ch
 
   <h2>Fetch and verify</h2>
   <CodeExample code={curl} lang="bash" title="curl · download the newest release and check it" />
-  <p>Identify automated clients with a <code>User-Agent</code> naming your project and a contact; requests without one are refused. The <a href="/docs">getting started</a> page has the same steps in Python, resolving the tag from <code>versions.json</code> first.</p>
+  <p>Identify automated clients with a <code>User-Agent</code> naming your project and a contact; requests without one are refused. <a href="/docs/releases">Releases and versioning</a> has the same steps in Python, resolving the tag from <code>versions.json</code> first.</p>
 
   <h2>What is inside</h2>
   <p><code>registry.json</code> holds a <code>header</code> and six arrays: <code>sets</code>, <code>cards</code>, <code>printings</code>, <code>slug_history</code>, <code>name_history</code> and <code>card_history</code>. Cards carry gameplay data and are keyed by <code>codex_id</code>; printings carry physical facts and are keyed by <code>printing_id</code>; the histories record every slug, name and gameplay face the registry has ever seen, each with the range of dates it was in force. <a href="/docs/cards">Cards and printings</a> and <a href="/docs/history">history and errata</a> explain the fields; <a href={`${alias}/schema.json`}>the schema</a> is the contract.</p>
