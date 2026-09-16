@@ -16,6 +16,13 @@ const menu: [string, string][][] = [
   [["/syntax", "Search Syntax"], ["/docs", "API Docs"], ["/docs/data", "Download the Data"], ["/about", "About"]],
 ];
 const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archive`;
+/** The footer's site map: every way around the archive, in four groups. */
+const footerGroups: [string, [string, string][]][] = [
+  ["Cards", [["/advanced", "Advanced Search"], ["/syntax", "Search Syntax"], ["/sets", "All Sets"], ["/cards", "All Cards"], ["/random", "Random Card"]]],
+  ["Archive", [["/changes", "Changes & Errata"], ["/tokens", "Tokens"], ["/about", "About"]]],
+  ["Developers", [["/docs", "API Documentation"], ["/docs/data", "Download the Data"], ["/docs/types/card", "Card Object"], ["/docs/changelog", "API Changelog"], ["/usage", "Usage & Attribution"]]],
+  ["Source", [["https://github.com/sadkinglabs/sorcery-registry", "Registry on GitHub"], ["https://github.com/sadkinglabs/kairos-archive", "Site on GitHub"], ["https://github.com/sadkinglabs/sorcery-registry/issues", "Report an Issue"]]],
+];
 ---
 <!doctype html>
 <html lang="en">
@@ -56,7 +63,7 @@ const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archi
     <main id="main" tabindex="-1"><slot /></main>
     <footer class="site">
       <div class="inner">
-        <div class="footer-links"><a href="/about">About</a><a href="/docs">API documentation</a><a href="/docs/data">Download the data</a><a href="/usage">Data & credits</a></div>
+        <nav class="footer-groups" aria-label="Site map">{footerGroups.map(([group, links]) => <div><h2>{group}</h2>{links.map(([href, label]) => <a href={href}>{label}</a>)}</div>)}</nav>
         <p class="credit">Card names, text and images © <a href="https://sorcerytcg.com">Erik's Curiosa</a>, shown with credit for archive, identification and site function.
         Identifiers, structure and history: Kairos Archive, free for any use (<a href="/usage">usage</a>).
         Data: <a href="https://api.kairosarchive.net/versions.json">Sorcery Card Registry</a> release <code>{source.tag}</code> · <a href="https://github.com/sadkinglabs/sorcery-registry">registry source</a> · <a href="https://github.com/sadkinglabs/kairos-archive">site source</a></p>

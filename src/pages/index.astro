@@ -2,8 +2,20 @@
 import Base from '../layouts/Base.astro';
 import SearchBox from '../components/SearchBox.astro';
 import Icon from '../components/Icon.astro';
-import { loadRegistry } from '../data/registry';
-const { registry } = await loadRegistry();
+import CardFan, { type FanCard } from '../components/CardFan.astro';
+import { cardPath, loadRegistry } from '../data/registry';
+import { createHash } from 'node:crypto';
+const { registry, source } = await loadRegistry();
+// The fan's pool: cards whose default printing has full-size art, tokens
+// aside, in an order that changes with each release so a rebuild deals a
+// different build-time hand; the browser reshuffles per visit.
+const cardsById = new Map(registry.cards.map(c => [c.codex_id, c]));
+const pool: FanCard[] = registry.printings
+  .filter(p => p.image_status === 'ok' && p.image_urls && cardsById.get(p.codex_id)?.default_printing_id === p.printing_id && cardsById.get(p.codex_id)?.category !== 'Token')
+  .map(p => ({ p, key: createHash('sha256').update(p.printing_id + source.sha256).digest('hex') }))
+  .sort((a, b) => a.key.localeCompare(b.key))
+  .slice(0, 40)
+  .map(({ p }) => ({ href: cardPath(cardsById.get(p.codex_id)!), src: p.image_urls!.normal, alt: `${p.card_name}, ${p.set_name}` }));
 // Four quiet ways past the box, the way a card search does it: the search
 // is the page, everything else is a link under it.
 const ways = [
@@ -21,6 +33,7 @@ const entries = [
 ---
 <Base title="Kairos Archive" canonical="/">
   <div class="home">
+    <div class="fold">
     <section class="hero" aria-labelledby="home-heading">
       <h1 id="home-heading" class="statement">Search the Realm and its history.</h1>
       <SearchBox hero />
@@ -28,6 +41,8 @@ const entries = [
         {ways.map(w => <a href={w.href}>{w.label}</a>)}
       </nav>
     </section>
+    <CardFan pool={pool} />
+    </div>
     <section class="explore" aria-labelledby="explore-heading">
       <h2 id="explore-heading">Explore the archive</h2>
       {entries.map(e => <a class="explore-row" href={e.href}><Icon name={e.icon} size={29} /><span><strong>{e.title}</strong><span class="muted">{e.detail}</span></span><Icon /></a>)}
