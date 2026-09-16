@@ -1,0 +1,30 @@
+---
+import Docs from '../../layouts/Docs.astro';
+import CodeExample from '../../components/CodeExample.astro';
+const csp = `Content-Security-Policy:
+  connect-src 'self' https://api.kairosarchive.net;
+  img-src 'self' https://api.kairosarchive.net;`;
+const etag = `const cached = localStorage.getItem("versions");        // { etag, body }
+const headers = cached ? { "If-None-Match": JSON.parse(cached).etag } : {};
+const response = await fetch("https://api.kairosarchive.net/versions.json", { headers });
+if (response.status === 304) return JSON.parse(cached).body;
+const body = await response.json();
+localStorage.setItem("versions", JSON.stringify({ etag: response.headers.get("ETag"), body }));
+return body;`;
+---
+<Docs title="CORS & browsers" description="Call the API from page JavaScript on any origin. Nothing to configure on our side.">
+  <h2>Cross-origin requests</h2>
+  <p>Every file is served with <code>Access-Control-Allow-Origin: *</code> for <code>GET</code> and <code>HEAD</code>, and <code>ETag</code> is exposed to scripts. <code>OPTIONS</code> is answered with the preflight a conditional cross-origin request needs, so a browser can send <code>If-None-Match</code> and receive <code>304</code> instead of the file again. A <code>404</code> carries the CORS header too, so your code sees the status rather than an opaque failure.</p>
+  <p>Browsers send their own <code>User-Agent</code>, so the <a href="/docs">User-Agent rule</a> needs nothing from page code.</p>
+  <CodeExample code={etag} title="Browser · revalidate versions.json with ETag" />
+
+  <h2>Your own Content Security Policy</h2>
+  <p>If your site sets a CSP, allow the API host for data and for images. Card art is served from the same host under <code>/images/</code>.</p>
+  <CodeExample code={csp} lang="http" title="CSP · the two directives to add" />
+
+  <h2>Images from a page</h2>
+  <p>Card images are ordinary <code>&lt;img&gt;</code> sources: permanent addresses, hotlinking allowed with credit to Erik's Curiosa, no rate limit. <a href="/docs/images">Images</a> explains the sizes and how to build an address.</p>
+
+  <h2>What a browser cannot see</h2>
+  <p>A <code>403</code> from the edge carries no CORS header, so it surfaces to page JavaScript as a network error rather than a status. Browsers cannot cause either 403 case (they always send a <code>User-Agent</code> and cannot write), so in practice a network error from a browser means the network.</p>
+</Docs>

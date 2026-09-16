@@ -1,0 +1,30 @@
+---
+import Docs from '../../layouts/Docs.astro';
+---
+<Docs title="Identifiers" description="Two IDs that never change. Everything else is data that can.">
+  <p>The official card API identifies cards by slug, and slugs have changed for entire sets. Its internal ids are regenerated on re-import. The registry exists to fix that: it gives every card and every printing an ID that is never changed, reused or removed.</p>
+
+  <h2>The two IDs</h2>
+  <dl class="facts">
+    <dt><code>codex_id</code></dt><dd><code>C000139</code>: one card, across every reprint. Alpha, Beta and promo copies of Apprentice Wizard all share one <code>codex_id</code>. Gameplay data (rules text, cost, attack, defense, power, life, thresholds, keywords) lives here and applies to every printing.</dd>
+    <dt><code>printing_id</code></dt><dd><code>P000937</code>: one physical print, a specific set, product and finish. Physical facts (set, product, finish, slug, artist, flavour text, release date, image) live here.</dd>
+  </dl>
+  <p>Both are a letter and six digits, and both are permanent. If your feature cares which exact piece of cardboard it is, store the <code>printing_id</code>. If any copy of the card would do, store the <code>codex_id</code>.</p>
+
+  <h2>Things that look like IDs but are not</h2>
+  <ul>
+    <li><strong>Slugs</strong> (<code>004-witch-b-s</code>) are the official API's lookup keys. They are mutable and carry no collector number. Never store one as a foreign key. If you have slugs, resolve each through <code>slugs/{'{'}slug{'}'}.json</code> once, store the IDs, and the next renaming costs you nothing. Every slug ever issued still resolves.</li>
+    <li><strong>Names</strong> change. The registry records every name a card has had in <code>name_history</code>, but the name on a record is the current one.</li>
+    <li><strong>Set codes</strong> (<code>001</code> Alpha, <code>002</code> Beta, <code>006</code> Gothic) are labels, not an order: <code>003</code> is unused. They are published exactly as the publisher states them.</li>
+    <li><strong>Set names, product names and card names</strong> are plain data columns.</li>
+  </ul>
+
+  <h2>Records tell you where they live</h2>
+  <p>Cards, printings and sets carry <code>api_url</code>, their own JSON file on the API, and <code>kairos_url</code>, their page on this site. Both are derived from the ID at export time, so they can never point at a different record.</p>
+
+  <h2>Retired printings keep their IDs</h2>
+  <p>When a printing disappears from the official API, the registry keeps its record and marks <code>retired_at</code> with the date. Old references never dangle. Cards are never removed at all.</p>
+
+  <h2>A quick way to jump</h2>
+  <p>On this site, typing an ID or a slug into the search box opens that record directly. On the API, <code>cards/{'{'}codex_id{'}'}.json</code> and <code>printings/{'{'}printing_id{'}'}.json</code> are the addresses.</p>
+</Docs>

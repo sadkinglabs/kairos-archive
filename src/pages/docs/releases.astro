@@ -1,0 +1,61 @@
+---
+import Docs from '../../layouts/Docs.astro';
+import CodeExample from '../../components/CodeExample.astro';
+const versions = `{
+  "base_url": "https://api.kairosarchive.net",
+  "latest": { "v3": "v3.3.0" },
+  "releases": [
+    { "tag": "v3.3.0", "schema_version": 11, "released_at": "2026-09-12",
+      "sha256": "…digest of that release's registry.json…" },
+    { "tag": "v3.2.0", "schema_version": 10, "released_at": "2026-09-01", "sha256": "…" }
+  ]
+}`;
+const python = `import hashlib, json, urllib.request
+
+BASE = "https://api.kairosarchive.net"
+HEADERS = {"User-Agent": "my-card-tool/1.0 (contact@example.com)"}
+
+def fetch(url):
+    request = urllib.request.Request(url, headers=HEADERS)
+    with urllib.request.urlopen(request) as response:
+        return response.read()
+
+versions = json.loads(fetch(f"{BASE}/versions.json"))
+tag = versions["latest"]["v3"]
+release = next(r for r in versions["releases"] if r["tag"] == tag)
+root = versions["base_url"].rstrip("/") + "/" + tag
+
+payload = fetch(f"{root}/registry.json")
+if hashlib.sha256(payload).hexdigest() != release["sha256"]:
+    raise ValueError("registry.json does not match the digest in versions.json")
+registry = json.loads(payload)
+print(tag, registry["header"]["cards"], "cards")`;
+---
+<Docs title="Releases & versioning" description="Every release is a folder that never changes. One document tells you which is newest.">
+  <p>The registry is published as releases, tagged like software: <code>v3.3.0</code>. Each release is uploaded to its own folder on the API, verified, and then listed. Nothing under a release folder is ever edited afterwards.</p>
+
+  <h2>Find the newest release</h2>
+  <p><a href="https://api.kairosarchive.net/versions.json"><code>/versions.json</code></a> is the discovery document. It names the newest release of each major version and lists every release with its tag, schema version, release date and the SHA-256 of its <code>registry.json</code>.</p>
+  <CodeExample code={versions} lang="json" title="versions.json · shape (values illustrative)" />
+  <p>A release appears here only after the release workflow has downloaded the new folder from the CDN and checked it byte for byte. <code>latest</code> only ever moves forward.</p>
+
+  <h2>Two ways to address a file</h2>
+  <dl class="facts">
+    <dt>Pin a release</dt><dd><code>/v3.3.0/cards/C000139.json</code>. The bytes at this path never change. Your app sees the same data until you choose to move. Cache forever.</dd>
+    <dt>Follow the alias</dt><dd><code>/v3/cards/C000139.json</code> answers <code>302</code> to the same path under the newest v3 release. Your app always sees current data of a shape it understands. Browsers and <code>fetch</code> follow the redirect on their own; <code>curl</code> needs <code>--location</code>.</dd>
+  </dl>
+  <p>Pick pin for reproducibility (a deck builder that must not change under a user mid-session) and the alias for freshness (a bot that answers card questions). Either way, poll <code>/versions.json</code> to know when something new exists.</p>
+
+  <h2>Breaking changes are a new major</h2>
+  <p>The schema version in <code>versions.json</code> tells you the shape of the data. Additive changes (a new field, a new file) arrive as a new v3 release and the <code>/v3/</code> alias moves to it. A change that would break an existing reader becomes a new major with its own alias, <code>/v4/</code>, while <code>/v3/</code> keeps pointing at the last v3 release. Nothing breaks in place.</p>
+
+  <h2>Verify what you downloaded</h2>
+  <p>Hash the bytes of <code>registry.json</code> and compare with the <code>sha256</code> listed for that tag in <code>versions.json</code>. Comparing two checksum <em>files</em> proves only that the checksum file arrived. Each release folder also holds a <code>RELEASED</code> marker (the digest and the workflow run that verified it) and a <code>manifest.json</code> with counts and artifact digests. A folder without the marker is a partial upload, not a release.</p>
+  <CodeExample code={python} lang="python" title="Python · discover, download, verify" />
+
+  <h2>Links inside the data point at the alias</h2>
+  <p>Cards, printings and sets carry <code>api_url</code>, their own address on the API, and it uses the <code>/v3/</code> alias. Follow it from any copy, however old, and you reach the current record. If you want to stay on the release you downloaded, build the path under your pinned root instead: <code>{'{'}root{'}'}/cards/{'{'}codex_id{'}'}.json</code>.</p>
+
+  <h2>Mirrors</h2>
+  <p>Every release is also a tagged GitHub release. <code>https://raw.githubusercontent.com/sadkinglabs/sorcery-registry/{'{'}tag{'}'}/export/registry.json</code> is the same bytes as the API's copy and matches the same digest.</p>
+</Docs>
