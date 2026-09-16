@@ -4,24 +4,51 @@
  * the digest. Generated at build from versions.json. */
 import Docs from '../../layouts/Docs.astro';
 import { API_BASE, loadRegistry } from '../../data/registry';
+import { isEmpty, loadChanges, summaryParts } from '../../data/changes';
 const { source } = await loadRegistry();
 const releases = source.releases;
+const changes = await loadChanges(API_BASE, releases);
 const github = (tag: string) => `https://github.com/sadkinglabs/sorcery-registry/releases/tag/${tag}`;
+const withChanges = releases.filter((r) => changes.get(r.tag));
 ---
 <Docs title="Releases" description="Every release of the registry, newest first, and what changed in the shape of the data.">
-  <p>The registry is released a few times a year. Each release is an immutable folder on the API and a tagged release on GitHub; the notes on GitHub say what changed in the data. The <strong>schema version</strong> is what a client cares about: while it stays the same, the shape of every record is the same.</p>
+  <p>The registry is released a few times a year. Each release is an immutable folder on the API and a tagged release on GitHub; the notes on GitHub say why, and <code>changes.json</code> at the root says exactly what changed in the data. The <strong>schema version</strong> is what a client cares about: while it stays the same, the shape of every record is the same.</p>
   {releases.length === 0
     ? <p class="notice">This build read a local file, so the release list is not available here. The published site lists every release; so does <a href={`${API_BASE}/versions.json`}><code>versions.json</code></a>.</p>
     : <div class="table-wrap"><table>
-        <thead><tr><th>Release</th><th>Date</th><th>Schema</th><th>registry.json SHA-256</th><th></th></tr></thead>
-        <tbody>{releases.map((r) => <tr>
+        <thead><tr><th>Release</th><th>Date</th><th>Schema</th><th>What changed</th><th></th></tr></thead>
+        <tbody>{releases.map((r) => { const c = changes.get(r.tag); return <tr>
           <td><a href={`${API_BASE}/${r.tag}/index.json`}><code>{r.tag}</code></a>{r.tag === source.tag && <> <span class="badge ok">this site</span></>}</td>
           <td class="nowrap">{r.released_at}</td>
           <td>{r.schema_version}</td>
-          <td><code class="digest">{r.sha256}</code></td>
+          <td>{c ? (isEmpty(c) ? <span class="muted">no data changes</span> : <a href={`#changes-${r.tag}`}>{summaryParts(c).slice(0, -1).join(' · ') || 'see below'}</a>) : <span class="muted">not recorded</span>}</td>
           <td class="nowrap"><a href={github(r.tag)}>Notes</a></td>
-        </tr>)}</tbody>
+        </tr>; })}</tbody>
       </table></div>}
+  {withChanges.length > 0 && <>
+    <h2>What each release changed</h2>
+    <p>From v3.3.2 on, every release root carries <code>changes.json</code>: the way from the previous release, as counts and the ids behind them. Each record names the fields that differ. <strong>Identifiers removed</strong> is always 0 within a major; the release workflow refuses to publish otherwise.</p>
+    {withChanges.map((r) => { const c = changes.get(r.tag)!; const s = c.summary; return <section class="release-changes" id={`changes-${r.tag}`}>
+      <h3><code>{c.from ?? 'nothing'}</code> → <code>{c.to}</code></h3>
+      <p class="summary">{summaryParts(c).join(' · ')}{c.schema_version.from !== null && c.schema_version.from !== c.schema_version.to && <> · schema {c.schema_version.from} → {c.schema_version.to}</>}</p>
+      <p><a href={`${API_BASE}/${r.tag}/changes.json`}><code>changes.json</code></a></p>
+      {c.cards.changed.length > 0 && <details><summary>{s.cards_changed} {s.cards_changed === 1 ? 'card' : 'cards'} changed</summary>
+        <ul>{c.cards.changed.map((k) => <li><a href={`/cards/${k.codex_id}`}>{k.name}</a> <code>{k.codex_id}</code>: {k.fields.join(', ')}</li>)}</ul></details>}
+      {c.cards.added.length > 0 && <details><summary>{s.cards_added} {s.cards_added === 1 ? 'card' : 'cards'} added</summary>
+        <ul class="ids">{c.cards.added.map((id) => <li><a href={`/cards/${id}`}><code>{id}</code></a></li>)}</ul></details>}
+      {c.printings.added.length > 0 && <details><summary>{s.printings_added} {s.printings_added === 1 ? 'printing' : 'printings'} added</summary>
+        <ul class="ids">{c.printings.added.map((id) => <li><a href={`/printings/${id}`}><code>{id}</code></a></li>)}</ul></details>}
+      {c.printings.changed.length > 0 && <details><summary>{s.printings_changed} {s.printings_changed === 1 ? 'printing' : 'printings'} changed</summary>
+        <ul>{c.printings.changed.map((k) => <li><a href={`/printings/${k.printing_id}`}><code>{k.printing_id}</code></a>: {k.fields.join(', ')}</li>)}</ul></details>}
+      {(c.images.added.length > 0 || c.images.replaced.length > 0) && <details><summary>{s.images_added + s.images_replaced} {s.images_added + s.images_replaced === 1 ? 'image' : 'images'} added or replaced</summary>
+        <ul class="ids">{c.images.replaced.map((id) => <li><a href={`/printings/${id}`}><code>{id}</code></a> replaced</li>)}{c.images.added.map((id) => <li><a href={`/printings/${id}`}><code>{id}</code></a></li>)}</ul></details>}
+      {c.history.added.length > 0 && <details><summary>{s.history_rows_added} history {s.history_rows_added === 1 ? 'row' : 'rows'} added</summary>
+        <ul>{c.history.added.map((h) => <li><a href={`/cards/${h.codex_id}`}><code>{h.codex_id}</code></a> from {h.valid_from}{h.source === 'card' ? ', recorded from the printed card' : ''}</li>)}</ul></details>}
+      {(c.cards.removed.length > 0 || c.printings.removed.length > 0) && <details open><summary>{s.identifiers_removed} identifiers removed</summary>
+        <ul class="ids">{[...c.cards.removed, ...c.printings.removed].map((id) => <li><code>{id}</code></li>)}</ul></details>}
+      {c.sets.added.length > 0 && <p>Sets added: {c.sets.added.map((code) => <a href={`/sets/${code}`}><code>{code}</code></a>)}</p>}
+    </section>; })}
+  </>}
   <h2>Schema changes</h2>
   <p>A change that only adds fields raises the schema version and ships as a new v3 release. A change that would break an existing reader becomes a new major with its own alias. The <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/docs/migrating-to-v2.md">migration guide</a> maps every field that changed at each schema version, from v1.x onward.</p>
   <h2>Follow releases</h2>
