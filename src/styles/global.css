@@ -74,8 +74,12 @@ header .search-box { flex: 1; max-width: 530px; margin-left: auto; }
 .syntax-panel .panel-foot { margin: 0; font-size: .82rem; }
 .hero-search .syntax-help summary { min-width: 52px; font-size: 1.05rem; }
 footer.site { border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
-footer.site .inner { max-width: 1120px; margin: auto; padding: 1.5rem 28px 2rem; }
-.footer-links { display: flex; flex-wrap: wrap; gap: 1.3rem; font-size: .87rem; margin-bottom: 1rem; }
+footer.site .inner { max-width: 1120px; margin: auto; padding: 1.5rem 28px 2rem; text-align: center; }
+/* Centred, and the credit line held to a readable measure so it does not
+   run the full width of a wide screen. */
+footer.site .inner > :not(.footer-links) { display: block; }
+footer.site .credit { max-width: 62ch; margin: 0 auto; }
+.footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.3rem; font-size: .87rem; margin-bottom: 1rem; }
 .home { max-width: 760px; margin: auto; }
 .hero { padding: 2.2rem 0 0; text-align: center; }
 .hero h1 { font-size: clamp(2.8rem, 7vw, 4.8rem); line-height: 1.05; letter-spacing: -.04em; margin: 1rem 0; }
