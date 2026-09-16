@@ -3,8 +3,9 @@ import { pagePath } from "../presentation/pagePath";
 import Base from './Base.astro';
 interface Props { title: string; description: string }
 const { title, description } = Astro.props;
-const pages = [['/docs', 'Getting started'], ['/docs/endpoints', 'Endpoints & releases'], ['/docs/cards', 'Cards & printings'], ['/docs/history', 'History & errata'], ['/docs/images', 'Images'], ['/usage', 'Usage & attribution']];
+const here = pagePath(Astro.url.pathname);
+const pages = [['/docs', 'Getting started'], ['/docs/data', 'Download the data'], ['/docs/endpoints', 'Endpoints & releases'], ['/docs/cards', 'Cards & printings'], ['/docs/history', 'History & errata'], ['/docs/images', 'Images'], ['/usage', 'Usage & attribution']];
 ---
-<Base title={`${title} · API docs`} description={description} canonical={pagePath(Astro.url.pathname)}>
-  <div class="docs-layout"><aside class="docs-nav"><p class="eyebrow">API documentation</p><nav aria-label="Documentation">{pages.map(([href, label]) => <a href={href} aria-current={Astro.url.pathname === href ? 'page' : undefined}>{label}</a>)}</nav></aside><article class="docs-content"><h1>{title}</h1><p class="intro">{description}</p><slot /><hr /><p class="source-note">Reference: <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/docs/api.md">registry API contract</a> and <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/registry/publish.py">published object definitions</a>. <a href="https://github.com/sadkinglabs/sorcery-registry/issues">Report a data or documentation issue</a>.</p></article></div>
+<Base title={`${title} · API docs`} description={description} canonical={here}>
+  <div class="docs-layout"><aside class="docs-nav"><p class="eyebrow">API documentation</p><nav aria-label="Documentation">{pages.map(([href, label]) => <a href={href} aria-current={here === href ? 'page' : undefined}>{label}</a>)}</nav></aside><article class="docs-content"><h1>{title}</h1><p class="intro">{description}</p><slot /><hr /><p class="source-note">Reference: <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/docs/api.md">registry API contract</a> and <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/registry/publish.py">published object definitions</a>. <a href="https://github.com/sadkinglabs/sorcery-registry/issues">Report a data or documentation issue</a>.</p></article></div>
 </Base>

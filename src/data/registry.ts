@@ -8,6 +8,7 @@
  * without network); the source is then reported as "local". */
 
 import { createHash } from "node:crypto";
+import { brotliCompressSync } from "node:zlib";
 import { readFile } from "node:fs/promises";
 import type { Card, Printing, SearchData } from "../search/types";
 
@@ -48,7 +49,12 @@ export interface Registry {
   name_history: { name: string; codex_id: string; valid_from: string; valid_to: string | null }[];
   card_history: HistoryRow[];
 }
-export interface Source { tag: string; root: string | null; sha256: string; releasedAt: string | null }
+export interface Source {
+  tag: string; root: string | null; sha256: string; releasedAt: string | null;
+  /** registry.json as stored, and as the edge sends it (Brotli, our own
+   * compression of the same bytes - a close estimate of the transfer). */
+  bytes: number; compressed: number;
+}
 
 /** One fetch, retried: the build runs on every release, and a release is also
  * the moment the CDN is busiest (it verifies every image it serves), so a
@@ -84,7 +90,7 @@ async function load(): Promise<{ registry: Registry; source: Source }> {
   if (file) {
     const bytes = await readFile(file);
     const sha256 = createHash("sha256").update(bytes).digest("hex");
-    return { registry: JSON.parse(bytes.toString("utf-8")) as Registry, source: { tag: "local", root: null, sha256, releasedAt: null } };
+    return { registry: JSON.parse(bytes.toString("utf-8")) as Registry, source: { tag: "local", root: null, sha256, releasedAt: null, ...sizes(bytes) } };
   }
   const versions = await fetchJson<{ base_url: string; latest: Record<string, string>; releases: { tag: string; sha256: string; released_at: string }[] }>(`${API_BASE}/versions.json`);
   const tag = process.env.KAIROS_REGISTRY_TAG ?? versions.latest[MAJOR];
@@ -96,7 +102,11 @@ async function load(): Promise<{ registry: Registry; source: Source }> {
   const bytes = Buffer.from(await response.arrayBuffer());
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   if (sha256 !== release.sha256) throw new Error(`${root}/registry.json digest ${sha256} does not match versions.json (${release.sha256})`);
-  return { registry: JSON.parse(bytes.toString("utf-8")) as Registry, source: { tag, root, sha256, releasedAt: release.released_at } };
+  return { registry: JSON.parse(bytes.toString("utf-8")) as Registry, source: { tag, root, sha256, releasedAt: release.released_at, ...sizes(bytes) } };
+}
+
+function sizes(bytes: Buffer): { bytes: number; compressed: number } {
+  return { bytes: bytes.length, compressed: brotliCompressSync(bytes).length };
 }
 
 let cached: Promise<{ registry: Registry; source: Source }> | null = null;

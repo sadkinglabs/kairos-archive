@@ -235,6 +235,8 @@ table { border-collapse: collapse; width: 100%; font-size: .88rem; }
 th, td { text-align: left; padding: .75rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; }
 .table-wrap { overflow-x: auto; }
+table.files td:nth-child(3), table.files td:nth-child(4) { white-space: nowrap; }
+code.digest { overflow-wrap: anywhere; }
 .set-catalogue { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem; }
 .set-entry { display: flex; gap: 1rem; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 1.2rem; text-decoration: none; color: var(--fg); background: var(--card); }
 .set-entry:hover { border-color: var(--accent); }
