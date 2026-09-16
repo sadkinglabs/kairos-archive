@@ -5,7 +5,7 @@ import FaceBox from '../../../components/FaceBox.astro';
 import RecordActions from '../../../components/RecordActions.astro';
 import PrintingEntry from '../../../components/PrintingEntry.astro';
 import CardHistory from '../../../components/CardHistory.astro';
-import { cardPath, loadRegistry, slugify, views } from '../../../data/registry';
+import { cardPath, loadRegistry, setPath, slugify, views } from '../../../data/registry';
 import { officialCardUrl, officialSlugFromName } from '../../../presentation/officialCardUrl';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
@@ -40,20 +40,21 @@ const printings = [...(v.printingsByCard.get(card.codex_id) ?? [])].sort((a, b) 
 const defaultPrinting = printings.find(p => p.printing_id === card.default_printing_id) ?? printings[0] ?? null;
 const history = v.historyByCard.get(card.codex_id) ?? [];
 const names = v.namesByCard.get(card.codex_id) ?? [];
+const setsIn = registry.sets.filter(s => card.set_codes.includes(s.set_code ?? '')).map(s => ({ code: s.set_code, name: s.set_name, href: setPath(s) }));
 
 ---
 <Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}>
   <div class="card-overview">
     <div class="art-column"><CardArt urls={card.image_urls} status={card.image_status} name={card.name} type={card.type} />{defaultPrinting?.back && <CardArt urls={defaultPrinting.back.image_urls} status={defaultPrinting.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
     <div class="card-content">
-      <FaceBox face={card} title={card.name} level={1} printing={defaultPrinting} errata={card.errata}
+      <FaceBox face={card} title={card.name} level={1} printing={defaultPrinting} errata={card.errata} id={card.codex_id} sets={setsIn}
         erratumNote={card.errata ? (defaultPrinting?.printed_as_current === false ? 'This printing shows earlier values.' : 'This card has recorded errata.') : null} />
       {card.back && <details class="face-disclosure">
         <summary><span class="label">Back face</span><span class="muted">{[card.back.type, ...card.back.subtypes].filter(Boolean).join(' · ')}</span></summary>
         <FaceBox face={card.back} printing={defaultPrinting?.back ?? null} />
       </details>}
-      <RecordActions id={card.codex_id} url={card.api_url} official={officialUrl} />
-      <nav class="section-links" aria-label="On this card"><a href="#printings">{printings.length} printings ↓</a><a href="#history">History ↓</a><a href="/docs/cards">Data documentation</a></nav>
+      <RecordActions url={card.api_url} official={officialUrl} />
+      <nav class="section-links" aria-label="On this card"><a href="#printings">{printings.length} printings ↓</a><a href="#history">History ↓</a></nav>
     </div>
   </div>
   <section id="printings" class="page-section"><div class="section-heading"><h2>Printings</h2><span class="muted">{printings.length} archived</span></div><p class="muted">Each set, product and finish has a permanent printing ID.</p>

@@ -1,17 +1,18 @@
 ---
-/** One face of a card as a box of rows, in the order a player asks the
- * questions: what is it and what does it cost, what type, what does it
- * do, how big, what did the printing say, who drew it, and the numbers
- * behind the pictures. A row with nothing to say is not rendered: a card
- * without life has no Life row, a card without threshold no symbols.
- * The same box serves the front face, the back face and a historical
- * record, so the reader learns one shape. */
+/** One face of a card as a box of rows, in the order a player reads:
+ * the name; the numbers weighed before anything else (cost, threshold,
+ * power or attack and defense, life); what it is; what it does; its
+ * flavour; its keywords; who drew it; and, for the front face of a card,
+ * its permanent id and the sets it appears in. A row with nothing to
+ * say is not rendered, and nothing is said twice: the threshold symbols
+ * carry their count for a screen reader, and power reads once. The same
+ * box serves the front face, the back face and a historical record. */
 import { powerReading } from '../presentation/cardLine';
 import type { Face, PrintingFace } from '../data/registry';
 import Threshold from './Threshold.astro';
 interface Props {
   face: Face;
-  /** The name for the front face, "Back face" for the back; none for a history record, which sits under its own heading. */
+  /** The name for the front face; none for a back face or a history record, which sit under their own heading. */
   title?: string;
   level?: 1 | 2 | 3 | 4;
   /** The printing whose printed typeline, flavour text and artist the box shows - the default printing on a card page. */
@@ -19,34 +20,34 @@ interface Props {
   errata?: boolean;
   /** Shown above the rules text when the card has recorded errata. */
   erratumNote?: string | null;
+  /** The card's permanent id, shown with a copy button - front face only. */
+  id?: string | null;
+  /** The sets the card appears in, as links - front face only. */
+  sets?: { code: string | null; name: string; href: string }[];
 }
-const { face, title, level = 2, printing = null, errata = false, erratumNote = null } = Astro.props;
+const { face, title, level = 2, printing = null, errata = false, erratumNote = null, id = null, sets = [] } = Astro.props;
 const Heading = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
 const typeLine = [face.rarity, face.type].filter(Boolean).join(' ') + (face.subtypes.length ? ` — ${face.subtypes.join(', ')}` : '');
 const elements = face.elements.filter(e => e !== 'None');
 const thresholdPoints = face.thr_air + face.thr_earth + face.thr_fire + face.thr_water;
-const thresholdWords = ([['Air', face.thr_air], ['Earth', face.thr_earth], ['Fire', face.thr_fire], ['Water', face.thr_water]] as const)
-  .filter(([, n]) => n > 0).map(([e, n]) => `${n} ${e}`).join(', ');
 const fight = powerReading(face);
+const hasStats = face.cost !== null || thresholdPoints > 0 || fight !== null || face.life !== null;
 const printedTypeline = printing?.typeline?.trim() || null;
 const flavour = printing?.flavour_text?.trim() || null;
 const artist = printing?.artist?.trim() || null;
 const artistSearch = artist ? `/search?q=${encodeURIComponent(`a:"${artist}"`)}` : null;
-// The numbers behind the pictures: threshold in words, attack and defense
-// even when the stats row reads them as power, and the computed power
-// always. Only what the face has.
-const facts: [string, string][] = ([
-  ['Category', face.category], ['Deck slot', face.slot], ['Threshold', thresholdWords || null],
-  ['Attack', face.attack], ['Defense', face.defense], ['Power', face.power],
-] as [string, string | number | null][]).filter((f): f is [string, string | number] => f[1] !== null && f[1] !== '').map(([k, v]) => [k, String(v)]);
 ---
 <div class="face-box">
-  {(title || face.cost !== null || thresholdPoints > 0) && <div class="row title">
-    {title && <Heading>{title}{errata && <> <span class="badge errata">Errata</span></>}</Heading>}
-    {(face.cost !== null || thresholdPoints > 0) && <span class="cost-threshold">
-      {face.cost !== null && <span class="cost" role="img" aria-label={`Cost ${face.cost}`} title={`Cost ${face.cost}`}>{face.cost}</span>}
-      <Threshold air={face.thr_air} earth={face.thr_earth} fire={face.thr_fire} water={face.thr_water} />
-    </span>}
+  {title && <div class="row title"><Heading>{title}{errata && <> <span class="badge errata">Errata</span></>}</Heading></div>}
+  {hasStats && <div class="row stats">
+    {face.cost !== null && <span class="stat"><span class="label">Mana</span><span class="value">{face.cost}</span></span>}
+    {thresholdPoints > 0 && <span class="stat"><span class="label">Threshold</span><span class="value symbols"><Threshold air={face.thr_air} earth={face.thr_earth} fire={face.thr_fire} water={face.thr_water} /></span></span>}
+    {fight && fight.label !== 'Power' && <>
+      <span class="stat"><span class="label">Attack</span><span class="value">{face.attack}</span></span>
+      <span class="stat"><span class="label">Defense</span><span class="value">{face.defense}</span></span>
+    </>}
+    {face.power !== null && <span class="stat"><span class="label">Power</span><span class="value">{face.power}</span></span>}
+    {face.life !== null && <span class="stat"><span class="label">Life</span><span class="value">{face.life}</span></span>}
   </div>}
   {(typeLine || elements.length > 0 || printedTypeline) && <div class="row type">
     {(typeLine || elements.length > 0) && <p>{typeLine}{typeLine && elements.length > 0 && <span class="sep" aria-hidden="true"> · </span>}{elements.length > 0 && <span class="muted">{elements.join(', ')}</span>}</p>}
@@ -56,15 +57,12 @@ const facts: [string, string][] = ([
     {erratumNote && <div class="errata-notice"><span>{erratumNote}</span><a href="#history">See history →</a></div>}
     {face.rules_text && <p class="rules-text">{face.rules_text}</p>}
   </div>}
+  {flavour && <div class="row flavour"><p>{flavour}</p></div>}
   {(face.keywords.length > 0 || face.umbrellas.length > 0) && <div class="row tags muted">
     {face.keywords.length > 0 && <span>{face.keywords.length > 1 ? 'Keywords' : 'Keyword'}: {face.keywords.join(', ')}</span>}
     {face.umbrellas.length > 0 && <span>{face.umbrellas.length > 1 ? 'Umbrellas' : 'Umbrella'}: {face.umbrellas.join(', ')}</span>}
   </div>}
-  {(fight || face.life !== null) && <div class="row stats">
-    {fight && <span><span class="label">{fight.label}</span> {fight.value}</span>}
-    {face.life !== null && <span><span class="label">Life</span> {face.life}</span>}
-  </div>}
-  {flavour && <div class="row flavour"><p>{flavour}</p></div>}
   {artist && <div class="row artist muted">Illustrated by <a href={artistSearch}>{artist}</a></div>}
-  {facts.length > 0 && <div class="row facts"><dl>{facts.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}</dl></div>}
+  {id && <div class="row id"><span class="muted">Codex ID</span> <code>{id}</code> <button class="copy" data-copy={id} aria-label={`Copy Codex ID ${id}`}>Copy</button></div>}
+  {sets.length > 0 && <div class="row sets"><span class="muted">Present in</span> {sets.map(s => <a class="badge set" href={s.href}>{s.name}</a>)}</div>}
 </div>
