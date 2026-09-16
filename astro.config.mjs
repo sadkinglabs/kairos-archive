@@ -39,7 +39,13 @@ export default defineConfig({
   site: "https://kairosarchive.net",
   output: "static",
   trailingSlash: "never",
-  build: { format: "file" },
+  // Every script and stylesheet is an external file, always: the site's
+  // Content-Security-Policy (public/_headers) allows only 'self' for both,
+  // and Astro would otherwise inline a page script that bundles under 4 KB
+  // and any stylesheet it judges small enough - which the browser would
+  // then refuse to run.
+  build: { format: "file", inlineStylesheets: "never" },
+  vite: { build: { assetsInlineLimit: 0 } },
   integrations: [
     cardRedirects(),
     sitemap({

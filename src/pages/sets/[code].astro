@@ -28,5 +28,5 @@ const query = `${setKey}:${JSON.stringify(set.set_code ?? set.set_name)} unique:
   <RecordActions id={set.set_code} label="Set code" url={set.api_url} />
   <a href={`/search?q=${encodeURIComponent(query)}`}>Search every printing in this set →</a>
   <nav class="set-nav" aria-label="Card types in this set">{groups.map(g => <a href={`#${g.id}`}>{g.type} <span class="muted">{g.cards.length}</span></a>)}</nav>
-  {groups.map(g => <section class="page-section" id={g.id}><div class="section-heading"><h2>{g.type}</h2><span class="muted">{g.cards.length} cards</span></div><div class="grid" style="margin-top:1.5rem">{g.cards.map(c => <CardTile card={c} printing={members.get(c.codex_id)![0]} />)}</div></section>)}
+  {groups.map(g => <section class="page-section" id={g.id}><div class="section-heading"><h2>{g.type}</h2><span class="muted">{g.cards.length} cards</span></div><div class="grid grid-after-heading">{g.cards.map(c => <CardTile card={c} printing={members.get(c.codex_id)![0]} />)}</div></section>)}
 </Base>

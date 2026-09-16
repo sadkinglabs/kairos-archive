@@ -1,0 +1,16 @@
+# Browser hardening for every page. Cloudflare Pages reads this file from
+# the build output and adds the headers at the edge.
+#
+# The policy is strict because the site earns it: the built HTML carries no
+# inline script, no inline style, no on* handlers and no style= attributes -
+# every script and stylesheet is an external /_astro/ file - so 'self' is
+# enough for both. Card images and the JSON the Download button fetches
+# come from api.kairosarchive.net, and nothing else leaves the origin.
+# frame-ancestors 'none' and X-Frame-Options together stop the site being
+# framed by anyone, which is the one thing a card archive never needs.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://api.kairosarchive.net; connect-src 'self' https://api.kairosarchive.net; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
