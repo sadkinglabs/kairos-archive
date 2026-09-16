@@ -7,5 +7,6 @@ export type { Hit, SearchResult } from "./evaluate";
 export type { Card, Printing, SearchData, ImageStatus } from "./types";
 export { PAGE_SIZE, pageInfo, paginate } from "./paginate";
 export type { PageInfo } from "./paginate";
+export { snippet, rulesPhrases } from "./snippet";
 export { suggest } from "./suggest";
 export type { NameEntry } from "./suggest";

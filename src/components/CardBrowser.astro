@@ -36,7 +36,7 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
     <div id="rules-results" class="grid"></div>
   </section>
   <script>
-    import { search, directLookup, paginate, type PageInfo } from "../search";
+    import { search, directLookup, paginate, parse, rulesPhrases, snippet, type PageInfo } from "../search";
     import type { SearchData } from "../search";
     import type { Unit } from "../search/keys";
     import { browserHeading, refinementUrl, resultHref, resultNoun } from "../search/browserState";
@@ -51,12 +51,15 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       return payload!;
     }
 
-    function tile(cardName: string, codexId: string, printing: { printing_id: string; image_hash: string | null; image_status: string; set_name: string; finish: string | null } | null, sub: string, unit: Unit = "cards") {
+    // `why` is the rules-text snippet, already HTML from snippet(): it is
+    // the one argument that is not escaped here.
+    function tile(cardName: string, codexId: string, printing: { printing_id: string; image_hash: string | null; image_status: string; set_name: string; finish: string | null } | null, sub: string, unit: Unit = "cards", why: string | null = null) {
       const href = resultHref({ codex_id: codexId, name: cardName }, printing?.printing_id ?? null, unit);
       const img = printing && printing.image_hash && printing.image_status !== "missing"
         ? `<img class="card-img" src="${IMAGE_BASE}/${printing.printing_id}.${printing.image_hash}.normal.webp" width="488" height="680" alt="" loading="lazy" decoding="async">`
         : `<div class="placeholder">${escapeHtml(cardName)}</div>`;
-      return `<a class="tile" href="${href}">${img}<div class="name">${escapeHtml(cardName)}</div><div class="sub">${escapeHtml(sub)}</div></a>`;
+      const reason = why ? `<div class="why">${why}</div>` : "";
+      return `<a class="tile" href="${href}">${img}<div class="name">${escapeHtml(cardName)}</div><div class="sub">${escapeHtml(sub)}</div>${reason}</a>`;
     }
     function escapeHtml(s: string) { return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!); }
 
@@ -127,13 +130,19 @@ const UNIT_LABELS: Record<string, string> = { cards: "one per card", prints: "ev
       const noun = resultNoun(result.options.unique);
       $("count").textContent = result.total === 0 ? `0 ${noun}s`
         : `Showing ${info.start}–${info.end} of ${result.total.toLocaleString("en")} ${noun}${result.total === 1 ? "" : "s"}`;
-      $("results").innerHTML = pageHits.map((h) => tile(h.card.name, h.card.codex_id, h.printing, h.printing ? `${h.printing.set_name} · ${h.printing.finish ?? ""}` : h.card.type ?? "", result.options.unique)).join("");
+      // Why each card is here, when the query asked about rules text: the
+      // r: phrases mark the main results; the second group matched the bare
+      // words in its rules text, so those are marked there as well.
+      const parsed = parse(q);
+      const phrases = rulesPhrases(parsed.ast);
+      const groupPhrases = [...phrases, ...parsed.bare.map((b) => b.text)];
+      $("results").innerHTML = pageHits.map((h) => tile(h.card.name, h.card.codex_id, h.printing, h.printing ? `${h.printing.set_name} · ${h.printing.finish ?? ""}` : h.card.type ?? "", result.options.unique, snippet(h.card.rules_text, phrases))).join("");
       renderPager(info, params);
       const group = $("rules-group");
       group.hidden = result.rulesTextHits.length === 0;
       $("rules-results").innerHTML = result.rulesTextHits.map((c) => {
         const p = d.printings.find((x) => x.printing_id === c.default_printing_id) ?? null;
-        return tile(c.name, c.codex_id, p, c.type ?? "");
+        return tile(c.name, c.codex_id, p, c.type ?? "", "cards", snippet(c.rules_text, groupPhrases));
       }).join("");
     }
 
