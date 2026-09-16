@@ -8,7 +8,7 @@
  * without network); the source is then reported as "local". */
 
 import { createHash } from "node:crypto";
-import { brotliCompressSync } from "node:zlib";
+import { gzipSync } from "node:zlib";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Card, Printing, SearchData } from "../search/types";
@@ -55,8 +55,9 @@ export interface Source {
   tag: string; root: string | null; sha256: string; releasedAt: string | null;
   /** Every release versions.json lists, newest first; empty for a local build. */
   releases: Release[];
-  /** registry.json as stored, and as the edge sends it (Brotli, our own
-   * compression of the same bytes - a close estimate of the transfer). */
+  /** registry.json as stored, and roughly as the edge sends it: our own
+   * gzip of the same bytes at the default level. The edge uses Brotli and
+   * its own level, so this is an estimate, and a conservative one. */
   bytes: number; compressed: number;
 }
 
@@ -117,7 +118,7 @@ async function load(): Promise<Loaded> {
 }
 
 function sizes(bytes: Buffer): { bytes: number; compressed: number } {
-  return { bytes: bytes.length, compressed: brotliCompressSync(bytes).length };
+  return { bytes: bytes.length, compressed: gzipSync(bytes).length };
 }
 
 let cached: Promise<Loaded> | null = null;

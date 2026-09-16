@@ -33,7 +33,7 @@ const curl = `curl --fail --location \\
   <ul>
     <li><strong>A card file</strong> adds <code>printings</code> (a summary of each printing: id, slug, set, release date, product, finish, whether it shows the current values, retirement date), <code>name_history</code> and <code>card_history</code>.</li>
     <li><strong>A printing file</strong> adds <code>slug_history</code>: every slug that printing has ever had.</li>
-    <li><strong>A slug file</strong> is a small resolver: the slug, its <code>printing_id</code> and <code>codex_id</code>, the card's name, the printing's current slug and whether the one you asked for is current, the dates the slug was in force, set, product, finish, and links.</li>
+    <li><strong>A slug file</strong> is a small resolver: the slug, its <code>printing_id</code> and <code>codex_id</code>, the card's name, the printing's current slug and whether the one you asked for is current, the dates the slug was in force, set, product, finish, retirement date, and links.</li>
     <li><strong>A set file</strong> replaces the catalogue's <code>cards</code> count with a <code>cards</code> array: each card's id and name and its printing IDs in that set, ordered by name (the official data has no collector numbers).</li>
   </ul>
 
