@@ -1,0 +1,64 @@
+---
+/** The whole database as one download: the release this site was built
+ * from, verified, with every bulk file linked twice - pinned to that
+ * release, and through the moving alias. Nothing here is typed in: the
+ * tag, digest, counts and sizes come from the build's own verified fetch,
+ * so the page is right for whatever release rebuilt the site. */
+import Docs from '../../layouts/Docs.astro';
+import CodeExample from '../../components/CodeExample.astro';
+import { API_BASE, MAJOR, loadRegistry } from '../../data/registry';
+import { formatBytes } from '../../presentation/bytes';
+const { registry, source } = await loadRegistry();
+const h = registry.header;
+const alias = `${API_BASE}/${MAJOR}`;
+// A local build (KAIROS_REGISTRY_FILE) has no release root; the links then
+// go through the alias alone and the page says which file it came from.
+const pinned = source.root;
+const files: [string, string][] = [
+  ['registry.json', 'Everything: sets, cards, printings and the three histories, in one file.'],
+  ['registry.json.sha256', 'Its SHA-256, in sha256sum format.'],
+  ['schema.json', 'The JSON Schema the file validates against.'],
+  ['index.json', 'What the release contains and where each object lives.'],
+  ['index/cards.json', 'Compact card records, for search and filtering.'],
+  ['index/printings.json', 'Compact printing records, with image_hash and image_status.'],
+  ['index/slugs.json', 'Every slug ever issued, mapped to its printing_id.'],
+  ['history/cards.json', 'Every recorded gameplay face of every card.'],
+];
+const curl = `curl --fail --location \\
+  --user-agent 'my-card-tool/1.0 (contact@example.com)' \\
+  --output registry.json '${alias}/registry.json'
+curl --fail --location --silent '${alias}/registry.json.sha256' | sha256sum --check`;
+---
+<Docs title="Download the data" description="The whole database is one file. Fetch it once, verify it, and query it locally.">
+  <p>The API is a set of static files on a CDN, so the newest verified release <em>is</em> the live data: there is nothing fresher to poll. For anything beyond a single lookup, download <code>registry.json</code> once, check its digest, and work from your copy. To learn when a new release exists, read <a href={`${API_BASE}/versions.json`}><code>versions.json</code></a> (60-second cache; hourly is plenty, the data changes a few times a year). The per-object files are for one lookup at a time; please do not crawl them.</p>
+
+  <h2>The current release</h2>
+  <dl class="facts">
+    <dt>Release</dt><dd>{pinned ? <a href={`${pinned}/index.json`}><code>{source.tag}</code></a> : <><code>{source.tag}</code> <span class="muted">(this build read a local file)</span></>}</dd>
+    {source.releasedAt && <><dt>Released</dt><dd>{source.releasedAt}</dd></>}
+    <dt>Schema</dt><dd>{h.schema_version}</dd>
+    <dt>Contents</dt><dd>{h.sets} sets · {h.cards.toLocaleString('en')} cards · {h.printings.toLocaleString('en')} printings · {h.card_history.toLocaleString('en')} history rows</dd>
+    <dt>Size</dt><dd>{formatBytes(source.bytes)} as stored, about {formatBytes(source.compressed)} over the wire (the edge serves it compressed)</dd>
+    <dt>SHA-256</dt><dd><code class="digest">{source.sha256}</code> <button class="copy" data-copy={source.sha256} aria-label="Copy the SHA-256 digest">Copy</button></dd>
+  </dl>
+  <p class="source-note">Every page on this site was built from that release, after the build verified this digest against <code>versions.json</code>. What you see here and what the API serves are one file.</p>
+
+  <h2>The files</h2>
+  <p>Each file is linked twice. The <strong>pinned</strong> address is under the release root and its bytes never change; cache it forever. The <strong>latest</strong> address is the <code>/{MAJOR}/</code> alias, which answers <code>302</code> to the same path under the newest verified {MAJOR} release, so a browser follows it and <code>curl</code> needs <code>--location</code>.</p>
+  <div class="table-wrap"><table class="files">
+    <thead><tr><th>File</th><th>What it is</th><th>Pinned</th><th>Latest</th></tr></thead>
+    <tbody>{files.map(([path, what]) => <tr>
+      <td><code class="endpoint">{path}</code></td><td>{what}</td>
+      <td>{pinned ? <a href={`${pinned}/${path}`}>{source.tag}</a> : <span class="muted">—</span>}</td>
+      <td><a href={`${alias}/${path}`}>{MAJOR}</a></td>
+    </tr>)}</tbody>
+  </table></div>
+  <p>Every release is also mirrored on GitHub: <code>https://raw.githubusercontent.com/sadkinglabs/sorcery-registry/{'{'}tag{'}'}/export/registry.json</code>, the same bytes and the same digest.</p>
+
+  <h2>Fetch and verify</h2>
+  <CodeExample code={curl} lang="bash" title="curl · download the newest release and check it" />
+  <p>Identify automated clients with a <code>User-Agent</code> naming your project and a contact; requests without one are refused. The <a href="/docs">getting started</a> page has the same steps in Python, resolving the tag from <code>versions.json</code> first.</p>
+
+  <h2>What is inside</h2>
+  <p><code>registry.json</code> holds a <code>header</code> and six arrays: <code>sets</code>, <code>cards</code>, <code>printings</code>, <code>slug_history</code>, <code>name_history</code> and <code>card_history</code>. Cards carry gameplay data and are keyed by <code>codex_id</code>; printings carry physical facts and are keyed by <code>printing_id</code>; the histories record every slug, name and gameplay face the registry has ever seen, each with the range of dates it was in force. <a href="/docs/cards">Cards and printings</a> and <a href="/docs/history">history and errata</a> explain the fields; <a href={`${alias}/schema.json`}>the schema</a> is the contract.</p>
+</Docs>
