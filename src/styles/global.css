@@ -186,8 +186,10 @@ mark { background: var(--mark-bg); color: inherit; border-radius: 2px; padding: 
 .results-table .name a { font-weight: 600; color: var(--fg); text-decoration: none; }
 .results-table .name a:hover { text-decoration: underline; }
 .results-table .why { font-size: .78rem; color: var(--muted); line-height: 1.4; margin-top: .25rem; max-width: 34ch; }
-.results-table .name { min-width: 15rem; }
-.results-table .type { white-space: nowrap; }
+/* The name column stays put while the rest scrolls sideways on a narrow
+   screen, so a row never loses its card. */
+.results-table th:first-child, .results-table .name { position: sticky; left: 0; z-index: 1; background: var(--bg); box-shadow: 1px 0 0 var(--line); min-width: 11rem; max-width: 15rem; }
+.results-table .type { min-width: 10rem; }
 .results-table .nowrap { white-space: nowrap; }
 .full-list { display: grid; gap: 1.2rem; }
 .full-entry { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 1.2rem; align-items: start; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 1rem; }

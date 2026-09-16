@@ -6,14 +6,32 @@ interface Facts {
   type: string | null;
   subtypes: string[];
   cost: number | null;
+  attack: number | null;
+  defense: number | null;
   power: number | null;
   life: number | null;
   thr_air: number; thr_earth: number; thr_fire: number; thr_water: number;
 }
 
-/** "Minion · Mortal · Beast", the card page's own reading of the typeline. */
-export function typeLine(card: Pick<Facts, "type" | "subtypes">): string {
-  return [card.type, ...card.subtypes].filter(Boolean).join(" · ");
+/** "Minion · Mortal · Beast", the card page's own reading of the typeline.
+ * With `max`, a longer list of subtypes ends "and N more": one card carries
+ * seventeen, which is a fact for its page and a wall in a table. */
+export function typeLine(card: Pick<Facts, "type" | "subtypes">, max = Infinity): string {
+  const shown = card.subtypes.slice(0, max);
+  const rest = card.subtypes.length - shown.length;
+  const line = [card.type, ...shown].filter(Boolean).join(" · ");
+  return rest > 0 ? `${line} and ${rest} more` : line;
+}
+
+/** How a card's fighting numbers read. Power is the derived value (attack
+ * when attack equals defense, else the floor of their mean), and for the
+ * usual card - 509 of 535 with an attack - it is the whole story, so it
+ * reads alone. When attack and defense differ, both are shown, since one
+ * number would hide the shape of the card. Null for a card with neither. */
+export function powerReading(card: Pick<Facts, "attack" | "defense" | "power">): { label: string; value: string } | null {
+  if (card.attack === null || card.defense === null) return card.power !== null ? { label: "Power", value: String(card.power) } : null;
+  if (card.attack === card.defense) return { label: "Power", value: String(card.power ?? card.attack) };
+  return { label: "Attack / Defense", value: `${card.attack} / ${card.defense}` };
 }
 
 /** "1 Air, 2 Water": the element names the number, as on the card page.
@@ -28,7 +46,10 @@ export function costLine(card: Pick<Facts, "cost" | "thr_air" | "thr_earth" | "t
   return [card.cost !== null ? `Cost ${card.cost}` : "", thresholdLine(card)].filter(Boolean).join(" · ");
 }
 
-/** "Power 4", "Life 20", or both for an avatar; empty for a card with neither. */
-export function statLine(card: Pick<Facts, "power" | "life">): string {
-  return [card.power !== null ? `Power ${card.power}` : "", card.life !== null ? `Life ${card.life}` : ""].filter(Boolean).join(" · ");
+/** "Power 4", "Attack 3 · Defense 5", "Life 20", or a fighting reading and
+ * life together for an avatar; empty for a card with none of them. */
+export function statLine(card: Pick<Facts, "attack" | "defense" | "power" | "life">): string {
+  const p = powerReading(card);
+  const fight = p === null ? "" : p.label === "Power" ? `Power ${p.value}` : `Attack ${card.attack} · Defense ${card.defense}`;
+  return [fight, card.life !== null ? `Life ${card.life}` : ""].filter(Boolean).join(" · ");
 }
