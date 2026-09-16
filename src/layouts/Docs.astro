@@ -20,7 +20,20 @@ export const groups: [string, [string, string][]][] = [
   ]],
   ['Changelog', [['/docs/changelog', 'Releases']]],
 ];
+/** What the phone's folded menu shows: the page you are on. */
+const currentLabel = groups.flatMap(([, pages]) => pages).find(([href]) => href === here)?.[1] ?? 'Reference pages';
 ---
 <Base title={`${title} · API docs`} description={description} canonical={here}>
-  <div class="docs-layout"><aside class="docs-nav"><p class="eyebrow">API documentation</p><nav aria-label="Documentation">{groups.map(([group, pages]) => <div class="group"><p class="group-name">{group}</p>{pages.map(([href, label]) => <a href={href} aria-current={here === href ? 'page' : undefined}>{label}</a>)}</div>)}</nav></aside><article class="docs-content"><h1>{title}</h1><p class="intro">{description}</p><slot /><hr /><p class="source-note">Reference: <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/docs/api.md">registry API contract</a> and <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/registry/publish.py">published object definitions</a>. <a href="https://github.com/sadkinglabs/sorcery-registry/issues">Report a data or documentation issue</a>.</p></article></div>
+  <div class="docs-layout"><aside class="docs-nav"><details class="docs-menu" open><summary><span class="eyebrow">API documentation</span><span class="current">{currentLabel}</span><span class="chevron" aria-hidden="true"></span></summary><nav aria-label="Documentation">{groups.map(([group, pages]) => <div class="group"><p class="group-name">{group}</p>{pages.map(([href, label]) => <a href={href} aria-current={here === href ? 'page' : undefined}>{label}</a>)}</div>)}</nav></details></aside><article class="docs-content"><h1>{title}</h1><p class="intro">{description}</p><slot /><hr /><p class="source-note">Reference: <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/docs/api.md">registry API contract</a> and <a href="https://github.com/sadkinglabs/sorcery-registry/blob/main/registry/publish.py">published object definitions</a>. <a href="https://github.com/sadkinglabs/sorcery-registry/issues">Report a data or documentation issue</a>.</p></article></div>
 </Base>
+<script>
+  // On a phone the section list is a bar that opens on tap, the way a
+  // reference menu should be; on a wide screen it is the sidebar, always
+  // open. The markup ships open, so without this script (or JavaScript)
+  // every screen sees the full list.
+  const menu = document.querySelector<HTMLDetailsElement>("details.docs-menu");
+  const narrow = window.matchMedia("(max-width: 740px)");
+  const apply = () => { if (menu) menu.open = !narrow.matches; };
+  apply();
+  narrow.addEventListener("change", apply);
+</script>
