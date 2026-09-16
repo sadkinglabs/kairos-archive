@@ -19,3 +19,11 @@ updates:
     groups:
       astro:
         patterns: ["astro", "@astrojs/*"]
+    ignore:
+      # @types/node tracks the Node the site runs on (22 in CI and on Pages);
+      # a newer major would type APIs the runtime does not have.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # @astrojs/check accepts TypeScript 5 and 6 only; lift when it takes 7.
+      - dependency-name: "typescript"
+        versions: [">=7"]
