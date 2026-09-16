@@ -1,0 +1,33 @@
+---
+/** A hand of cards peeking up at the fold: seven printings' art, fanned
+ * and cropped so only their tops show, each a link to its card. The pool
+ * is generated at build from printings with full-size art, so it grows
+ * with the catalogue; a small script deals a fresh hand per visit, and
+ * without JavaScript the build's own hand shows. */
+export interface FanCard { href: string; src: string; alt: string }
+interface Props { pool: FanCard[] }
+const { pool } = Astro.props;
+const HAND = 7;
+const hand = pool.slice(0, HAND);
+---
+<div class="card-fan" data-pool={JSON.stringify(pool)} aria-label="A few cards from the archive">
+  {hand.map((c) => <a class="fan-card" href={c.href}>
+    <img data-src={c.src} width="488" height="680" alt={c.alt} decoding="async" />
+    <noscript><img src={c.src} width="488" height="680" alt={c.alt} loading="lazy" decoding="async" /></noscript>
+  </a>)}
+</div>
+<script>
+  // Deal a fresh hand from the pool on every visit, before any image is
+  // asked for: the img elements carry data-src and no src until here.
+  const fan = document.querySelector<HTMLElement>(".card-fan");
+  if (fan) {
+    const pool: { href: string; src: string; alt: string }[] = JSON.parse(fan.dataset.pool ?? "[]");
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    fan.querySelectorAll<HTMLAnchorElement>("a.fan-card").forEach((a, i) => {
+      const card = pool[i];
+      const img = a.querySelector<HTMLImageElement>("img[data-src]");
+      if (!card || !img) return;
+      a.href = card.href; img.alt = card.alt; img.src = card.src;
+    });
+  }
+</script>
