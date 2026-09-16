@@ -44,7 +44,6 @@ const names = v.namesByCard.get(card.codex_id) ?? [];
 ---
 <Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}>
   <div class="card-overview">
-    <div class="card-heading"><p class="eyebrow">The card archive</p></div>
     <div class="art-column"><CardArt urls={card.image_urls} status={card.image_status} name={card.name} type={card.type} />{defaultPrinting?.back && <CardArt urls={defaultPrinting.back.image_urls} status={defaultPrinting.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
     <div class="card-content">
       <FaceBox face={card} title={card.name} level={1} printing={defaultPrinting} errata={card.errata}
