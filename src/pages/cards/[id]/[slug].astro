@@ -48,7 +48,10 @@ const names = v.namesByCard.get(card.codex_id) ?? [];
     <div class="card-content">
       <FaceBox face={card} title={card.name} level={1} printing={defaultPrinting} errata={card.errata}
         erratumNote={card.errata ? (defaultPrinting?.printed_as_current === false ? 'This printing shows earlier values.' : 'This card has recorded errata.') : null} />
-      {card.back && <FaceBox face={card.back} title="Back face" level={2} printing={defaultPrinting?.back ?? null} />}
+      {card.back && <details class="face-disclosure">
+        <summary><span class="label">Back face</span><span class="muted">{[card.back.type, ...card.back.subtypes].filter(Boolean).join(' · ')}</span></summary>
+        <FaceBox face={card.back} printing={defaultPrinting?.back ?? null} />
+      </details>}
       <RecordActions id={card.codex_id} url={card.api_url} official={officialUrl} />
       <nav class="section-links" aria-label="On this card"><a href="#printings">{printings.length} printings ↓</a><a href="#history">History ↓</a><a href="/docs/cards">Data documentation</a></nav>
     </div>

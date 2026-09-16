@@ -144,6 +144,16 @@ footer.site .credit { max-width: 62ch; margin: 0 auto; }
 .face-box .facts dl > div { display: flex; gap: .4rem; }
 .face-box .facts dt { color: var(--muted); }
 .face-box .facts dd { margin: 0; }
+/* The back face of a double-faced card, folded behind its name: the
+   front is what the page is about, the back is one click away. */
+.face-disclosure { margin: .5rem 0 1.2rem; }
+.face-disclosure > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem .9rem; cursor: pointer; padding: .85rem 1.1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); list-style: none; }
+.face-disclosure > summary::-webkit-details-marker { display: none; }
+.face-disclosure > summary::before { content: "▸"; color: var(--muted); font-size: .8em; }
+.face-disclosure[open] > summary::before { content: "▾"; }
+.face-disclosure > summary .label { font-family: var(--display); font-weight: 600; font-size: 1.3rem; letter-spacing: -.02em; }
+.face-disclosure[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.face-disclosure[open] > .face-box { margin-top: -1px; border-top-left-radius: 0; border-top-right-radius: 0; }
 pre.rules { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 1.1rem; margin: .7rem 0 1rem; line-height: 1.75; }
 .errata-notice { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .35rem 1rem; color: var(--warn); font-size: .84rem; border-left: 2px solid var(--warn); padding-left: .7rem; margin: .8rem 0; }
 .badge { display: inline-block; padding: .2rem .55rem; border-radius: 999px; background: var(--badge); color: var(--muted); font: 500 .72rem/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; }
