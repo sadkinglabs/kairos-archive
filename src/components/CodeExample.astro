@@ -1,7 +1,10 @@
 ---
-import { Code } from 'astro:components';
-import type { ComponentProps } from 'astro/types';
-interface Props { code: string; lang?: ComponentProps<typeof Code>['lang']; title?: string }
-const { code, lang = 'javascript', title = 'Example' } = Astro.props;
+/** A code sample with a Copy button. Plain <pre>, unhighlighted, on
+ * purpose: the site's Content-Security-Policy allows no inline styles, and
+ * Shiki (Astro's <Code>) can only colour tokens with a style= attribute on
+ * every span. Five short samples of JSON, bash and Python read fine in
+ * monospace; a strict style-src is worth more than their colouring. */
+interface Props { code: string; lang?: string; title?: string }
+const { code, lang = 'text', title = 'Example' } = Astro.props;
 ---
-<div class="code-example"><div class="section-heading"><span class="source-note">{title}</span><button class="copy" data-copy={code} aria-label={`Copy ${title}`}>Copy</button></div><Code code={code} lang={lang} themes={{ light: 'github-light', dark: 'github-dark' }} /></div>
+<div class="code-example"><div class="section-heading"><span class="source-note">{title}</span><button class="copy" data-copy={code} aria-label={`Copy ${title}`}>Copy</button></div><pre class="code-block" data-lang={lang}><code>{code}</code></pre></div>

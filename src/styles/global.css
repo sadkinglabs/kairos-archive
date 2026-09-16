@@ -221,7 +221,8 @@ th { color: var(--muted); font-weight: 600; }
 .docs-content pre code { background: transparent; padding: 0; }
 .docs-content .endpoint { overflow-wrap: anywhere; }
 .docs-content .table-wrap td { overflow-wrap: anywhere; }
-@media (prefers-color-scheme: dark) { .astro-code, .astro-code span { color: var(--shiki-dark) !important; background-color: var(--shiki-dark-bg) !important; } }
+.code-block { margin: 0; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); font-size: .82rem; line-height: 1.55; overflow-x: auto; white-space: pre; }
+.code-block code { background: none; padding: 0; font-size: inherit; }
 .advanced-form { max-width: 880px; }
 .advanced-form .query-label { display: block; font-size: .86rem; margin-bottom: .35rem; }
 .advanced-form #advanced-query { width: 100%; }
@@ -306,6 +307,8 @@ th { color: var(--muted); font-weight: 600; }
   .reference-table td { border: 0; padding: .35rem 0; overflow-wrap: anywhere; }
   .reference-table td::before { content: attr(data-label); display: block; color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: .2rem; }
 }
+
+.grid-after-heading { margin-top: 1.5rem; }
 
 /* Image addresses: the pattern to read, the buttons to copy. */
 .image-addresses { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: .8rem; }
