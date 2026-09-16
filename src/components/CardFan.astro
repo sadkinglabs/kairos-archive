@@ -19,15 +19,22 @@ const hand = pool.slice(0, HAND);
 <script>
   // Deal a fresh hand from the pool on every visit, before any image is
   // asked for: the img elements carry data-src and no src until here.
+  // The hand is built out of sight and revealed together once every card
+  // has decoded, so the fan never assembles piece by piece; a slow card
+  // is waited on for a few seconds at most, then the fan rises anyway.
   const fan = document.querySelector<HTMLElement>(".card-fan");
   if (fan) {
     const pool: { href: string; src: string; alt: string }[] = JSON.parse(fan.dataset.pool ?? "[]");
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const loading: Promise<void>[] = [];
     fan.querySelectorAll<HTMLAnchorElement>("a.fan-card").forEach((a, i) => {
       const card = pool[i];
       const img = a.querySelector<HTMLImageElement>("img[data-src]");
       if (!card || !img) return;
       a.href = card.href; img.alt = card.alt; img.src = card.src;
+      loading.push(img.decode().catch(() => undefined));
     });
+    const patience = new Promise<void>((resolve) => setTimeout(resolve, 4000));
+    Promise.race([Promise.all(loading), patience]).then(() => fan.classList.add("ready"));
   }
 </script>

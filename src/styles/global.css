@@ -95,6 +95,19 @@ footer.site .credit { max-width: 62ch; margin: 0 auto; }
 .card-fan { position: relative; height: 270px; margin-top: 1rem; overflow: hidden; width: 100vw; left: 50%; transform: translateX(-50%); }
 .fan-card { position: absolute; bottom: -100px; left: 50%; width: 250px; transform: translateX(calc(-50% + var(--x))) translateY(var(--y)) rotate(var(--r)); transition: transform .2s ease; }
 .fan-card img { display: block; width: 100%; height: auto; border-radius: 4.75% / 3.5%; box-shadow: 0 6px 22px #0006; background: var(--badge); }
+/* The dealt hand (the images the script fills in) stays invisible until the
+   whole hand has decoded, then fades up and rises, middle card first and the
+   edges a beat behind. The no-script images inside <noscript> carry no
+   data-src and show at once. */
+/* Until the script gives it a src, the dealt image takes no room, so the no-script image is not pushed out of the crop. */
+.fan-card img[data-src]:not([src]) { display: none; }
+.fan-card img[data-src] { opacity: 0; transform: translateY(48px); transition: opacity .7s ease-out, transform .9s cubic-bezier(.2, .7, .2, 1); }
+.fan-card:nth-child(4) img[data-src] { transition-delay: 0s; }
+.fan-card:nth-child(3) img[data-src], .fan-card:nth-child(5) img[data-src] { transition-delay: .08s; }
+.fan-card:nth-child(2) img[data-src], .fan-card:nth-child(6) img[data-src] { transition-delay: .16s; }
+.fan-card:nth-child(1) img[data-src], .fan-card:nth-child(7) img[data-src] { transition-delay: .24s; }
+.card-fan.ready .fan-card img[data-src] { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .fan-card img[data-src] { transform: none; transition: opacity .4s ease-out; } }
 .fan-card:nth-child(1) { --x: -480px; --r: -15deg; --y: 64px; z-index: 1; }
 .fan-card:nth-child(2) { --x: -320px; --r: -10deg; --y: 30px; z-index: 2; }
 .fan-card:nth-child(3) { --x: -160px; --r: -5deg; --y: 9px; z-index: 3; }
