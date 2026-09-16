@@ -1,12 +1,12 @@
 :root {
   --bg: #f6f4ef; --fg: #24211e; --muted: #70685f; --line: #d9d3c9; --card: #fffdf9;
   --accent: #88481f; --accent-fg: #fffaf4; --badge: #eee7dc; --ok: #286139; --warn: #815512;
-  --removed-bg: #fae6e2; --removed-fg: #8b3430; --added-bg: #e3efe4; --added-fg: #286139; --ring: #88481f2e;
+  --removed-bg: #fae6e2; --removed-fg: #8b3430; --added-bg: #e3efe4; --added-fg: #286139; --ring: #88481f2e; --mark-bg: #f3d9a4;
   --display: Georgia, 'Times New Roman', serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #17161b; --fg: #eeeae2; --muted: #b2aaa0; --line: #363239; --card: #201e24; --accent: #e3a16c; --accent-fg: #201810; --badge: #302b31; --ok: #a6d7ae; --warn: #efc478; --removed-bg: #452925; --removed-fg: #f0bab1; --added-bg: #263d2d; --added-fg: #b8dfbd; --ring: #e3a16c3d; color-scheme: dark; }
+  :root { --bg: #17161b; --fg: #eeeae2; --muted: #b2aaa0; --line: #363239; --card: #201e24; --accent: #e3a16c; --accent-fg: #201810; --badge: #302b31; --ok: #a6d7ae; --warn: #efc478; --removed-bg: #452925; --removed-fg: #f0bab1; --added-bg: #263d2d; --added-fg: #b8dfbd; --ring: #e3a16c3d; --mark-bg: #6b4a1a; color-scheme: dark; }
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -181,6 +181,8 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; }
 .tile:hover .card-img, .tile:hover .placeholder { transform: translateY(-3px); }
 .tile .name { font-size: .86rem; font-weight: 600; line-height: 1.35; margin-top: .65rem; }
 .tile .sub { font-size: .73rem; color: var(--muted); margin-top: .25rem; }
+.tile .why { font-size: .76rem; color: var(--muted); line-height: 1.4; margin-top: .4rem; overflow-wrap: anywhere; }
+mark { background: var(--mark-bg); color: inherit; border-radius: 2px; padding: 0 .12em; }
 .chips { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin: 1.5rem 0; font-size: .85rem; }
 .chips label { display: flex; align-items: center; gap: .4rem; }
 .pager { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin: 1.5rem 0; font-size: .85rem; }
