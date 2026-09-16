@@ -1,0 +1,77 @@
+name: audit
+
+# Weekly, and on demand: what npm knows about the production dependency
+# tree. It opens (or refreshes) one issue rather than failing a build,
+# because every advisory today is fixed only in a later Astro major -
+# a blocking step would fail on every PR with nothing fixable in it.
+# The issue is the reminder; the migration is the fix.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Thursdays 06:00 UTC, after the registry's Wednesday domain check.
+    - cron: "0 6 * * 4"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+
+      - name: Audit the production tree
+        id: audit
+        run: |
+          npm audit --omit=dev --json > audit.json || true
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          a = json.load(open("audit.json"))
+          v = a.get("vulnerabilities", {})
+          lines = []
+          for name, info in sorted(v.items()):
+              fix = info.get("fixAvailable")
+              via = [x for x in info.get("via", []) if isinstance(x, dict)]
+              fixtxt = ("no fix" if fix is False else
+                        f"fix: {fix['name']}@{fix['version']}" + (" (major)" if fix.get("isSemVerMajor") else "")
+                        if isinstance(fix, dict) else "fix available")
+              lines.append(f"- **{name}** ({info['severity']}, installed range {info.get('range')}) - {fixtxt}")
+              for x in via:
+                  lines.append(f"  - {x.get('title')} - {x.get('url')}")
+          body = "\n".join(lines) if lines else "No advisories against the production tree."
+          print(f"count={len(v)}")
+          print("body<<EOF"); print(body); print("EOF")
+          PY
+
+      - name: Open or refresh the issue
+        if: steps.audit.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COUNT: ${{ steps.audit.outputs.count }}
+          BODY: ${{ steps.audit.outputs.body }}
+        run: |
+          title="Dependency audit: $COUNT package(s) with advisories"
+          body=$(printf '%s\n\n_Last run: %s - %s_' "$BODY" "$(date -u +%Y-%m-%d)" "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID")
+          existing=$(gh issue list --label dependencies --state open --search "Dependency audit in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --title "$title" --body "$body"
+            echo "refreshed #$existing"
+          else
+            gh label create dependencies --description "Dependency advisories from the weekly audit" --color 0366d6 2>/dev/null || true
+            gh issue create --title "$title" --body "$body" --label dependencies
+          fi
+
+      - name: Close the issue if the tree is clean
+        if: steps.audit.outputs.count == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          existing=$(gh issue list --label dependencies --state open --search "Dependency audit in:title" --json number --jq '.[0].number')
+          [ -n "$existing" ] && gh issue close "$existing" --comment "The weekly audit found no advisories against the production tree." || echo "nothing open"
