@@ -40,17 +40,14 @@ const artistSearch = artist ? `/search?q=${encodeURIComponent(`a:"${artist}"`)}`
 <div class="face-box">
   {title && <div class="row title"><Heading>{title}{errata && <> <span class="badge errata">Errata</span></>}</Heading></div>}
   {hasStats && <div class="row stats">
-    {(face.cost !== null || thresholdPoints > 0) && <span class="stat symbols">
-      {face.cost !== null && <span class="cost" role="img" aria-label={`Cost ${face.cost}`} title={`Cost ${face.cost}`}>{face.cost}</span>}
-      <Threshold air={face.thr_air} earth={face.thr_earth} fire={face.thr_fire} water={face.thr_water} />
-    </span>}
-    {fight && fight.label === 'Power' && <span class="stat"><span class="label">Power</span>{fight.value}</span>}
+    {face.cost !== null && <span class="stat"><span class="label">Mana</span><span class="value">{face.cost}</span></span>}
+    {thresholdPoints > 0 && <span class="stat"><span class="label">Threshold</span><span class="value symbols"><Threshold air={face.thr_air} earth={face.thr_earth} fire={face.thr_fire} water={face.thr_water} /></span></span>}
     {fight && fight.label !== 'Power' && <>
-      <span class="stat"><span class="label">Attack</span>{face.attack}</span>
-      <span class="stat"><span class="label">Defense</span>{face.defense}</span>
-      {face.power !== null && <span class="stat"><span class="label">Power</span>{face.power}</span>}
+      <span class="stat"><span class="label">Attack</span><span class="value">{face.attack}</span></span>
+      <span class="stat"><span class="label">Defense</span><span class="value">{face.defense}</span></span>
     </>}
-    {face.life !== null && <span class="stat"><span class="label">Life</span>{face.life}</span>}
+    {face.power !== null && <span class="stat"><span class="label">Power</span><span class="value">{face.power}</span></span>}
+    {face.life !== null && <span class="stat"><span class="label">Life</span><span class="value">{face.life}</span></span>}
   </div>}
   {(typeLine || elements.length > 0 || printedTypeline) && <div class="row type">
     {(typeLine || elements.length > 0) && <p>{typeLine}{typeLine && elements.length > 0 && <span class="sep" aria-hidden="true"> · </span>}{elements.length > 0 && <span class="muted">{elements.join(', ')}</span>}</p>}

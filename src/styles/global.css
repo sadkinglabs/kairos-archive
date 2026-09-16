@@ -127,7 +127,6 @@ footer.site .credit { max-width: 62ch; margin: 0 auto; }
 .face-box .title h2 { font-size: 1.45rem; }
 .face-box .title h4 { font-size: 1.05rem; }
 .face-box .title .badge { vertical-align: middle; margin-left: .2rem; }
-.cost { display: inline-grid; place-items: center; min-width: 2rem; height: 2rem; padding: 0 .4rem; border: 1.5px solid var(--fg); border-radius: 999px; font-size: 1.1rem; font-weight: 600; line-height: 1; }
 .thr-group { display: inline-flex; align-items: center; gap: .12rem; }
 .thr-group img { display: block; width: 1.5rem; height: auto; }
 .face-box .type { font-size: 1.02rem; }
@@ -135,11 +134,14 @@ footer.site .credit { max-width: 62ch; margin: 0 auto; }
 .face-box .rules-text { white-space: pre-line; overflow-wrap: anywhere; line-height: 1.7; }
 .face-box .rules .errata-notice { margin: 0 0 .7rem; }
 .face-box .tags { display: flex; flex-wrap: wrap; gap: .3rem 1.4rem; font-size: .88rem; }
-.face-box .stats { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem 1.8rem; font-size: 1.35rem; line-height: 1.2; }
-.face-box .stats .stat { display: flex; flex-direction: column; gap: .2rem; }
-.face-box .stats .symbols { flex-direction: row; align-items: center; gap: .65rem; padding-right: .4rem; border-right: 1px solid var(--line); margin-right: -.6rem; }
-.face-box .stats .symbols:last-child { border-right: 0; padding-right: 0; margin-right: 0; }
-.face-box .stats .label { display: block; font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+/* The numbers: as many equal columns as the face has, each centred under
+   its heading - two split the row in half, three in thirds. */
+.face-box .stats { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .5rem; text-align: center; }
+.face-box .stats .stat { display: flex; flex-direction: column; align-items: center; gap: .3rem; }
+.face-box .stats .stat + .stat { border-left: 1px solid var(--line); }
+.face-box .stats .label { font-size: .66rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.face-box .stats .value { font-size: 1.5rem; line-height: 1.2; min-height: 1.8rem; display: inline-flex; align-items: center; }
+.face-box .stats .value.symbols { gap: .5rem; }
 .face-box .flavour { font-style: italic; color: var(--muted); }
 .face-box .artist { font-size: .88rem; }
 .face-box .id { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .9rem; }
@@ -344,7 +346,10 @@ table.fields td:first-child { white-space: nowrap; }
   .art-column { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
   .card-art { width: min(68vw, 270px); margin-bottom: .5rem; }
   .face-box > .row { padding: .75rem .9rem; }
-  .face-box .stats { gap: .5rem 1.2rem; font-size: 1.2rem; }
+  .face-box .stats { gap: .3rem; }
+  .face-box .stats .value { font-size: 1.3rem; }
+  .face-box .stats .label { font-size: .6rem; letter-spacing: .06em; }
+  .face-box .stats .thr-group img { width: 1.3rem; }
   .card-content h2 { margin-top: 1.4rem; }
   .comparison { grid-template-columns: 1fr; }
   .comparison > div + div { border-left: 0; border-top: 1px solid var(--line); }
