@@ -13,8 +13,8 @@ function app(now = () => 1000) {
 
 // The bodies are checked field by field, so a loose shape keeps the tests readable.
 type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-async function get(path: string, deps = app().deps): Promise<{ status: number; body: Loose; headers: Headers }> {
-  const res = await handle(new Request(`https://api.test${path}`), env, deps);
+async function get(path: string, deps = app().deps, init: RequestInit = {}): Promise<{ status: number; body: Loose; headers: Headers }> {
+  const res = await handle(new Request(`https://api.test${path}`, { headers: { "user-agent": "test/1.0" }, ...init }), env, deps);
   return { status: res.status, body: res.headers.get("content-type")?.includes("json") ? ((await res.json()) as Loose) : {}, headers: res.headers };
 }
 
@@ -131,17 +131,17 @@ describe("the other routes", () => {
     expect((await get("/cards/autocomplete")).body.data).toEqual([]);
   });
   it("an id under /cards redirects to the static object", async () => {
-    const res = await handle(new Request("https://api.test/cards/c000230"), env, app().deps);
+    const res = await handle(new Request("https://api.test/cards/c000230", { headers: { "user-agent": "t" } }), env, app().deps);
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("https://api.test/v3/cards/C000230.json");
-    const p = await handle(new Request("https://api.test/cards/P000937"), env, app().deps);
+    const p = await handle(new Request("https://api.test/cards/P000937", { headers: { "user-agent": "t" } }), env, app().deps);
     expect(p.headers.get("location")).toBe("https://api.test/v3/printings/P000937.json");
   });
   it("anything else is a JSON 404, a POST a 405, and OPTIONS a preflight", async () => {
     const nf = await get("/cards/nope");
     expect(nf.status).toBe(404);
     expect(nf.body).toMatchObject({ object: "error", code: "not_found" });
-    const post = await handle(new Request("https://api.test/cards?q=x", { method: "POST" }), env, app().deps);
+    const post = await handle(new Request("https://api.test/cards?q=x", { method: "POST", headers: { "user-agent": "t" } }), env, app().deps);
     expect(post.status).toBe(405);
     const pre = await handle(new Request("https://api.test/cards", { method: "OPTIONS" }), env, app().deps);
     expect(pre.status).toBe(204);
@@ -169,8 +169,34 @@ describe("Data", () => {
     const f = fakeFetch({ "data/query/cards.json": new Response("x", { status: 503 }) });
     const d = new Data(SITE, f);
     await expect(d.getCards()).rejects.toThrow("HTTP 503");
-    const res = await handle(new Request("https://api.test/cards?q=t:minion"), env, { data: d });
+    const res = await handle(new Request("https://api.test/cards?q=t:minion", { headers: { "user-agent": "t" } }), env, { data: d });
     expect(res.status).toBe(503);
     expect(((await res.json()) as { code: string }).code).toBe("data_unavailable");
+  });
+});
+
+describe("fair use", () => {
+  it("refuses a request without a User-Agent", async () => {
+    const res = await handle(new Request("https://api.test/cards?q=t:minion"), env, app().deps);
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe("user_agent_required");
+  });
+  it("counts public requests by address and answers 429 past the limit, with Retry-After", async () => {
+    const seen: string[] = [];
+    let allow = true;
+    const limited: Env = { ...env, LIMITER: { limit: async ({ key }) => { seen.push(key); return { success: allow }; } } };
+    const ok = await handle(new Request("https://api.test/cards?q=t:minion", { headers: { "user-agent": "t", "cf-connecting-ip": "203.0.113.9" } }), limited, app().deps);
+    expect(ok.status).toBe(200);
+    allow = false;
+    const no = await handle(new Request("https://api.test/cards?q=t:minion", { headers: { "user-agent": "t", "cf-connecting-ip": "203.0.113.9" } }), limited, app().deps);
+    expect(no.status).toBe(429);
+    expect(no.headers.get("retry-after")).toBe("60");
+    expect(((await no.json()) as { code: string; details: string }).details).toContain("download the data");
+    expect(seen).toEqual(["203.0.113.9", "203.0.113.9"]);
+  });
+  it("does not count a request that carries no client address (a service binding)", async () => {
+    const limited: Env = { ...env, LIMITER: { limit: async () => ({ success: false }) } };
+    const res = await handle(new Request("https://api.test/cards?q=t:minion", { headers: { "user-agent": "kairos-bot" } }), limited, app().deps);
+    expect(res.status).toBe(200);
   });
 });
