@@ -4,13 +4,13 @@
  * starting point for the next person. */
 import Base from "../../layouts/Base.astro";
 const projects = [
-  { href: "/fun/random-deck", title: "Random deck", detail: "Pick elements and sets, get a deck list drawn to the copy rules. Every part is one search query, shown on the list with how many cards it matched. Under it, a short tutorial: build a query, fetch the pages, use the records with ordinary JavaScript.", uses: "query API" },
+  { href: "/fun/random-deck", title: "Random Deck Generator", detail: "A simple Random Deck Generator, using the query API in JavaScript.", uses: "query API" },
 ];
 ---
-<Base title="Fun Zone" canonical="/fun" description="Small projects built on Kairos Archive's public tools: the query API, the data files and the image CDN. Source included, no key needed.">
+<Base title="Fun Zone" canonical="/fun" description="Small projects made with Kairos Archive's public tools, with easy to follow tutorials you can try yourself.">
   <p class="eyebrow">Fun Zone</p>
-  <h1>Things built with the tools</h1>
-  <p class="intro">Small projects on the archive's public parts, each with its code on the page. Nothing here uses anything you cannot use: the <a href="/docs/query">query API</a>, the <a href="/docs/data">data files</a> and the <a href="/docs/images">image CDN</a>, no key, no signup. Read one, copy it, make it yours.</p>
+  <h1>Fun Zone</h1>
+  <p class="intro">Welcome to the Fun Zone. A collection of small projects made with the archive's public tools, accompanied by easy to follow tutorials you can try yourself.</p>
 
   <ul class="projects">
     {projects.map((p) => (
@@ -23,7 +23,7 @@ const projects = [
   </ul>
 
   <h2>Built something?</h2>
-  <p>A page here is an Astro page and one script, with the code it runs shown on it. Open a pull request on the <a href="https://github.com/sadkinglabs/kairos-archive">site's repository</a>, or just say where yours lives and it gets a link.</p>
+  <p>If you have built a fun project using the Kairos Archive API, let us know! We would love to hear about the interesting and creative ways people are interacting with The Realm using our free tools. Open an issue or a pull request on the <a href="https://github.com/sadkinglabs/kairos-archive">site's repository</a>.</p>
 </Base>
 
 <style>
