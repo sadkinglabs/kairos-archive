@@ -1,0 +1,36 @@
+---
+/** The Fun Zone: small things built on the archive's public tools, each
+ * with its source on the page. Proof that the tools are enough, and a
+ * starting point for the next person. */
+import Base from "../../layouts/Base.astro";
+const projects = [
+  { href: "/fun/random-deck", title: "Random deck", detail: "Pick elements, get a deck: an avatar, a spellbook of sixty and an atlas of thirty, drawn to the copy rules from the query API, with every card's art from the image CDN. About a hundred lines of plain JavaScript, shown step by step.", uses: "query API · image CDN" },
+];
+---
+<Base title="Fun Zone" canonical="/fun" description="Small projects built on Kairos Archive's public tools: the query API, the data files and the image CDN. Source included, no key needed.">
+  <p class="eyebrow">Fun Zone</p>
+  <h1>Things built with the tools</h1>
+  <p class="intro">Small projects on the archive's public parts, each with its code on the page. Nothing here uses anything you cannot use: the <a href="/docs/query">query API</a>, the <a href="/docs/data">data files</a> and the <a href="/docs/images">image CDN</a>, no key, no signup. Read one, copy it, make it yours.</p>
+
+  <ul class="projects">
+    {projects.map((p) => (
+      <li>
+        <a href={p.href}><strong>{p.title}</strong></a>
+        <p>{p.detail}</p>
+        <p class="muted uses">Uses: {p.uses}</p>
+      </li>
+    ))}
+  </ul>
+
+  <h2>Built something?</h2>
+  <p>A page here is an Astro page and one script, with the code it runs shown on it. Open a pull request on the <a href="https://github.com/sadkinglabs/kairos-archive">site's repository</a>, or just say where yours lives and it gets a link.</p>
+</Base>
+
+<style>
+  .projects { list-style: none; padding: 0; margin: 1.5rem 0; display: grid; gap: 1rem; }
+  .projects li { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 1rem 1.2rem; }
+  .projects li a { font-size: 1.25rem; text-decoration: none; }
+  .projects li a:hover { text-decoration: underline; }
+  .projects li p { margin: .4rem 0 0; }
+  .uses { font-size: .85rem; }
+</style>
