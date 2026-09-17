@@ -71,8 +71,10 @@ jobs:
           # Fair use: no User-Agent is a JSON 403; a burst past sixty in a minute meets a 429.
           code=$(curl -sS -o /dev/null -w '%{http_code}' -A "" -H "User-Agent:" "$BASE/cards?q=t:minion&page_size=1"); [ "$code" = "403" ] || { echo "::error::no User-Agent -> $code, expected 403"; exit 1; }
           echo "ok  403  without a User-Agent"
-          hits=0; for i in $(seq 1 80); do
-            c=$(curl -sS -o /dev/null -w '%{http_code}' -A "$UA" "$BASE/cards?q=t:minion&page_size=1&burst=$i"); [ "$c" = "429" ] && hits=$((hits+1)) || true
-          done
-          echo "burst of 80: $hits answered 429"
+          # One curl process for the whole burst: it reuses one connection, so
+          # every request leaves from one address. Separate processes on a
+          # hosted runner can leave through different NAT addresses, and a
+          # per-address limit then never sees sixty from any one of them.
+          hits=$(curl -sS -o /dev/null -w '%{http_code}\n' -A "$UA" "$BASE/cards?q=t:minion&page_size=1&burst=[1-80]" | grep -c '^429' || true)
+          echo "burst of 80 on one connection: $hits answered 429"
           [ "$hits" -gt 0 ] || { echo "::error::no 429 in a burst of 80; the rate limit is not in effect"; exit 1; }
