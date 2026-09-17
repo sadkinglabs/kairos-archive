@@ -132,10 +132,13 @@ export function needsPrintings(q: string): boolean {
 }
 
 async function load(q: string, deps: Deps): Promise<{ data: SearchData; tag: string }> {
-  const cards = await deps.data.getCards();
-  if (!needsPrintings(q)) return { data: { cards: cards.cards, printings: [] }, tag: cards.tag };
-  const printings = await deps.data.getPrintings();
-  return { data: { cards: cards.cards, printings: printings.printings }, tag: cards.tag };
+  if (!needsPrintings(q)) {
+    const cards = await deps.data.getCards();
+    return { data: { cards: cards.cards, printings: [] }, tag: cards.tag };
+  }
+  // Both lists, from one release: the snapshot guarantees the tags match.
+  const snap = await deps.data.getSnapshot();
+  return { data: { cards: snap.cards, printings: snap.printings }, tag: snap.tag };
 }
 
 async function list(url: URL, queryBase: string, deps: Deps): Promise<Response> {
