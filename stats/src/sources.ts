@@ -24,7 +24,7 @@ export async function sql(s: Sources, query: string): Promise<Result<Row[]>> {
     const text = await res.text();
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${text.slice(0, 300)}` };
     const body = JSON.parse(text) as { data?: Row[] };
-    return { ok: true, value: (body.data ?? []).map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v) && !["day", "q"].includes(k) ? Number(v) : v]))) };
+    return { ok: true, value: (body.data ?? []).map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v) && k !== "day" ? Number(v) : v]))) };
   } catch (err) {
     return { ok: false, error: String(err) };
   }
@@ -40,8 +40,8 @@ export interface Report {
   days: number;
   api: ZoneReport;
   search: {
-    siteDaily: Result<Row[]>; siteTop: Result<Row[]>; siteEmpty: Result<Row[]>; siteEmptyTotal: Result<Row[]>; siteErrors: Result<Row[]>;
-    apiDaily: Result<Row[]>; apiTop: Result<Row[]>; apiEmpty: Result<Row[]>; keys: Result<Row[]>; emptyTotal: Result<Row[]>;
+    siteDaily: Result<Row[]>; siteKeys: Result<Row[]>; siteEmptyTotal: Result<Row[]>; siteRejected: Result<Row[]>;
+    apiDaily: Result<Row[]>; keys: Result<Row[]>; emptyTotal: Result<Row[]>;
     routes: Result<Row[]>; sources: Result<Row[]>; agents: Result<Row[]>; countries: Result<Row[]>; statuses: Result<Row[]>;
   };
   site: { daily: Result<Row[]>; hosts: Result<Row[]>; pages: Result<Row[]>; tracks: Result<Row[]> };
@@ -57,20 +57,17 @@ export async function gather(s: Sources, days: number, hosts: { api: string; que
   const q = (text: string) => sql(s, text);
   const [
     api,
-    sDaily, sTop, sEmpty, sEmptyTotal, sErrors, aDaily, aTop, aEmpty, keys, emptyTotal, routes, sources, agents, countries, statuses,
+    sDaily, sKeys, sEmptyTotal, sRejected, aDaily, keys, emptyTotal, routes, sources, agents, countries, statuses,
     cDaily, cHosts, cPages, cTracks,
     bDaily, bCommands, bOutcomes, bContexts, bServers, bMisses, bLatency, guilds, installs,
   ] = await Promise.all([
     zone(s, days, hosts),
     q(`SELECT ${DAY}, ${N} FROM kairos_site WHERE ${w} AND blob5 = 'search' GROUP BY day ORDER BY day`),
-    q(`SELECT blob6 AS q, ${N}, AVG(double1) AS results FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 >= 0 GROUP BY q ORDER BY n DESC LIMIT 30`),
-    q(`SELECT blob6 AS q, ${N} FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 = 0 GROUP BY q ORDER BY n DESC LIMIT 20`),
+    q(`SELECT blob7 AS keys, ${N}, AVG(double1) AS results FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 >= 0 GROUP BY keys ORDER BY n DESC LIMIT 25`),
     q(`SELECT ${N} FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 = 0`),
-    q(`SELECT blob6 AS q, ${N} FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 < 0 GROUP BY q ORDER BY n DESC LIMIT 20`),
+    q(`SELECT ${N} FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 < 0`),
     q(`SELECT ${DAY}, ${N} FROM kairos_query WHERE ${w} GROUP BY day ORDER BY day`),
-    q(`SELECT blob6 AS q, ${N}, AVG(double3) AS results FROM kairos_query WHERE ${w} AND blob1 = '/cards' AND blob6 != '' GROUP BY q ORDER BY n DESC LIMIT 30`),
-    q(`SELECT blob6 AS q, ${N} FROM kairos_query WHERE ${w} AND blob1 = '/cards' AND blob6 != '' AND double3 = 0 GROUP BY q ORDER BY n DESC LIMIT 20`),
-    q(`SELECT blob5 AS keys, ${N} FROM kairos_query WHERE ${w} AND blob5 != '' GROUP BY keys ORDER BY n DESC LIMIT 15`),
+    q(`SELECT blob5 AS keys, ${N}, AVG(double3) AS results FROM kairos_query WHERE ${w} AND blob1 = '/cards' AND double3 >= 0 GROUP BY keys ORDER BY n DESC LIMIT 25`),
     q(`SELECT ${N} FROM kairos_query WHERE ${w} AND blob1 = '/cards' AND double3 = 0`),
     q(`SELECT blob1 AS route, ${N} FROM kairos_query WHERE ${w} GROUP BY route ORDER BY n DESC`),
     q(`SELECT blob2 AS source, ${N} FROM kairos_query WHERE ${w} GROUP BY source ORDER BY n DESC`),
@@ -94,7 +91,7 @@ export async function gather(s: Sources, days: number, hosts: { api: string; que
   return {
     days,
     api,
-    search: { siteDaily: sDaily, siteTop: sTop, siteEmpty: sEmpty, siteEmptyTotal: sEmptyTotal, siteErrors: sErrors, apiDaily: aDaily, apiTop: aTop, apiEmpty: aEmpty, keys, emptyTotal, routes, sources, agents, countries, statuses },
+    search: { siteDaily: sDaily, siteKeys: sKeys, siteEmptyTotal: sEmptyTotal, siteRejected: sRejected, apiDaily: aDaily, keys, emptyTotal, routes, sources, agents, countries, statuses },
     site: { daily: cDaily, hosts: cHosts, pages: cPages, tracks: cTracks },
     bot: { daily: bDaily, commands: bCommands, outcomes: bOutcomes, contexts: bContexts, servers: bServers, misses: bMisses, latency: bLatency, guilds, installs },
   };

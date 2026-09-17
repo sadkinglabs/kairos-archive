@@ -36,9 +36,10 @@ function sources(failing: string[] = [], opts: Opts = {}) {
       if (q.includes("AS kind")) return new Response(JSON.stringify({ data: [{ kind: "command", name: "card", n: "25" }, { kind: "component", name: "pick", n: "5" }] }));
       if (q.includes("AS track")) return new Response(JSON.stringify({ data: [{ track: "discord-install", n: "3" }] }));
       if (q.includes("AS route")) return new Response(JSON.stringify({ data: [{ route: "/cards", n: "40" }, { route: "/cards/random", n: "2" }] }));
-      if (q.includes("blob6 AS q") && q.includes("kairos_site") && q.includes("double1 >= 0")) return new Response(JSON.stringify({ data: [{ q: "t:minion <b>", n: "9", results: 12.4 }, { q: "007", n: "3", results: 1 }] }));
-      if (q.includes("kairos_site") && q.includes("double1 = 0") && !q.includes("AS q")) return new Response(JSON.stringify({ data: [{ n: "5" }] }));
-      if (q.includes("kairos_query") && q.includes("double3 = 0") && !q.includes("AS q")) return new Response(JSON.stringify({ data: [{ n: "8" }] }));
+      if (q.includes("blob7 AS keys")) return new Response(JSON.stringify({ data: [{ keys: "e t <b>", n: "9", results: 12.4 }, { keys: "", n: "3", results: 1 }] }));
+      if (q.includes("kairos_site") && q.includes("double1 = 0")) return new Response(JSON.stringify({ data: [{ n: "5" }] }));
+      if (q.includes("kairos_site") && q.includes("double1 < 0")) return new Response(JSON.stringify({ data: [{ n: "2" }] }));
+      if (q.includes("kairos_query") && q.includes("double3 = 0")) return new Response(JSON.stringify({ data: [{ n: "8" }] }));
       // Anything else: one row with every alias the query names set to a
       // string that must come out escaped.
       const aliases = [...q.matchAll(/ AS (\w+)/g)].map((m) => m[1]!).filter((a) => a !== "n");
@@ -92,24 +93,27 @@ describe("POST /event", () => {
     expect(res.status).toBe(204);
     expect(res.headers.get("access-control-allow-origin")).toBe(SITE);
     expect(points).toHaveLength(1);
-    expect(named(points[0]!)).toEqual({ host: "discord.com", page: "/discord", track: "discord-install", country: "ES", kind: "click", q: "" });
+    expect(named(points[0]!)).toEqual({ host: "discord.com", page: "/discord", track: "discord-install", country: "ES", kind: "click", unused: "", keys: "" });
     expect(points[0]!.indexes).toEqual(["discord.com"]);
     expect(points[0]!.doubles).toEqual([0]);
   });
-  it("writes a search's query and result count, clipped, and refuses a malformed one", async () => {
-    const { res, points } = await post(JSON.stringify({ k: "search", q: "  t:minion e:water ", n: 12, p: "/search" }), SITE, { country: "AU" });
+  it("writes a search's keys and result count, never its words, and refuses a malformed one", async () => {
+    const { res, points } = await post(JSON.stringify({ k: "search", keys: " e t ", n: 12, p: "/search", q: "polar bears" }), SITE, { country: "AU" });
     expect(res.status).toBe(204);
-    expect(named(points[0]!)).toEqual({ host: "", page: "/search", track: "", country: "AU", kind: "search", q: "t:minion e:water" });
+    expect(named(points[0]!)).toEqual({ host: "", page: "/search", track: "", country: "AU", kind: "search", unused: "", keys: "e t" });
+    expect(JSON.stringify(points[0])).not.toContain("polar");
     expect(points[0]!.indexes).toEqual(["search"]);
     expect(DOUBLES.map((_, i) => points[0]!.doubles![i])).toEqual([12]);
-    const rejected = await post(JSON.stringify({ k: "search", q: "t:", n: -1, p: "/cards" }));
+    const bare = await post(JSON.stringify({ k: "search", keys: "", n: 3, p: "/cards" }));
+    expect(bare.res.status).toBe(204);
+    expect(named(bare.points[0]!).keys).toBe("");
+    const rejected = await post(JSON.stringify({ k: "search", n: -1, p: "/cards" }));
     expect(rejected.points[0]!.doubles).toEqual([-1]);
-    const long = await post(JSON.stringify({ k: "search", q: "x".repeat(300), n: 0, p: "/search" }));
-    expect(named(long.points[0]!).q).toHaveLength(200);
-    expect((await post(JSON.stringify({ k: "search", q: "", n: 1, p: "/search" }))).res.status).toBe(400);
-    expect((await post(JSON.stringify({ k: "search", q: "a", n: -2, p: "/search" }))).res.status).toBe(400);
-    expect((await post(JSON.stringify({ k: "search", q: "a", n: 1.5, p: "/search" }))).res.status).toBe(400);
-    expect((await post(JSON.stringify({ k: "search", q: "a", n: 1, p: "search" }))).res.status).toBe(400);
+    const long = await post(JSON.stringify({ k: "search", keys: "x".repeat(300), n: 0, p: "/search" }));
+    expect(named(long.points[0]!).keys).toHaveLength(200);
+    expect((await post(JSON.stringify({ k: "search", keys: "a", n: -2, p: "/search" }))).res.status).toBe(400);
+    expect((await post(JSON.stringify({ k: "search", keys: "a", n: 1.5, p: "/search" }))).res.status).toBe(400);
+    expect((await post(JSON.stringify({ k: "search", keys: "a", n: 1, p: "search" }))).res.status).toBe(400);
   });
   it("refuses other origins, bad bodies and long bodies, and preflights", async () => {
     expect((await post("{}", "https://evil.example")).res.status).toBe(403);
@@ -159,9 +163,11 @@ describe("GET /", () => {
     expect(html).toContain("<td class=\"text\">kairosarchive.net</td>");
     expect(html).toContain("<td class=\"text\">(direct)</td>");
     expect(html).toContain("&lt;x&gt;");                                                // escaped path
-    expect(html).toContain("<code>t:minion &lt;b&gt;</code>");                         // escaped query
-    expect(html).toContain("<code>007</code>");                                        // a numeric-looking query stays text
+    expect(html).toContain("<code>e t &lt;b&gt;</code>");                              // escaped keys
+    expect(html).toContain("<code>(bare words only)</code>");                          // a search with no keys
+    expect(html).not.toMatch(/blob6/);                                                  // the old query-text slot is never read
     expect(html).toContain("5 found nothing (12%)");                                   // site: 5 of 42 searches
+    expect(html).toContain('<div class="value">2</div><div class="label">queries the site rejected</div>');
     expect(html).toContain("8 found nothing (20%)");                                   // API: 8 of 40
     expect(html).toContain("p50 42 ms · p95 120 ms");
     expect(html).toContain('<td class="text">command</td><td class="text">card</td><td class="n bar" style="--w:100%">25</td>');

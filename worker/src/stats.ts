@@ -3,19 +3,19 @@
  * the request came over the public hostname or a service binding (a
  * bound request carries no client address); the client's software as a
  * family ("firefox", "curl", "kairos-bot"), never the full User-Agent;
- * the country Cloudflare saw; the keys the query used ("e t is:errata")
- * and the query itself, clipped; the status, the time taken and, for a
- * list, how many cards matched. No address, no identifier. */
+ * the country Cloudflare saw; the keys the query used ("e t is:errata"),
+ * never the words typed; the status, the time taken and, for a list,
+ * how many cards matched. No address, no query text, no identifier. */
+import { queryKeys } from "../../src/search/keysUsed";
+export { queryKeys };
 
 export interface QueryEvent {
-  route: string; source: "public" | "binding"; agent: string; country: string; keys: string; q: string;
+  route: string; source: "public" | "binding"; agent: string; country: string; keys: string;
   status: number; ms: number; total: number;
 }
 
 /** The order of the blobs in a data point, for the reader's SQL. */
-export const BLOBS = ["route", "source", "agent", "country", "keys", "q"] as const;
-/** The query text is kept whole up to this many characters. */
-export const MAX_QUERY = 200;
+export const BLOBS = ["route", "source", "agent", "country", "keys"] as const;
 /** The order of the doubles. */
 export const DOUBLES = ["status", "ms", "total"] as const;
 
@@ -28,19 +28,6 @@ export function agentFamily(userAgent: string | null): string {
   if (!ua) return "";
   for (const [re, name] of BROWSERS) if (re.test(ua)) return name;
   return ua.split(/[/\s(]/)[0]!.toLowerCase().slice(0, 32);
-}
-
-/** The keys a query used, sorted and unique: "e t", "a unique:prints",
- * "is:errata sort:cost". Flag-like keys keep their value, since the value
- * is the whole point of the key; every other value is dropped. */
-export function queryKeys(q: string): string {
-  const keys = new Set<string>();
-  for (const m of q.matchAll(/(?:^|[\s(])-?([a-z]+)(?:[:=]([a-z-]*)|[<>!])/gi)) {
-    const key = m[1]!.toLowerCase();
-    const value = (m[2] ?? "").toLowerCase();
-    keys.add(["is", "has", "unique", "sort", "order"].includes(key) && value ? `${key}:${value}` : key);
-  }
-  return [...keys].sort().join(" ").slice(0, 200);
 }
 
 /** Build and write the point from the request and a clone of the answer.
@@ -62,7 +49,6 @@ export async function record(stats: AnalyticsEngineDataset | undefined, request:
       agent: agentFamily(request.headers.get("user-agent")),
       country: ((request as { cf?: { country?: string } }).cf?.country ?? "").slice(0, 2),
       keys: queryKeys(url.searchParams.get("q") ?? ""),
-      q: (url.searchParams.get("q") ?? "").trim().slice(0, MAX_QUERY),
       status: copy.status,
       ms: Math.max(0, Date.now() - started),
       total,

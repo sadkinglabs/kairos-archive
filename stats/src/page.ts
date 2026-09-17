@@ -97,6 +97,8 @@ export function render(report: Report, who: string): string {
   // Search.
   const siteSearches = total(s.siteDaily);
   const siteEmpty = total(s.siteEmptyTotal);
+  const siteRejected = total(s.siteRejected);
+  const bare = (r: Result<Row[]>): Result<Row[]> => (r.ok ? { ...r, value: r.value.map((row) => ({ ...row, keys: row.keys || "(bare words only)" })) } : r);
   const apiLists = s.routes.ok ? Number(s.routes.value.find((r) => r.route === "/cards")?.n ?? 0) : 0;
   const apiEmpty = total(s.emptyTotal);
 
@@ -180,20 +182,17 @@ ${table("Top paths", api.paths, [["path", "Path", "text"], ["n", "Requests"]])}
 </section>
 
 <section class="part">
-<div class="eyebrow">2 · what people look for</div>
+<div class="eyebrow">2 · how people look</div>
 <h2>Search</h2>
 <div class="tiles">
 ${tile(fmt(siteSearches), "searches on the site", `${fmt(siteEmpty)} found nothing (${pct(siteEmpty, siteSearches)})`)}
+${tile(fmt(siteRejected), "queries the site rejected", `a syntax error, ${pct(siteRejected, siteSearches)} of searches`)}
 ${tile(fmt(apiLists), "query API list requests", `${fmt(apiEmpty)} found nothing (${pct(apiEmpty, apiLists)})`)}
 </div>
 ${sparkline(s.siteDaily, d, "site searches")}
 <div class="grid">
-${table("Top searches on the site", s.siteTop, [["q", "Query", "q"], ["n", "Times"], ["results", "Avg results"]])}
-${table("Site searches that found nothing", s.siteEmpty, [["q", "Query", "q"], ["n", "Times"]])}
-${table("Queries the site rejected", s.siteErrors, [["q", "Query", "q"], ["n", "Times"]], "A syntax error: the words are kept so the syntax can meet them.")}
-${table("Top query API searches", s.apiTop, [["q", "Query", "q"], ["n", "Times"], ["results", "Avg results"]])}
-${table("API searches with no match", s.apiEmpty, [["q", "Query", "q"], ["n", "Times"]])}
-${table("Keys used", s.keys, [["keys", "Keys", "q"], ["n", "Times"]])}
+${table("How searches are asked, on the site", bare(s.siteKeys), [["keys", "Keys", "q"], ["n", "Searches"], ["results", "Avg results"]], "The keys a query used, never the words typed. Bare words match card names.")}
+${table("How searches are asked, through the API", bare(s.keys), [["keys", "Keys", "q"], ["n", "Searches"], ["results", "Avg results"]])}
 </div>
 <h3 style="margin-top:1.25rem">Query API</h3>
 ${sparkline(s.apiDaily, d, "API requests")}
