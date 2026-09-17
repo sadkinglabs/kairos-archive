@@ -1,9 +1,28 @@
 /** The form on /fun/random-deck. Implementation detail, not part of the
  * tutorial: it reads the boxes, keeps the spellbook count up to date,
  * calls makeDeck and prints the result as a list. */
-import { makeDeck } from "./random-deck.js";
+import { QUERY, makeDeck } from "./random-deck.js";
 
 export const SPELLBOOK = 60;
+
+/** The query API allows sixty requests a minute from one address and a
+ * deal is about eight, so this page remembers every good answer it
+ * gets and hands it back for the same address next time. The tutorial
+ * code asks with plain fetch and never knows; only this page wraps it. */
+export function rememberQueryAnswers(realFetch) {
+  const answers = new Map();
+  return async function (url, options) {
+    const address = String(url);
+    if (!address.startsWith(QUERY)) return realFetch(url, options);
+    if (!answers.has(address)) {
+      const response = await realFetch(url, options);
+      if (!response.ok) return response;
+      answers.set(address, { status: response.status, text: await response.text() });
+    }
+    const saved = answers.get(address);
+    return new Response(saved.text, { status: saved.status, headers: { "content-type": "application/json" } });
+  };
+}
 export const TYPES = ["Artifact", "Aura", "Magic", "Minion"];
 
 /** The deck as text: each part with its count, its query and how many
@@ -25,6 +44,7 @@ export function formatDeck(deck) {
 }
 
 if (typeof document !== "undefined" && document.getElementById("deck-form")) {
+  window.fetch = rememberQueryAnswers(window.fetch.bind(window));
   const form = document.getElementById("deck-form");
   const out = document.getElementById("deck");
   const totalLine = document.getElementById("deck-total");

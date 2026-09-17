@@ -1,7 +1,7 @@
 /** The tutorial's deck builder against the deck-building rules, and the page's list. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ATLAS, COLLECTION, COPIES, drawCards, getCards, makeDeck, makeQuery, onlyChosenElements } from "./random-deck.js";
-import { formatDeck } from "./deck-page.js";
+import { formatDeck, rememberQueryAnswers } from "./deck-page.js";
 
 type Card = { name: string; type: string; rarity: string | null; elements: string[] };
 const card = (name: string, rarity: string | null, elements: string[] = ["Fire"], type = "Minion"): Card => ({ name, type, rarity, elements });
@@ -102,5 +102,25 @@ describe("the deck", () => {
       "Minion 3/3   # t:minion (e:fire or e:none)  (200 cards)", "  1 Ant", "  2 Bear", "",
       "4 cards in all",
     ].join("\n"));
+  });
+});
+
+describe("the page's memory", () => {
+  it("asks the query API once per address, hands the same answer back, and never remembers a failure", async () => {
+    let calls = 0;
+    let failNext = true;
+    const real = async (url: string) => {
+      calls++;
+      if (failNext) { failNext = false; return new Response("busy", { status: 429 }); }
+      return new Response(JSON.stringify({ data: [{ name: url }], has_more: false }));
+    };
+    const fetchImpl = rememberQueryAnswers(real as unknown as typeof fetch);
+    const url = "https://query.kairosarchive.net/cards?q=t%3Asite&page_size=200&page=1";
+    expect((await fetchImpl(url)).status).toBe(429);          // not remembered
+    expect((await (await fetchImpl(url)).json()).data[0].name).toBe(url);
+    expect((await (await fetchImpl(url)).json()).data[0].name).toBe(url);
+    expect(calls).toBe(2);
+    await fetchImpl("https://example.test/other");
+    expect(calls).toBe(3);                                     // other hosts pass straight through
   });
 });
