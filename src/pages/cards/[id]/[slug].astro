@@ -5,6 +5,7 @@ import FaceBox from '../../../components/FaceBox.astro';
 import RecordActions from '../../../components/RecordActions.astro';
 import PrintingEntry from '../../../components/PrintingEntry.astro';
 import CardHistory from '../../../components/CardHistory.astro';
+import FacePrintings from '../../../components/FacePrintings.astro';
 import { cardPath, loadRegistry, setPath, slugify, views } from '../../../data/registry';
 import { officialCardUrl, officialSlugFromName } from '../../../presentation/officialCardUrl';
 import { embedColour, embedDescription } from '../../../presentation/embed';
@@ -62,5 +63,5 @@ const setsIn = registry.sets.filter(s => card.set_codes.includes(s.set_code ?? '
   <section id="printings" class="page-section"><div class="section-heading"><h2>Printings</h2><span class="muted">{printings.length} archived</span></div><p class="muted">Each set, product and finish has a permanent printing ID.</p>
     <div class="printing-list">{printings.map(p => <PrintingEntry printing={p} card={card} history={history} names={names} />)}</div>
   </section>
-  <section id="history" class="page-section"><h2>Card history</h2><CardHistory rows={history} names={names} /></section>
+  <section id="history" class="page-section"><h2>Card history</h2><FacePrintings history={history} printings={printings} /><CardHistory rows={history} names={names} /></section>
 </Base>

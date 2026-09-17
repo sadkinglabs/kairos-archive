@@ -1,0 +1,27 @@
+---
+/** Which printings carry which values: one row per recorded face, in time
+ * order, with the physical cards that show it grouped by set. A face no
+ * printing carries yet says so. Shown only when a card has more than one
+ * face, since with one face every printing carries it. */
+import { printingPath, setPath, type HistoryRow, type RegistryPrinting } from '../data/registry';
+import { bySet, facePrintings, fieldLabel, listWords } from '../data/facePrintings';
+interface Props { history: HistoryRow[]; printings: RegistryPrinting[] }
+const { history, printings } = Astro.props;
+const { faces, textless, undated } = facePrintings(history, printings);
+const last = faces.length - 1;
+---
+{faces.length > 1 && <section class="face-printings" aria-labelledby="face-printings-title">
+  <h3 id="face-printings-title">Which printings carry which values</h3>
+  <ol>
+    {faces.map((g, i) => <li>
+      <p class="face-when"><strong>{i === last ? 'Current values' : i === 0 ? 'Original values' : 'Earlier values'}</strong>
+        <span class="muted"> · {g.row.valid_to ? `in force ${g.row.valid_from} to ${g.row.valid_to}` : `since ${g.row.valid_from}`}</span>
+        {g.changed.length > 0 && <span class="muted"> · changed {listWords(g.changed.map(fieldLabel))}</span>}</p>
+      {g.printings.length > 0
+        ? <p class="carriers">{bySet(g.printings).map(([set, ps]) => <span class="carrier"><a class="badge set" href={setPath(ps[0]!)}>{set}</a> {ps.map(p => <a class="pid" href={printingPath(p)}><code>{p.printing_id}</code></a>)}</span>)}</p>
+        : <p class="none">No printing carries these values yet.</p>}
+    </li>)}
+  </ol>
+  {textless.length > 0 && <p class="muted aside">Shows no text, so carries no face: {textless.map(p => <a class="pid" href={printingPath(p)}><code>{p.printing_id}</code></a>)}</p>}
+  {undated.length > 0 && <p class="muted aside">Release date unknown, so not placed: {undated.map(p => <a class="pid" href={printingPath(p)}><code>{p.printing_id}</code></a>)}</p>}
+</section>}

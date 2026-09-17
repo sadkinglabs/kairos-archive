@@ -473,3 +473,20 @@ table.fields td:first-child { white-space: nowrap; }
 .release-changes ul { margin: .4rem 0 .6rem 1.2rem; }
 .release-changes ul.ids { display: flex; flex-wrap: wrap; gap: .25rem .75rem; list-style: none; margin-left: 0; padding: 0; }
 .release-changes ul.ids li { margin: 0; }
+
+/* Which printings carry which values: one row per face, the carriers as
+ * set badges with their ids; a face nobody printed yet says so. */
+.face-printings { border: 1px solid var(--line); border-radius: 7px; padding: .9rem 1rem .4rem; margin: 1rem 0 1.5rem; background: var(--card); }
+.face-printings h3 { margin: 0 0 .6rem; font-size: 1rem; }
+.face-printings ol { list-style: none; margin: 0; padding: 0; }
+.face-printings li { padding: .5rem 0; border-top: 1px solid var(--line); }
+.face-printings li:first-child { border-top: 0; padding-top: 0; }
+.face-printings .face-when { margin: 0 0 .35rem; }
+.face-printings .carriers { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin: 0 0 .3rem; }
+.face-printings .carrier { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
+.face-printings .carrier .badge.set { text-decoration: none; color: var(--fg); font-size: .78rem; }
+.face-printings .carrier .badge.set:hover { color: var(--accent); }
+.face-printings .pid { text-decoration: none; }
+.face-printings .pid:hover code { color: var(--accent); }
+.face-printings .none { margin: 0 0 .3rem; color: var(--warn); }
+.face-printings .aside { margin: .5rem 0 .4rem; font-size: .9rem; }
