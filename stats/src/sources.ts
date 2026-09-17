@@ -32,6 +32,11 @@ export async function sql(s: Sources, query: string): Promise<Result<Row[]>> {
 
 /** The clauses every query shares: the window, and sampling-aware counts. */
 const window = (days: number) => `timestamp > NOW() - INTERVAL '${Math.max(1, Math.min(90, Math.floor(days)))}' DAY`;
+/** The deploy workflow proves the beacon route with one synthetic click
+ * per deploy, to a host that can never resolve. Kept in the dataset as
+ * evidence, never counted as a click. */
+export const DEPLOY_CHECK_HOST = "deploy-check.invalid";
+const CLICKS = `blob5 != 'search' AND blob1 != '${DEPLOY_CHECK_HOST}'`;
 const N = "SUM(_sample_interval) AS n";
 const DAY = "toStartOfInterval(timestamp, INTERVAL '1' DAY) AS day";
 
@@ -74,10 +79,10 @@ export async function gather(s: Sources, days: number, hosts: { api: string; que
     q(`SELECT blob3 AS agent, ${N} FROM kairos_query WHERE ${w} GROUP BY agent ORDER BY n DESC LIMIT 15`),
     q(`SELECT blob4 AS country, ${N} FROM kairos_query WHERE ${w} AND blob4 != '' GROUP BY country ORDER BY n DESC LIMIT 10`),
     q(`SELECT double1 AS status, ${N} FROM kairos_query WHERE ${w} GROUP BY status ORDER BY n DESC`),
-    q(`SELECT ${DAY}, ${N} FROM kairos_site WHERE ${w} AND blob5 != 'search' GROUP BY day ORDER BY day`),
-    q(`SELECT blob1 AS host, ${N} FROM kairos_site WHERE ${w} AND blob5 != 'search' GROUP BY host ORDER BY n DESC LIMIT 15`),
-    q(`SELECT blob2 AS page, blob1 AS host, ${N} FROM kairos_site WHERE ${w} AND blob5 != 'search' GROUP BY page, host ORDER BY n DESC LIMIT 15`),
-    q(`SELECT blob3 AS track, ${N} FROM kairos_site WHERE ${w} AND blob5 != 'search' AND blob3 != '' GROUP BY track ORDER BY n DESC`),
+    q(`SELECT ${DAY}, ${N} FROM kairos_site WHERE ${w} AND ${CLICKS} GROUP BY day ORDER BY day`),
+    q(`SELECT blob1 AS host, ${N} FROM kairos_site WHERE ${w} AND ${CLICKS} GROUP BY host ORDER BY n DESC LIMIT 15`),
+    q(`SELECT blob2 AS page, blob1 AS host, ${N} FROM kairos_site WHERE ${w} AND ${CLICKS} GROUP BY page, host ORDER BY n DESC LIMIT 15`),
+    q(`SELECT blob3 AS track, ${N} FROM kairos_site WHERE ${w} AND ${CLICKS} AND blob3 != '' GROUP BY track ORDER BY n DESC`),
     q(`SELECT ${DAY}, ${N} FROM kairos_bot WHERE ${w} GROUP BY day ORDER BY day`),
     q(`SELECT blob1 AS kind, blob2 AS name, ${N} FROM kairos_bot WHERE ${w} AND blob1 != 'ping' GROUP BY kind, name ORDER BY n DESC LIMIT 20`),
     q(`SELECT blob3 AS outcome, ${N} FROM kairos_bot WHERE ${w} GROUP BY outcome ORDER BY n DESC`),

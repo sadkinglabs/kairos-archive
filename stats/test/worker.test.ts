@@ -214,6 +214,13 @@ describe("GET /", () => {
     expect(paged).toContain('<div class="value">250</div><div class="label">servers it is installed in</div>');
     expect(src.asked.filter((u) => u.includes("/users/@me/guilds")).length).toBe(2);
   });
+  it("never counts the deploy workflow's synthetic click", async () => {
+    const src = sources();
+    await page(src);
+    const site = src.bodies.filter((b) => b.includes("kairos_site") && !b.includes("'search'  ") && b.includes("blob5 != 'search'"));
+    expect(site.length).toBe(4);
+    for (const q of site) expect(q).toContain("blob1 != 'deploy-check.invalid'");
+  });
   it("counts downloads on no paths when versions.json cannot be read, rather than guessing", async () => {
     const src = sources([], { noVersions: true });
     await page(src);
