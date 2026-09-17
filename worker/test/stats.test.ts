@@ -27,7 +27,7 @@ describe("one point per request", () => {
     const { res, point, count } = await get("/cards?q=t:minion e:water -is:errata sort:cost", { "user-agent": "Mozilla/5.0 (Android 17; Mobile; rv:155.0) Gecko/155.0 Firefox/155.0", "cf-connecting-ip": "203.0.113.9" }, { country: "ES" });
     expect(res.status).toBe(200);
     expect(count).toBe(1);
-    expect(named(point)).toEqual({ route: "/cards", source: "public", agent: "firefox", country: "ES", keys: "e is:errata sort:cost t", q: "t:minion e:water -is:errata sort:cost" });
+    expect(named(point)).toEqual({ route: "/cards", source: "public", agent: "firefox", country: "ES", keys: "e is:errata sort:cost t" });
     expect(point.indexes).toEqual(["/cards"]);
     expect(point.doubles![0]).toBe(200);
     expect(point.doubles![2]).toBeGreaterThan(0);
@@ -40,8 +40,6 @@ describe("one point per request", () => {
     expect(noAgent.res.status).toBe(403);
     expect(named(noAgent.point)).toMatchObject({ route: "/cards", agent: "" });
     expect(noAgent.point.doubles![0]).toBe(403);
-    const long = await get(`/cards?q=${"t:site ".repeat(60)}`);
-    expect(named(long.point).q).toHaveLength(200);
     const missing = await get("/cards/random?q=t:site cost>99");
     expect(missing.res.status).toBe(404);
     expect(named(missing.point)).toMatchObject({ route: "/cards/random", keys: "cost t" });

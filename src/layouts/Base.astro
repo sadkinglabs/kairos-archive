@@ -100,8 +100,8 @@ const footerGroups: [string, [string, string][]][] = [
       });
       // Two things are counted: outbound clicks (the host the link goes to,
       // the page it was on, and the link's data-track label when it has
-      // one) and searches (what was typed, how many results). Nothing about
-      // who. A text/plain body keeps the beacon a simple request, so no
+      // one) and searches (the keys used, how many results; never the words
+      // typed). Nothing about who. A text/plain body keeps the beacon a simple request, so no
       // preflight. Pages report a search by dispatching kairos:stat.
       const statsBase = document.documentElement.dataset.stats;
       const send = (detail: unknown) => {

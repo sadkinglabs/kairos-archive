@@ -12,10 +12,10 @@
 
 ## Usage counts
 
-Four things are counted, and nothing else; the [usage page](https://kairosarchive.net/usage) says so publicly.
+Three things are counted, and nothing else; the [usage page](https://kairosarchive.net/usage) says so publicly.
 
-- **The site** loads Cloudflare Web Analytics (page views, referrers; no cookie, no identifier) when `PUBLIC_CF_BEACON_TOKEN` is set at build time, and sends a beacon to the stats Worker for two events: clicks on links that leave the site (the host they go to, the page, the link's `data-track` label when it has one) and searches (the query typed, on the search page or `/cards`, and how many results it found; `-1` when the query was rejected). A page reports a search by dispatching a `kairos:stat` event on `document`; the layout sends it.
-- **The query API** (`worker/src/stats.ts`) and **the bot** write one Analytics Engine data point per request: route or command, outcome, client software as a family, country, query keys and the query text (clipped to 200 characters), latency. Never the address or the full `User-Agent`.
+- **The site** loads Cloudflare Web Analytics (page views, referrers; no cookie, no identifier) when `PUBLIC_CF_BEACON_TOKEN` is set at build time, and sends a beacon to the stats Worker for two events: clicks on links that leave the site (the host they go to, the page, the link's `data-track` label when it has one) and searches (the keys the query used, from `src/search/keysUsed.ts`, and how many results it found; `-1` when the query was rejected). Never the words typed. A page reports a search by dispatching a `kairos:stat` event on `document`; the layout sends it.
+- **The query API** (`worker/src/stats.ts`) and **the bot** write one Analytics Engine data point per request: route or command, outcome, client software as a family, country, query keys, latency. Never the address, the query text or the full `User-Agent`.
 - **The stats Worker** (`stats/`, on `stats.kairosarchive.net`) takes the beacon at `POST /event` (only from the site's origin) and serves the owner's dashboard at `GET /`, behind Cloudflare Access: the Access token is verified in the Worker too, so a hostname without a policy fails closed. The page reads the three datasets through the Analytics Engine SQL API, Discord's list of the servers the bot user is in, and the zone's sampled request analytics for the API host, which is R2 behind the CDN with no Worker to count for it. Zone analytics on the Free plan answer one day per query; the Worker asks day by day, up to 30 requests per view, and says how many days the numbers cover. Whole-dataset downloads are counted on the exact `registry.json` paths of every release listed in `versions.json`.
 
 Setting up the dashboard, once:
