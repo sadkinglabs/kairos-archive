@@ -12,9 +12,11 @@ const sections = source.split(/^(?=\/\/ ── )/m).map((chunk) => chunk.trim())
 const step = (n: number) => sections.find((s) => s.startsWith(`// ── ${n}.`)) ?? "";
 const usage = `const report = await analyseSet("001");
 
-console.log(report.curve);      // { 0: 1, 1: 39, 2: 87, ... }
-console.log(report.elements);   // { Air: 21, Earth: 21, ... }
-console.log(report.facts);      // ["68% of cards cost 4 or less.", ...]`;
+console.log(report.curve);
+console.log(report.elements);
+console.log(report.types);
+console.log(report.notable);
+console.log(report.facts);`;
 const repo = "https://github.com/sadkinglabs/kairos-archive/blob/main/src/fun";
 const { registry } = await loadRegistry();
 const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !== "999");
@@ -40,24 +42,32 @@ const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !
   <CodeExample code={step(1)} lang="javascript" title="1 · getSetCards" />
 
   <h3>2. Build a mana curve</h3>
-  <p>Each record has a <code>cost</code>: a number, or <code>null</code> for sites, avatars and X-cost cards. Count the cards at each cost into an object and the curve is done; the tool draws it as bars.</p>
+  <p>Each record has a <code>cost</code>: a number, or <code>null</code> for sites, avatars and X-cost cards. Count the cards at each cost into an object and the curve is done.</p>
   <CodeExample code={step(2)} lang="javascript" title="2 · manaCurve" />
 
-  <h3>3. Analyse elements</h3>
+  <h3>3. Turn counts into percentages</h3>
+  <p>A tiny helper the next two steps share: an object of counts in, the same keys as whole-number percentages out.</p>
+  <CodeExample code={step(3)} lang="javascript" title="3 · percentages" />
+
+  <h3>4. Analyse elements</h3>
   <p><code>elements</code> is a list. A card with two elements counts once for each, and a card with none carries <code>"None"</code>, so elementless cards are counted too. The shares are percentages of the set's cards, which is why they can add up to more than a hundred.</p>
-  <CodeExample code={step(3)} lang="javascript" title="3 · elementShares" />
+  <CodeExample code={step(4)} lang="javascript" title="4 · elementShares" />
 
-  <h3>4. Analyse card types</h3>
+  <h3>5. Analyse card types</h3>
   <p><code>type</code> is one of Minion, Magic, Aura, Artifact, Site and Avatar. Same idea, with the counters created as the types turn up.</p>
-  <CodeExample code={step(4)} lang="javascript" title="4 · typeShares" />
+  <CodeExample code={step(5)} lang="javascript" title="5 · typeShares" />
 
-  <h3>5. Find notable cards</h3>
+  <h3>6. Find notable cards</h3>
   <p>The records are objects, so they can be compared, not just counted. Each of these walks the set once and keeps the best card it has seen. <code>power</code> is worked out by Kairos from attack and defense, so the strongest minion needs no arithmetic here.</p>
-  <CodeExample code={step(5)} lang="javascript" title="5 · mostExpensive, cheapestUnique, strongestMinion" />
+  <CodeExample code={step(6)} lang="javascript" title="6 · mostExpensive, cheapestUnique, strongestMinion" />
 
-  <h3>6. Build the report</h3>
-  <p>A few more numbers that no API field holds, from one more pass over the records, and then everything gathered into one report by one function.</p>
-  <CodeExample code={step(6)} lang="javascript" title="6 · facts and analyseSet" />
+  <h3>7. Derive some useful facts</h3>
+  <p>None of these numbers is an API field. One more pass over the records and they exist.</p>
+  <CodeExample code={step(7)} lang="javascript" title="7 · facts" />
+
+  <h3>8. Build the report</h3>
+  <p>Everything gathered into one object by one function.</p>
+  <CodeExample code={step(8)} lang="javascript" title="8 · analyseSet" />
 
   <h3>Try it</h3>
   <CodeExample code={usage} lang="javascript" title="usage" />
