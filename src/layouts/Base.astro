@@ -29,8 +29,8 @@ const beaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN as string | undefined
 const statsBase = (import.meta.env.PUBLIC_STATS_BASE_URL as string | undefined) ?? "https://stats.kairosarchive.net";
 /** The footer's site map: every way around the archive, in four groups. */
 const footerGroups: [string, [string, string][]][] = [
-  ["Cards", [["/advanced", "Advanced Search"], ["/syntax", "Search Syntax"], ["/sets", "All Sets"], ["/cards", "All Cards"], ["/random", "Random Card"], ["/fun", "Fun Zone"]]],
-  ["Archive", [["/changes", "Changes & Errata"], ["/tokens", "Tokens"], ["/discord", "Discord Bot"], ["/about", "About"]]],
+  ["Cards", [["/advanced", "Advanced Search"], ["/syntax", "Search Syntax"], ["/sets", "All Sets"], ["/cards", "All Cards"], ["/random", "Random Card"]]],
+  ["Kairos Archive", [["/changes", "Changes & Errata"], ["/tokens", "Tokens"], ["/discord", "Discord Bot"], ["/fun", "Fun Zone"], ["/about", "About"]]],
   ["Developers", [["/docs", "API Documentation"], ["/docs/data", "Download the Data"], ["/docs/types/card", "Card Object"], ["/docs/changelog", "API Changelog"], ["/usage", "Usage & Attribution"]]],
   ["Source", [["https://github.com/sadkinglabs/sorcery-registry", "Registry on GitHub"], ["https://github.com/sadkinglabs/kairos-archive", "Site on GitHub"], ["https://github.com/sadkinglabs/sorcery-registry/issues", "Report an Issue"]]],
 ];
