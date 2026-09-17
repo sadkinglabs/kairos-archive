@@ -8,7 +8,7 @@ export const COPIES = { Ordinary: 4, Exceptional: 3, Elite: 2, Unique: 1 };
 export const SPELLBOOK = 60;
 export const ATLAS = 30;
 export const COLLECTION = 10;
-/** How the spellbook splits by type, as proportions. */
+/** How the spellbook splits by type; with Toolbox it should still add up to sixty. */
 export const SPLIT = { Artifact: 8, Aura: 6, Magic: 16, Minion: 30 };
 
 // ── 1. One search query per part of the deck
@@ -63,20 +63,9 @@ export function draw(pool, size) {
   return picks;
 }
 
-// ── 5. The sizes: sixty spells, Toolbox among them, the rest in proportion
-export function sizes(choice) {
-  const left = SPELLBOOK - choice.toolbox;
-  const sum = Object.values(choice.split).reduce((a, b) => a + b, 0) || 1;
-  const out = {};
-  for (const type in choice.split) out[type] = Math.round((choice.split[type] * left) / sum);
-  const biggest = Object.keys(out).sort((a, b) => out[b] - out[a])[0];
-  out[biggest] += left - Object.values(out).reduce((a, b) => a + b, 0);   // rounding's odd card
-  return out;
-}
-
-// ── 6. A deck: one query per part, in the order the list shows
+// ── 5. A deck: one query per part, in the order the list shows
 export async function deal(choice) {
-  const parts = { Avatar: 1, ...sizes(choice), Toolbox: choice.toolbox, Site: ATLAS, Collection: choice.toolbox ? COLLECTION : 0 };
+  const parts = { Avatar: 1, ...choice.split, Toolbox: choice.toolbox, Site: ATLAS, Collection: choice.toolbox ? COLLECTION : 0 };
   const deck = [];
   const named = new Set();
   for (const part in parts) {
@@ -91,7 +80,7 @@ export async function deal(choice) {
   return deck;
 }
 
-// ── 7. The list, with the query each part came from
+// ── 6. The list, with the query each part came from
 export function formatDeck(deck) {
   const lines = [];
   let total = 0;
@@ -106,18 +95,31 @@ export function formatDeck(deck) {
   return lines.join("\n");
 }
 
-// ── 8. The form on the page
+// ── 7. The form on the page
 if (typeof document !== "undefined" && document.getElementById("deck-form")) {
   const form = document.getElementById("deck-form");
   const out = document.getElementById("deck");
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  const total = document.getElementById("deck-total");
+  const read = () => {
     const data = new FormData(form);
     const choice = { elements: data.getAll("element"), sets: data.getAll("set"), toolbox: Number(data.get("toolbox")), split: {} };
     for (const type in SPLIT) choice.split[type] = Number(data.get(type)) || 0;
+    return choice;
+  };
+  // The spellbook count, as it is typed: red past sixty.
+  const count = () => {
+    const choice = read();
+    const spells = Object.values(choice.split).reduce((a, b) => a + b, 0) + choice.toolbox;
+    total.textContent = `${spells} / ${SPELLBOOK} spells`;
+    total.classList.toggle("over", spells > SPELLBOOK);
+  };
+  form.addEventListener("input", count);
+  count();
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
     out.textContent = "Asking the query API…";
     try {
-      out.textContent = formatDeck(await deal(choice));
+      out.textContent = formatDeck(await deal(read()));
     } catch (err) {
       out.textContent = err.message;
     }

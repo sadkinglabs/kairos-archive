@@ -1,6 +1,6 @@
 /** The random deck generator against the deck-building rules. */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ATLAS, COLLECTION, COPIES, SPELLBOOK, SPLIT, deal, draw, formatDeck, matches, query, sizes, within } from "./random-deck.js";
+import { ATLAS, COLLECTION, COPIES, SPELLBOOK, SPLIT, deal, draw, formatDeck, matches, query, within } from "./random-deck.js";
 
 type Card = { name: string; type: string; rarity: string | null; elements: string[] };
 const card = (name: string, rarity: string | null, elements: string[] = ["Fire"], type = "Minion"): Card => ({ name, type, rarity, elements });
@@ -72,13 +72,6 @@ describe("the draw", () => {
   it("comes up short from a small pool rather than bending a rule", () => {
     expect(total(draw([card("a", "Unique"), card("b", "Elite")], ATLAS))).toBeLessThanOrEqual(3);
   });
-  it("sizes the spellbook to sixty with Toolbox among them, in proportion", () => {
-    expect(sizes(choice())).toEqual({ Artifact: 8, Aura: 6, Magic: 16, Minion: 30 });
-    const withToolbox = sizes(choice({ toolbox: 3 })) as Record<string, number>;
-    expect(Object.values(withToolbox).reduce((a, b) => a + b, 0)).toBe(57);
-    expect(withToolbox.Minion!).toBeGreaterThan(withToolbox.Magic!);
-    expect(sizes(choice({ split: { Artifact: 0, Aura: 0, Magic: 0, Minion: 1 } }))).toEqual({ Artifact: 0, Aura: 0, Magic: 0, Minion: 60 });
-  });
 });
 
 describe("the deal", () => {
@@ -88,11 +81,12 @@ describe("the deal", () => {
     expect(deck.map((z) => [z.part, z.size, total(z.picks)])).toEqual([["Avatar", 1, 1], ["Artifact", 8, 8], ["Aura", 6, 6], ["Magic", 16, 16], ["Minion", 30, 30], ["Site", 30, 30]]);
     expect(deck[1]!.q).toBe("t:artifact (e:fire or e:none) s:001,006 is:booster");
     expect(formatDeck(deck)).toContain("91 cards in all");
+    expect(Object.values(SPLIT).reduce((a, b) => a + b, 0)).toBe(SPELLBOOK);
   });
   it("with Toolbox: Toolbox inside the sixty, the Collection after the atlas, 101 cards, no card in two parts", async () => {
     const asked = fakeApi();
-    const deck = await deal(choice({ toolbox: 3 }));
-    expect(deck.map((z) => [z.part, z.size, total(z.picks)])).toEqual([["Avatar", 1, 1], ["Artifact", 8, 8], ["Aura", 6, 6], ["Magic", 15, 15], ["Minion", 28, 28], ["Toolbox", 3, 3], ["Site", 30, 30], ["Collection", 10, 10]]);
+    const deck = await deal(choice({ toolbox: 3, split: { Artifact: 8, Aura: 6, Magic: 16, Minion: 27 } }));
+    expect(deck.map((z) => [z.part, z.size, total(z.picks)])).toEqual([["Avatar", 1, 1], ["Artifact", 8, 8], ["Aura", 6, 6], ["Magic", 16, 16], ["Minion", 27, 27], ["Toolbox", 3, 3], ["Site", 30, 30], ["Collection", 10, 10]]);
     expect(asked).toContain('t:artifact (e:fire or e:none) -!"Toolbox"');
     const names: string[] = deck.flatMap((z) => z.picks.map((p: { card: Card }) => p.card.name));
     expect(new Set(names).size).toBe(names.length);
