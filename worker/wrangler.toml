@@ -30,3 +30,9 @@ enabled = true
 name = "LIMITER"
 namespace_id = "1001"
 simple = { limit = 60, period = 60 }
+
+# Usage counts: one data point per request (src/stats.ts), read by the
+# archive's stats dashboard. The dataset is created on first write.
+[[analytics_engine_datasets]]
+binding = "STATS"
+dataset = "kairos_query"

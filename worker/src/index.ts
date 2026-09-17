@@ -2,5 +2,5 @@
 import { handle, type Env } from "./worker";
 
 export default {
-  fetch: (request: Request, env: Env): Promise<Response> => handle(request, env),
+  fetch: (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> => handle(request, env, undefined, ctx),
 } satisfies ExportedHandler<Env>;
