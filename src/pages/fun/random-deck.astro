@@ -1,26 +1,36 @@
 ---
-/** A random deck generator and the walkthrough of how it is built. The
- * code the page runs is the code the page shows: one JavaScript file,
- * split at its section comments so each step sits beside its prose. */
+/** The random deck: a live generator on top, and under it a short
+ * walkthrough of the query API using the very file the page runs.
+ * The form's own code lives in deck-page.js and stays out of the
+ * tutorial. */
 import Base from "../../layouts/Base.astro";
 import CodeExample from "../../components/CodeExample.astro";
 import source from "../../fun/random-deck.js?raw";
-import { ATLAS, COLLECTION, SPELLBOOK, SPLIT } from "../../fun/random-deck.js";
 import { loadRegistry, orderedSets } from "../../data/registry";
 
+/** The tutorial file, split at its "// ── N." headings. */
 const sections = source.split(/^(?=\/\/ ── )/m).map((chunk) => chunk.trim());
 const step = (n: number) => sections.find((s) => s.startsWith(`// ── ${n}.`)) ?? "";
-const sourceUrl = "https://github.com/sadkinglabs/kairos-archive/blob/main/src/fun/random-deck.js";
+const usage = `const choice = {
+  elements: ["Fire", "Water"],
+  sets: ["001", "006"],
+  toolbox: 3,
+  split: { Artifact: 8, Aura: 6, Magic: 16, Minion: 27 },
+};
+
+const deck = await makeDeck(choice);
+
+console.log(deck);`;
+const repo = "https://github.com/sadkinglabs/kairos-archive/blob/main/src/fun";
 const elements = ["Air", "Earth", "Fire", "Water"];
-/** The sets a deck may draw from: every real set, never the promo bucket. */
+const split = { Artifact: 8, Aura: 6, Magic: 16, Minion: 30 };
 const { registry } = await loadRegistry();
 const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !== "999");
-const lines = source.split("\n").length;
 ---
-<Base title="Random deck" canonical="/fun/random-deck" description="Pick elements and a spell split, get a random Sorcery deck list drawn to the copy rules from the Kairos Archive query API. Plain JavaScript, on the page, step by step.">
+<Base title="Random deck" canonical="/fun/random-deck" description="A random Sorcery deck from the Kairos Archive query API, and a short tutorial: build a query, fetch the pages, use the card records with ordinary JavaScript.">
   <p class="eyebrow"><a href="/fun">Fun Zone</a></p>
   <h1>Random deck</h1>
-  <p class="intro">Pick the elements, the sets, how the spellbook splits and how many Toolbox, and deal: one avatar, a spellbook of {SPELLBOOK}, an atlas of {ATLAS}, and with any Toolbox a collection of {COLLECTION} Ordinary spells for it to cast, no card above what its rarity allows. Every part of the deck is one search query, the same syntax as the search box, answered by the <a href="/docs/query">query API</a>, and the list shows the query each part came from. Booster printings only, never promos. It is {lines} lines of plain JavaScript, all on this page.</p>
+  <p class="intro">Pick elements and sets, say how the spellbook splits and whether Toolbox is in, and deal. Every part of the deck is one search query, and the list shows the query each part came from and how many cards it matched. Under the generator, the code that does it, section by section.</p>
 
   <form id="deck-form" class="deck-form">
     <fieldset>
@@ -33,62 +43,53 @@ const lines = source.split("\n").length;
     </fieldset>
     <fieldset>
       <legend>Spellbook</legend>
-      <div class="row">{Object.entries(SPLIT).map(([type, n]) => <label>{type}s <input type="number" name={type} value={n} min="0" max={SPELLBOOK} /></label>)}</div>
+      <div class="row">{Object.entries(split).map(([type, n]) => <label>{type}s <input type="number" name={type} value={n} min="0" max="60" /></label>)}</div>
     </fieldset>
     <fieldset>
       <legend>Toolbox</legend>
       <div class="row">{[0, 1, 2, 3].map((n) => <label><input type="radio" name="toolbox" value={n} checked={n === 0} /> {n}</label>)}</div>
-      <output id="deck-total" class="total" for="Artifact Aura Magic Minion toolbox" aria-live="polite">{SPELLBOOK} / {SPELLBOOK} spells</output>
+      <output id="deck-total" class="total" for="Artifact Aura Magic Minion toolbox" aria-live="polite">60 / 60 spells</output>
     </fieldset>
     <button type="submit">Deal a deck</button>
   </form>
   <pre id="deck" class="rules deck" aria-live="polite">Your deck appears here.</pre>
 
-  <h2>How it is built</h2>
-  <p>JavaScript, the plain kind: no framework, no build step, no key. Eight parts, in the order they run; the code under each heading is read from the file this page is running.</p>
+  <h2>Build a random Sorcery deck with the Kairos API</h2>
+  <p>Kairos Archive exposes the same search system used by the website through a simple JSON API. You do not need an API key or a JavaScript library. In this example we search for cards, handle pagination, and use the returned records to generate a random deck. The code below is the file this page runs, in plain JavaScript.</p>
 
-  <h3>0. The rules</h3>
-  <p>Four copies of an Ordinary, three of an Exceptional, two of an Elite, one of a Unique. Sixty spells, thirty sites, ten in the collection. The default split by type, in the order the list shows it.</p>
-  <CodeExample code={step(0)} lang="javascript" title="the rules" />
+  <h3>1. Describe the deck</h3>
+  <p>A few constants for the rules the deck must follow, and the shape of a choice: which elements, which sets, how many Toolbox, and how the sixty spells split by type. This is your data, not the API's.</p>
+  <CodeExample code={step(1)} lang="javascript" title="1 · the rules and a choice" />
 
-  <h3>1. One search query per part</h3>
-  <p>The deck is nothing but search results. <code>t:minion (e:fire,water or e:none) s:001,006 is:booster</code> is every minion with Fire, Water or no element, printed in a booster of Alpha or Gothic. Paste it into the search box and you see the cards the deal draws from. The collection asks for <code>cat:spell rarity:ordinary</code>; Toolbox is its own name, <code>!"Toolbox"</code>, and when it is in, the artifacts leave it out.</p>
-  <CodeExample code={step(1)} lang="javascript" title="the query" />
+  <h3>2. Turn those choices into a Kairos query</h3>
+  <p>One query per part of the deck, in the same syntax you can type into the search box at the top of this page. <code>t:minion (e:fire,water or e:none) s:001,006 is:booster</code> reads: minions, with Fire or Water or no element, printed in a booster of Alpha or Gothic. The full <a href="/syntax">syntax</a> is one page.</p>
+  <CodeExample code={step(2)} lang="javascript" title="2 · makeQuery" />
 
-  <h3>2. Every card the query matches</h3>
-  <p>The API answers two hundred cards a page and says whether there are more, so the loop asks until there are not. The answer is remembered: a second deal with the same choices asks nothing. The API allows sixty requests a minute from one address, and a deal is about ten.</p>
-  <CodeExample code={step(2)} lang="javascript" title="fetching" />
+  <h3>3. Fetch matching cards</h3>
+  <p>This is the whole API. <code>fetch()</code> calls <code>/cards?q=…</code>, <code>body.data</code> is an array of card records, and <code>body.has_more</code> says whether another page exists. Pages hold up to two hundred cards, so the loop asks until there are no more.</p>
+  <CodeExample code={step(3)} lang="javascript" title="3 · getCards" />
 
-  <h3>3. Only the chosen elements</h3>
-  <p><code>e:fire,water</code> also admits a Fire and Air card, because it has Fire. One line keeps a card only when every element it has was chosen.</p>
-  <CodeExample code={step(3)} lang="javascript" title="the filter" />
+  <h3>4. Use the card records</h3>
+  <p>From here on it is ordinary JavaScript over ordinary objects. Each record has <code>name</code>, <code>type</code>, <code>rarity</code>, <code>elements</code> and the rest of the <a href="/docs/types/card">card object</a>. Two things this deck needs: a query like <code>e:fire,water</code> means Fire <em>or</em> Water, so a Fire and Air card slips in, and the generator should reject any card with an element the user did not pick. And a draw that respects the copy limits: four of an Ordinary, three of an Exceptional, two of an Elite, one of a Unique.</p>
+  <CodeExample code={step(4)} lang="javascript" title="4 · onlyChosenElements and drawCards" />
 
-  <h3>4. Draw to the copy rules</h3>
-  <p>Shuffle, then walk the pool taking a random number of copies of each card, never more than its rarity allows, until the part is full. A pool too small for its part gives a short part, which the list says, never a fifth copy.</p>
-  <CodeExample code={step(4)} lang="javascript" title="the draw" />
+  <h3>5. Assemble the deck</h3>
+  <p>The parts in order: the avatar, the spellbook by type, Toolbox, the sites, and, when Toolbox is in, a collection of ten Ordinary spells for it to cast. For each part: build the query, fetch the cards, filter them, draw, add the part to the deck. A card's copies count across the whole deck, so a name already used is skipped.</p>
+  <CodeExample code={step(5)} lang="javascript" title="5 · makeDeck" />
 
-  <h3>5. A deck</h3>
-  <p>One query per part, one draw per part, in the order the list shows: the avatar, the spellbook by type as the boxes say, Toolbox, the sites, then the collection. The collection skips any card already in the deck, because a card's copies are counted across the whole deck.</p>
-  <CodeExample code={step(5)} lang="javascript" title="the deal" />
+  <h3>Try it</h3>
+  <p>Describe a deck and ask for it. What comes back is an array of parts, each with its query, how many cards matched, and the cards drawn.</p>
+  <CodeExample code={usage} lang="javascript" title="usage" />
 
-  <h3>6. The list</h3>
-  <p>Each part with its count and the query it came from, then its cards by name, then how many cards in all: 91, or 101 with a Toolbox and its collection.</p>
-  <CodeExample code={step(6)} lang="javascript" title="the list" />
+  <p class="takeaway">Kairos handles finding and structuring the card data. Your application logic can stay ordinary, boring JavaScript.</p>
 
-  <h3>7. The form</h3>
-  <p>Read the boxes, deal, print. The spellbook count under the boxes is the four numbers plus Toolbox, kept up to date as you type. Past sixty it turns red and the button switches off until the numbers are fixed; under sixty the deal goes ahead and the list says what it came to.</p>
-  <CodeExample code={step(7)} lang="javascript" title="the form" />
-
-  <h2>Make it yours</h2>
-  <p>Change the queries. <code>s:alpha</code> for one set, <code>cost&lt;=3</code> for a cheap deck, <code>-is:errata</code> to skip cards whose text has changed, <code>k:spellcaster</code> for a theme: anything the <a href="/syntax">search syntax</a> can say, the deck can be drawn from. Parts 0 to 6 run in Node as they are; send a <code>User-Agent</code> that names your tool, as the <a href="/usage">usage terms</a> ask.</p>
-
-  <h2>All of it</h2>
-  <p><a href={sourceUrl}>random-deck.js on GitHub</a>.</p>
-  <CodeExample code={source} lang="javascript" title="random-deck.js" />
+  <h3>All of it</h3>
+  <p>The file in one block: <a href={`${repo}/random-deck.js`}>random-deck.js</a>. The form above and the printed list are their own file, <a href={`${repo}/deck-page.js`}>deck-page.js</a>, and not part of the tutorial.</p>
+  <CodeExample code={`${source}\n\n${usage}`} lang="javascript" title="random-deck.js" />
 </Base>
 
 <script>
-  import "../../fun/random-deck.js";
+  import "../../fun/deck-page.js";
 </script>
 
 <style>
@@ -103,4 +104,5 @@ const lines = source.split("\n").length;
   .deck-form .total { display: block; margin-top: .4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
   .deck-form .total.over { color: var(--removed-fg); }
   .deck { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; line-height: 1.5; }
+  .takeaway { font-family: var(--display); font-size: 1.3rem; line-height: 1.4; border-left: 3px solid var(--accent); padding-left: 1rem; margin: 2rem 0; }
 </style>
