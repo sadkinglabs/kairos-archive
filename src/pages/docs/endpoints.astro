@@ -7,6 +7,7 @@ const files: [string, string][] = [
   ['registry.json.sha256', 'Its SHA-256, in sha256sum format.'],
   ['schema.json', 'The JSON Schema (draft 2020-12) the whole database validates against.'],
   ['changes.json', 'What this release changed against the previous one: counts, the ids behind them, and identifiers_removed, always 0 within a major. From v3.3.2 on.'],
+  ['types.d.ts', 'TypeScript declarations generated from schema.json: import type { Registry, Card } from "./types". From v3.3.3 on.'],
   ['cards/{codex_id}.json', 'One card, plus summaries of its printings, its name history and its card history.'],
   ['printings/{printing_id}.json', 'One printing, plus its slug history.'],
   ['slugs/{slug}.json', 'Resolves any slug, current or old, to its permanent IDs.'],

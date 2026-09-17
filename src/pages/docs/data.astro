@@ -18,6 +18,7 @@ const files: [string, string][] = [
   ['registry.json', 'Everything: sets, cards, printings and the three histories, in one file.'],
   ['registry.json.sha256', 'Its SHA-256, in sha256sum format.'],
   ['schema.json', 'The JSON Schema the file validates against.'],
+  ['types.d.ts', 'TypeScript declarations generated from the schema. From v3.3.3 on.'],
   ['index.json', 'What the release contains and where each object lives.'],
   ['changes.json', 'What the release changed against the one before it, by id and field. From v3.3.2 on.'],
   ['index/cards.json', 'Compact card records, for search and filtering.'],
@@ -29,6 +30,15 @@ const curl = `curl --fail --location \\
   --user-agent 'my-card-tool/1.0 (contact@example.com)' \\
   --output registry.json '${alias}/registry.json'
 curl --fail --location --silent '${alias}/registry.json.sha256' | sha256sum --check`;
+const typesFetch = `curl --fail --location -O '${alias}/types.d.ts'
+curl --fail --location -O '${alias}/registry.json'`;
+const typesUse = `// registry.ts - next to the two files above
+import { readFile } from "node:fs/promises";
+import type { Registry, Card } from "./types";
+
+const registry: Registry = JSON.parse(await readFile("registry.json", "utf8"));
+const bears: Card | undefined = registry.cards.find((c) => c.name === "Polar Bears");
+console.log(bears?.codex_id, bears?.power);`;
 ---
 <Docs title="Download the data" description="The whole database is one file. Fetch it once, verify it, and query it locally.">
   <p>The API is a set of static files on a CDN, so the newest verified release <em>is</em> the live data: there is nothing fresher to poll. For anything beyond a single lookup, download <code>registry.json</code> once, check its digest, and work from your copy. To learn when a new release exists, read <a href={`${API_BASE}/versions.json`}><code>versions.json</code></a> (60-second cache; hourly is plenty, the data changes a few times a year). The per-object files are for one lookup at a time; please do not crawl them.</p>
@@ -59,6 +69,13 @@ curl --fail --location --silent '${alias}/registry.json.sha256' | sha256sum --ch
   <h2>Fetch and verify</h2>
   <CodeExample code={curl} lang="bash" title="curl · download the newest release and check it" />
   <p>Identify automated clients with a <code>User-Agent</code> naming your project and a contact; requests without one are refused. <a href="/docs/releases">Releases and versioning</a> has the same steps in Python, resolving the tag from <code>versions.json</code> first.</p>
+
+  <h2>Typed records in TypeScript</h2>
+  <p>Every release root carries <code>types.d.ts</code>, generated from <code>schema.json</code> at release time. One import gives you typed records, with every field's description as JSDoc, and nothing to install.</p>
+  <CodeExample code={typesFetch} lang="bash" title="curl · the declarations and the data, side by side" />
+  <CodeExample code={typesUse} lang="ts" title="registry.ts · typed access" />
+  <p>Run it with <code>node registry.ts</code> on Node 22.18 or newer, which strips the types itself. To type-check it, install the compiler and Node's own type definitions once, <code>npm i -D typescript @types/node</code> (the registry's types need nothing; these two are for <code>tsc</code> and for <code>node:fs</code>), then <code>npx tsc --strict --noEmit --target es2022 --module esnext --moduleResolution bundler --types node registry.ts</code>. In a browser or a Worker the same declarations apply to a fetch and need no Node types: <code>await (await fetch(url)).json() as Registry</code>, type-checked with <code>--lib es2022,dom</code> instead of <code>--types node</code>.</p>
+  <p>The file declares <code>Registry</code>, one interface per record (<code>Card</code>, <code>Printing</code>, <code>RegistrySet</code>, <code>CardHistoryRow</code>, <code>NameHistoryRow</code>, <code>SlugHistoryRow</code>, <code>Header</code>), the shared shapes <code>Face</code>, <code>PrintingFace</code> and <code>ImageUrls</code>, and the aliases <code>CodexId</code>, <code>PrintingId</code>, <code>SetCode</code>, <code>IsoDate</code>, <code>Threshold</code> and <code>ImageStatus</code>. <code>Card</code> and <code>CardHistoryRow</code> extend <code>Face</code>, so a function that takes a face reads either. The declarations describe; they do not validate: <code>JSON.parse</code> accepts any JSON, so check a file against <a href={`${alias}/schema.json`}>the schema</a> if it did not come from the API. Releases before v3.3.3 have no <code>types.d.ts</code>.</p>
 
   <h2>What is inside</h2>
   <p><code>registry.json</code> holds a <code>header</code> and six arrays: <code>sets</code>, <code>cards</code>, <code>printings</code>, <code>slug_history</code>, <code>name_history</code> and <code>card_history</code>. Cards carry gameplay data and are keyed by <code>codex_id</code>; printings carry physical facts and are keyed by <code>printing_id</code>; the histories record every slug, name and gameplay face the registry has ever seen, each with the range of dates it was in force. <a href="/docs/cards">Cards and printings</a> and <a href="/docs/history">history and errata</a> explain the fields; <a href={`${alias}/schema.json`}>the schema</a> is the contract.</p>
