@@ -207,6 +207,7 @@ a.badge.older:hover, a.badge.ok:hover { text-decoration: underline; }
 .record-block.bare { border: 0; background: none; padding: 0; margin: .8rem 0; }
 .record-id { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .45rem; margin: 0; font-size: .83rem; }
 .record-block:not(.bare) .record-id { margin-bottom: .85rem; }
+.record-block .record-id.parent { margin: .85rem 0 0; padding-top: .75rem; border-top: 1px solid var(--line); }
 .record-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; }
 .record-buttons .btn { flex: 1 1 auto; font-size: .88rem; padding: .5rem .8rem; min-height: 40px; }
 .download-status { width: 100%; font-size: .8rem; }
@@ -228,13 +229,11 @@ code { background: var(--badge); padding: .12rem .3rem; border-radius: 4px; font
 .printing-heading p { font-size: .8rem; margin: .15rem 0; }
 .printing-verdict { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: flex-end; }
 .printing-links { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; margin: .7rem 0 .25rem; font-size: .75rem; }
-.push-right { margin-left: auto; }
 .disclosure { margin: .65rem 0; font-size: .87rem; }
 .disclosure summary { cursor: pointer; padding: .45rem 0; color: var(--muted); }
 .disclosure[open] > summary { color: var(--fg); }
 .disclosure p { max-width: 78ch; }
 .disclosure > dl { margin-top: .7rem; }
-.printing-source { margin: .2rem 0 0; font-size: .75rem; }
 dl.facts { display: grid; grid-template-columns: minmax(90px, max-content) minmax(0, 1fr); gap: .45rem 1rem; font-size: .87rem; }
 dl.facts dt { color: var(--muted); }
 dl.facts dd { margin: 0; overflow-wrap: anywhere; }
@@ -406,7 +405,6 @@ table.fields td:first-child { white-space: nowrap; }
   .printing-thumb { grid-row: 1 / span 2; }
   .printing-heading h3 { font-size: 1.15rem; }
   .printing-heading p { font-size: .77rem; }
-  .printing-links .push-right { margin-left: 0; }
   .printing-links { gap: .45rem; }
   .set-catalogue { grid-template-columns: 1fr; }
   .change-entry { padding: 1rem; }

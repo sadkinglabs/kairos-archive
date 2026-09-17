@@ -1,8 +1,10 @@
 ---
 import Icon from './Icon.astro';
 import { lightboxSize } from '../presentation/cardOrientation';
-interface Props { urls?: Record<string, string> | null; status?: string; name: string; back?: boolean; type?: string | null }
-const { urls, status, name, back = false, type } = Astro.props;
+interface Props { urls?: Record<string, string> | null; status?: string; name: string; back?: boolean; type?: string | null;
+  /** The rendition links under the art; off where the page lists the addresses itself. */
+  renditions?: boolean }
+const { urls, status, name, back = false, type, renditions = true } = Astro.props;
 const site = type === 'Site';
 const pswp = lightboxSize(site ? 90 : 0);
 ---
@@ -11,7 +13,7 @@ const pswp = lightboxSize(site ? 90 : 0);
   {urls ? <>
     <a class="art-link" data-orientation={site ? "90" : undefined} href={urls.large} data-lightbox data-pswp-width={pswp.width} data-pswp-height={pswp.height} aria-label={`Enlarge ${name}`}><img class="card-img" src={urls.normal} width="488" height="680" alt={name} loading={back ? 'lazy' : 'eager'} /></a>
     <figcaption>
-      <div class="image-actions">{site && <button type="button" class="rotate-art" data-rotate-art hidden aria-label={`Show portrait for ${name}`}><span aria-hidden="true">↻</span> <span data-rotation-label>Show portrait</span></button>}<a href={urls.large} data-enlarge><Icon name="expand" size={15} /> Enlarge</a><a href={urls.small}>Small</a><a href={urls.normal}>Normal</a><a href={urls.large}>Large</a><a href={urls.original}>Original</a></div>
+      <div class="image-actions">{site && <button type="button" class="rotate-art" data-rotate-art hidden aria-label={`Show portrait for ${name}`}><span aria-hidden="true">↻</span> <span data-rotation-label>Show portrait</span></button>}<a href={urls.large} data-enlarge><Icon name="expand" size={15} /> Enlarge</a>{renditions && <><a href={urls.small}>Small</a><a href={urls.normal}>Normal</a><a href={urls.large}>Large</a><a href={urls.original}>Original</a></>}</div>
       {status === 'lowres' && <small class="muted">Low-resolution source, upscaled.</small>}
     </figcaption>
   </> : <div class="placeholder">No image held for {name}</div>}

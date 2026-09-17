@@ -20,12 +20,14 @@ interface Props {
   errata?: boolean;
   /** Shown above the rules text when the card has recorded errata. */
   erratumNote?: string | null;
+  /** Where "See history" lands: the which-printings block when there is one. */
+  historyHref?: string;
   /** The card's permanent id, shown with a copy button - front face only. */
   id?: string | null;
   /** The sets the card appears in, as links - front face only. */
   sets?: { code: string | null; name: string; href: string }[];
 }
-const { face, title, level = 2, printing = null, errata = false, erratumNote = null, id = null, sets = [] } = Astro.props;
+const { face, title, level = 2, printing = null, errata = false, erratumNote = null, id = null, sets = [], historyHref = '#history' } = Astro.props;
 const Heading = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
 const typeLine = [face.rarity, face.type].filter(Boolean).join(' ') + (face.subtypes.length ? ` — ${face.subtypes.join(', ')}` : '');
 const elements = face.elements.filter(e => e !== 'None');
@@ -54,7 +56,7 @@ const artistSearch = artist ? `/search?q=${encodeURIComponent(`a:"${artist}"`)}`
     {printedTypeline && <p class="printed muted">{printedTypeline}</p>}
   </div>}
   {(face.rules_text || erratumNote) && <div class="row rules">
-    {erratumNote && <div class="errata-notice"><span>{erratumNote}</span><a href="#history">See history →</a></div>}
+    {erratumNote && <div class="errata-notice"><span>{erratumNote}</span><a href={historyHref}>See history →</a></div>}
     {face.rules_text && <p class="rules-text">{face.rules_text}</p>}
   </div>}
   {flavour && <div class="row flavour"><p>{flavour}</p></div>}

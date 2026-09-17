@@ -1,33 +1,31 @@
 ---
-import { changedFields, historySource, printingPath, rowInForce, setPath, showsCurrentValues, type RegistryCard, type RegistryPrinting, type HistoryRow } from '../data/registry';
-import FaceDiff from './FaceDiff.astro';
-import ImageAddresses from './ImageAddresses.astro';
-import ValueDiff from './ValueDiff.astro';
+/** One printing in the card page's list: the item-level summary, and the
+ * way to the printing's own page. Everything item-level (slug, JSON,
+ * image addresses) lives on that page, one click away; the entry says
+ * only what a reader scanning the list needs, plus the as-printed
+ * comparison for a printing the card has since outgrown. */
+import { printingPath, showsCurrentValues, type RegistryCard, type RegistryPrinting, type HistoryRow } from '../data/registry';
+import AsPrinted from './AsPrinted.astro';
+import { hasAsPrinted } from '../data/asPrinted';
 interface Props { printing: RegistryPrinting; card: RegistryCard; history: HistoryRow[]; names: { name: string; valid_from: string; valid_to: string | null }[] }
 const { printing: p, card, history, names } = Astro.props;
 const verdict = showsCurrentValues(p);
-const row = p.printed_as_current === false && p.released_at ? rowInForce(history, p.released_at) : null;
-const nameRow = p.released_at ? rowInForce(names, p.released_at) : null;
-const nameChanged = nameRow && nameRow.name !== card.name;
-const hasDiff = row && (changedFields(row, card).length || changedFields(row.back, card.back).length || nameChanged);
+const pillClass = ['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : ''];
+const explained = history.length > 1 && verdict.verdict !== 'undated';
 ---
 <article class="printing-entry">
   <div class="printing-summary">
-    <a class="printing-thumb" href={printingPath(p)} aria-label={`${p.set_name} ${p.finish} printing ${p.printing_id}`}>
+    <a class="printing-thumb" href={printingPath(p)} tabindex="-1" aria-hidden="true">
       {p.image_urls ? <img class="card-img" src={p.image_urls.small} width="73" height="102" loading="lazy" alt="" /> : <div class="placeholder">No image</div>}
     </a>
-    <div class="printing-heading"><h3><a href={setPath(p)}>{p.set_name}</a> <span class:list={['badge', p.finish ? `finish-${p.finish.toLowerCase()}` : '']}>{p.finish ?? 'Unspecified finish'}</span></h3><p>{p.product ?? 'Unspecified product'} <span aria-hidden="true">·</span> <span class="muted">{p.released_at ?? 'Release date unknown'}</span></p><p class="muted">Art by {p.artist ?? 'unrecorded artist'}</p></div>
-    <div class="printing-verdict">{history.length > 1 && verdict.verdict !== 'undated'
-      ? <a class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']} href="#face-printings-title" title="See which printings carry which values">{verdict.short}</a>
-      : <span class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']} title={verdict.long}>{verdict.short}</span>}{p.retired_at && <span class="badge">Retired {p.retired_at}</span>}</div>
+    <div class="printing-heading"><h3><a href={printingPath(p)}>{p.set_name}</a> <span class:list={['badge', p.finish ? `finish-${p.finish.toLowerCase()}` : '']}>{p.finish ?? 'Unspecified finish'}</span></h3><p>{p.product ?? 'Unspecified product'} <span aria-hidden="true">·</span> <span class="muted">{p.released_at ?? 'Release date unknown'}</span></p><p class="muted">Artist: {p.artist ?? 'unrecorded'}</p></div>
+    <div class="printing-verdict">{explained
+      ? <a class:list={pillClass} href="#face-printings-title" title="See which printings carry which values">{verdict.short}</a>
+      : <span class:list={pillClass} title={verdict.long}>{verdict.short}</span>}{p.retired_at && <span class="badge">Retired {p.retired_at}</span>}</div>
   </div>
-  <div class="printing-links"><a href={printingPath(p)}><code>{p.printing_id}</code></a><button class="copy" data-copy={p.printing_id} aria-label={`Copy printing ID ${p.printing_id}`}>Copy</button>{p.printing_id === card.default_printing_id && <span class="muted">Default image</span>}<a class="push-right" href={printingPath(p)}>Printing details →</a></div>
-  {hasDiff && row && <details class="as-printed disclosure">
+  <div class="printing-links"><span class="muted">Printing ID</span><a href={printingPath(p)}><code>{p.printing_id}</code></a><button class="copy" data-copy={p.printing_id} aria-label={`Copy printing ID ${p.printing_id}`}>Copy</button>{p.printing_id === card.default_printing_id && <span class="muted">Shown above</span>}</div>
+  {hasAsPrinted(p, card, history, names) && <details class="as-printed disclosure">
     <summary>As printed · compare with current values</summary>
-    <p class="source-note">{historySource(row).label} · {historySource(row).dated} {row.valid_from}{row.valid_to && ` · range ends ${row.valid_to}`}</p>
-    {nameChanged && <ValueDiff field="name" before={nameRow!.name} after={card.name} beforeLabel="Printed name" afterLabel="Current name" />}
-    <FaceDiff before={row} after={card} beforeLabel="Printed values" afterLabel="Current values" />
-    {changedFields(row.back, card.back).length > 0 && <><h4>Back face</h4><FaceDiff before={row.back} after={card.back} beforeLabel="Printed values" afterLabel="Current values" /></>}
+    <AsPrinted printing={p} card={card} history={history} names={names} />
   </details>}
-  <details class="disclosure printing-source"><summary>Printing data</summary><dl class="facts"><dt>Current slug</dt><dd><code>{p.slug}</code></dd><dt>Shows current values</dt><dd>{verdict.long}</dd><dt>JSON record</dt><dd><a href={p.api_url}>View JSON</a></dd></dl><ImageAddresses urls={p.image_urls} back={p.back?.image_urls} name={`${card.name}, ${p.set_name} ${p.finish ?? ''}`.trim()} /></details>
 </article>

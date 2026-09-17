@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import CardArt from '../../components/CardArt.astro';
 import RecordActions from '../../components/RecordActions.astro';
-import PrintingEntry from '../../components/PrintingEntry.astro';
+import AsPrinted from '../../components/AsPrinted.astro';
 import ImageAddresses from '../../components/ImageAddresses.astro';
 import HistoryHelp from '../../components/HistoryHelp.astro';
 import { cardPath, loadRegistry, printingPath, setPath, showsCurrentValues, views } from '../../data/registry';
@@ -18,17 +18,17 @@ const v = views(registry);
 const card = v.cardById.get(printing.codex_id)!;
 const slugs = v.slugsByPrinting.get(printing.printing_id) ?? [];
 const verdict = showsCurrentValues(printing);
+const history = v.historyByCard.get(card.codex_id) ?? [];
 ---
 <Base title={`${card.name} (${printing.set_name}, ${printing.finish})`} canonical={printingPath(printing)} image={printing.image_urls?.normal ?? null}
   embed={embedDescription(card, [[printing.set_name, printing.product, printing.finish].filter(Boolean).join(' · '), printing.artist ? `Art by ${printing.artist}` : ''], { codex: card.codex_id, printing: printing.printing_id })} colour={embedColour(card.elements)}>
   <div class="card-overview">
     <div class="card-heading"><p class="eyebrow">Printing record</p><h1>{card.name}</h1><p class="intro">{[printing.set_name, printing.product, printing.finish].filter(Boolean).join(' · ')}</p></div>
-    <div class="art-column"><CardArt urls={printing.image_urls} status={printing.image_status} name={card.name} type={card.type} />{printing.back && <CardArt urls={printing.back.image_urls} status={printing.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
+    <div class="art-column"><CardArt urls={printing.image_urls} status={printing.image_status} name={card.name} type={card.type} renditions={false} />{printing.back && <CardArt urls={printing.back.image_urls} status={printing.image_status} name={`${card.name}, back face`} type={card.back?.type} back renditions={false} />}</div>
     <div class="card-content">
-      <p>{(v.historyByCard.get(card.codex_id) ?? []).length > 1 && verdict.verdict !== 'undated'
+      <p>{history.length > 1 && verdict.verdict !== 'undated'
         ? <a class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']} href={`${cardPath(card)}#face-printings-title`} title="See which printings carry which values">{verdict.short}</a>
-        : <span class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']}>{verdict.short}</span>}</p>
-      <p><a href={cardPath(card)}>Read current rules and card history →</a></p>
+        : <span class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']} title={verdict.long}>{verdict.short}</span>}</p>
       <dl class="facts">
         <dt>Set</dt><dd><a href={setPath(printing)}>{printing.set_name}</a> <span class="muted">({printing.set_code ?? 'No code'})</span></dd>
         <dt>Released</dt><dd>{printing.released_at ?? 'Unknown'}</dd>
@@ -37,16 +37,14 @@ const verdict = showsCurrentValues(printing);
         <dt>Artist</dt><dd>{printing.artist ?? 'Unrecorded'}</dd>
         <dt>Typeline</dt><dd>{printing.typeline || '—'}</dd>
         {printing.flavour_text && <><dt>Flavour</dt><dd>{printing.flavour_text}</dd></>}
-        <dt>Current values?</dt><dd>{verdict.long}</dd>
         {printing.retired_at && <><dt>Retired</dt><dd>{printing.retired_at} (removed upstream; the record stays)</dd></>}
-        <dt>Current slug</dt><dd><code>{printing.slug}</code></dd>
       </dl>
-      <RecordActions id={printing.printing_id} url={printing.api_url} label="Printing ID" official={officialPrintingUrl(printing)} />
-      <RecordActions id={card.codex_id} label="Card ID" />
+      <RecordActions id={printing.printing_id} url={printing.api_url} label="Printing ID" official={officialPrintingUrl(printing)}
+        parent={{ label: 'Codex ID', id: card.codex_id, href: cardPath(card), text: 'Card record: current rules, printings and history →' }} />
       <details class="disclosure"><summary>Image addresses</summary><ImageAddresses urls={printing.image_urls} back={printing.back?.image_urls} name={card.name} heading={false} /></details>
       {printing.back && <section><h2>Back face</h2><dl class="facts"><dt>Artist</dt><dd>{printing.back.artist ?? 'Unrecorded'}</dd><dt>Typeline</dt><dd>{printing.back.typeline || '—'}</dd>{printing.back.flavour_text && <><dt>Flavour</dt><dd>{printing.back.flavour_text}</dd></>}</dl></section>}
     </div>
   </div>
-  {printing.printed_as_current === false && <section class="page-section"><h2>As printed</h2><HistoryHelp /><PrintingEntry printing={printing} card={card} history={v.historyByCard.get(card.codex_id) ?? []} names={v.namesByCard.get(card.codex_id) ?? []} /></section>}
-  <section class="page-section"><h2>Slug history</h2><p class="muted">Slugs can change. Store the permanent printing ID when identifying this printing.</p><ul>{slugs.map(s => <li><code>{s.slug}</code><span class="source-note"> · recorded on {s.valid_from}{s.valid_to ? ` · range ends ${s.valid_to}` : ' · current'}</span></li>)}</ul></section>
+  {printing.printed_as_current === false && <section class="page-section"><h2>As printed</h2><p class="muted">What this printing says, against what the card says now.</p><HistoryHelp /><AsPrinted printing={printing} card={card} history={history} names={v.namesByCard.get(card.codex_id) ?? []} /></section>}
+  <section class="page-section"><h2>Slug history</h2><p class="muted">The official API's slug for this printing, every one it has had. Slugs change; the printing ID does not.</p><ul>{slugs.map(s => <li><code>{s.slug}</code><span class="source-note"> · recorded on {s.valid_from}{s.valid_to ? ` · range ends ${s.valid_to}` : ' · current'}</span></li>)}</ul></section>
 </Base>

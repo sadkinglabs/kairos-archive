@@ -60,7 +60,8 @@ describe("showsCurrentValues", () => {
   it("says no, and points at the history, for older printed values", () => {
     const v = showsCurrentValues({ printed_as_current: false, released_at: "2023-06-22" });
     expect(v.verdict).toBe("no");
-    expect(v.long).toContain("older values");
+    expect(v.short).toBe("shows earlier values");
+    expect(v.long).toContain("earlier values");
   });
   it("distinguishes a printing with no card text from one with no release date", () => {
     expect(showsCurrentValues({ printed_as_current: null, released_at: "2025-03-01" })).toMatchObject({ verdict: "no-text" });

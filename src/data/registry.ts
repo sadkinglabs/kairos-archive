@@ -257,12 +257,12 @@ export function historySource(row: { source?: "api" | "card" }): { fromCard: boo
 export function showsCurrentValues(printing: { printed_as_current: boolean | null; released_at: string | null }):
     { verdict: "yes" | "no" | "no-text" | "undated"; short: string; long: string } {
   if (printing.printed_as_current === true)
-    return { verdict: "yes", short: "current", long: "yes" };
+    return { verdict: "yes", short: "shows current values", long: "This printing shows the card's current values." };
   if (printing.printed_as_current === false)
-    return { verdict: "no", short: "older values", long: "no \u2014 printed with older values; see the card's history" };
+    return { verdict: "no", short: "shows earlier values", long: "This printing shows earlier values; the card has since changed." };
   if (printing.released_at !== null)
-    return { verdict: "no-text", short: "no card text", long: "not applicable \u2014 this printing shows no rules text" };
-  return { verdict: "undated", short: "unknown", long: "unknown \u2014 this printing has no release date to place it in the card's history" };
+    return { verdict: "no-text", short: "no card text", long: "This printing shows no rules text, so it carries no face." };
+  return { verdict: "undated", short: "unplaced", long: "This printing has no release date, so it cannot be placed in the card's history." };
 }
 
 export function formatValue(value: unknown): string {
