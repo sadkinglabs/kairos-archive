@@ -142,6 +142,9 @@ const VIEW_LABELS: Record<View, string> = { images: "images", text: "text", full
         }
       }
       const result = search(q, d, d.slug_history);
+      // What was looked for and how many answers it had (-1: rejected).
+      // Only queries someone typed; a page's own default asks nothing.
+      if (typed) document.dispatchEvent(new CustomEvent("kairos:stat", { detail: { k: "search", q: typed.slice(0, 200), n: result.errors.length ? -1 : result.total, p: here() } }));
       const errors = $("errors");
       errors.hidden = result.errors.length === 0;
       errors.innerHTML = result.errors.map((e) => `<div>${escapeHtml(e)} — see the <a href="/syntax">syntax</a>.</div>`).join("");

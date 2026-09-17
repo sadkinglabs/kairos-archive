@@ -1,4 +1,4 @@
-# The stats Worker: counts outbound clicks from the site (POST /event)
+# The stats Worker: counts outbound clicks and searches from the site (POST /event)
 # and serves the usage dashboard (GET /) to the owner, behind Cloudflare
 # Access. Deployed by .github/workflows/deploy-stats.yml; or by hand with
 # `npx wrangler deploy --config stats/wrangler.toml`.
@@ -22,11 +22,12 @@ API_HOST = "api.kairosarchive.net"
 QUERY_HOST = "query.kairosarchive.net"
 BOT_HOST = "bot.kairosarchive.net"
 SITE_HOST = "kairosarchive.net"
+STATS_HOST = "stats.kairosarchive.net"
 
 [observability]
 enabled = true
 
-# Outbound clicks from the site land here; the bot and the query API
+# Outbound clicks and searches from the site land here; the bot and the query API
 # write their own datasets (kairos_bot, kairos_query), which the
 # dashboard reads through the SQL API.
 [[analytics_engine_datasets]]

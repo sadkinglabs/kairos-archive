@@ -3,17 +3,19 @@
  * the request came over the public hostname or a service binding (a
  * bound request carries no client address); the client's software as a
  * family ("firefox", "curl", "kairos-bot"), never the full User-Agent;
- * the country Cloudflare saw; the keys the query used ("e t is:errata"),
- * never the words typed; the status, the time taken and, for a list,
- * how many cards matched. No address, no query text, no identifier. */
+ * the country Cloudflare saw; the keys the query used ("e t is:errata")
+ * and the query itself, clipped; the status, the time taken and, for a
+ * list, how many cards matched. No address, no identifier. */
 
 export interface QueryEvent {
-  route: string; source: "public" | "binding"; agent: string; country: string; keys: string;
+  route: string; source: "public" | "binding"; agent: string; country: string; keys: string; q: string;
   status: number; ms: number; total: number;
 }
 
 /** The order of the blobs in a data point, for the reader's SQL. */
-export const BLOBS = ["route", "source", "agent", "country", "keys"] as const;
+export const BLOBS = ["route", "source", "agent", "country", "keys", "q"] as const;
+/** The query text is kept whole up to this many characters. */
+export const MAX_QUERY = 200;
 /** The order of the doubles. */
 export const DOUBLES = ["status", "ms", "total"] as const;
 
@@ -60,6 +62,7 @@ export async function record(stats: AnalyticsEngineDataset | undefined, request:
       agent: agentFamily(request.headers.get("user-agent")),
       country: ((request as { cf?: { country?: string } }).cf?.country ?? "").slice(0, 2),
       keys: queryKeys(url.searchParams.get("q") ?? ""),
+      q: (url.searchParams.get("q") ?? "").trim().slice(0, MAX_QUERY),
       status: copy.status,
       ms: Math.max(0, Date.now() - started),
       total,
