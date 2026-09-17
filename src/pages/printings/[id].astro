@@ -25,7 +25,9 @@ const verdict = showsCurrentValues(printing);
     <div class="card-heading"><p class="eyebrow">Printing record</p><h1>{card.name}</h1><p class="intro">{[printing.set_name, printing.product, printing.finish].filter(Boolean).join(' · ')}</p></div>
     <div class="art-column"><CardArt urls={printing.image_urls} status={printing.image_status} name={card.name} type={card.type} />{printing.back && <CardArt urls={printing.back.image_urls} status={printing.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
     <div class="card-content">
-      <p><span class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']}>{verdict.short}</span></p>
+      <p>{(v.historyByCard.get(card.codex_id) ?? []).length > 1 && verdict.verdict !== 'undated'
+        ? <a class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']} href={`${cardPath(card)}#face-printings-title`} title="See which printings carry which values">{verdict.short}</a>
+        : <span class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']}>{verdict.short}</span>}</p>
       <p><a href={cardPath(card)}>Read current rules and card history →</a></p>
       <dl class="facts">
         <dt>Set</dt><dd><a href={setPath(printing)}>{printing.set_name}</a> <span class="muted">({printing.set_code ?? 'No code'})</span></dd>
