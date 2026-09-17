@@ -54,6 +54,7 @@ const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !
   </form>
   <pre id="deck" class="rules deck" aria-live="polite">Your deck appears here.</pre>
 
+  <section class="tutorial">
   <h2>Build a random Sorcery deck with the Kairos API</h2>
   <p>Kairos Archive exposes the same search system used by the website through a simple JSON API. You do not need an API key or a JavaScript library. In this example we search for cards, handle pagination, and use the returned records to generate a random deck. The code below is the file this page runs, in plain JavaScript.</p>
 
@@ -83,9 +84,12 @@ const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !
 
   <p class="takeaway">Kairos handles finding and structuring the card data. Your application logic can stay ordinary, boring JavaScript.</p>
 
-  <h3>All of it</h3>
-  <p>The file in one block: <a href={`${repo}/random-deck.js`}>random-deck.js</a>. The form above and the printed list are their own file, <a href={`${repo}/deck-page.js`}>deck-page.js</a>, and not part of the tutorial.</p>
-  <CodeExample code={`${source}\n\n${usage}`} lang="javascript" title="random-deck.js" />
+  <details class="all">
+    <summary>See the complete code</summary>
+    <p>The file in one block: <a href={`${repo}/random-deck.js`}>random-deck.js</a>. The form above and the printed list are their own file, <a href={`${repo}/deck-page.js`}>deck-page.js</a>, and not part of the tutorial.</p>
+    <CodeExample code={`${source}\n\n${usage}`} lang="javascript" title="random-deck.js" />
+  </details>
+  </section>
 </Base>
 
 <script>
@@ -105,4 +109,10 @@ const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !
   .deck-form .total.over { color: var(--removed-fg); }
   .deck { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; line-height: 1.5; }
   .takeaway { font-family: var(--display); font-size: 1.3rem; line-height: 1.4; border-left: 3px solid var(--accent); padding-left: 1rem; margin: 2rem 0; }
+  /* Room around each code box, and a step's heading well clear of the box before it. */
+  .tutorial :global(.code-example) { margin: 1rem 0 2.75rem; }
+  .tutorial h3 { margin-top: 2.5rem; }
+  .all { margin-top: 2.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  .all summary { cursor: pointer; font: 600 1.05rem/1.4 var(--display); color: var(--accent); }
+  .all[open] summary { margin-bottom: .75rem; }
 </style>
