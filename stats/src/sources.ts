@@ -1,12 +1,13 @@
 /** Where the dashboard's numbers come from. Three Analytics Engine
- * datasets through the SQL API (the bot's, the query API's and the
- * site's clicks), Discord's own count of installs, and the zone's
- * request analytics through GraphQL for the hosts no Worker runs on.
+ * datasets through the SQL API (the query API's, the site's clicks and
+ * searches, the bot's), Discord's own list of the servers the bot user
+ * is in, and the zone's request analytics through GraphQL for the API
+ * host, which is R2 behind the CDN with no Worker to count for it.
  * Every source answers a value or an error string; a source that
  * fails leaves its section saying why, never the whole page. */
 import type { Fetch } from "./access";
 
-export interface Sources { fetchImpl: Fetch; token: string; account: string; zone?: string; botToken?: string; appId?: string }
+export interface Sources { fetchImpl: Fetch; token: string; account: string; zone?: string; botToken?: string; apiBase?: string }
 
 /** A source's answer. `note` is a caveat worth showing next to the
  * value, such as a window narrower than the one asked for. */
@@ -23,7 +24,7 @@ export async function sql(s: Sources, query: string): Promise<Result<Row[]>> {
     const text = await res.text();
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${text.slice(0, 300)}` };
     const body = JSON.parse(text) as { data?: Row[] };
-    return { ok: true, value: (body.data ?? []).map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v) && k !== "day" ? Number(v) : v]))) };
+    return { ok: true, value: (body.data ?? []).map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v) && !["day", "q"].includes(k) ? Number(v) : v]))) };
   } catch (err) {
     return { ok: false, error: String(err) };
   }
@@ -32,97 +33,158 @@ export async function sql(s: Sources, query: string): Promise<Result<Row[]>> {
 /** The clauses every query shares: the window, and sampling-aware counts. */
 const window = (days: number) => `timestamp > NOW() - INTERVAL '${Math.max(1, Math.min(90, Math.floor(days)))}' DAY`;
 const N = "SUM(_sample_interval) AS n";
+const DAY = "toStartOfInterval(timestamp, INTERVAL '1' DAY) AS day";
 
-export interface Series { day: string; n: number }
+export interface Guild { id: string; name: string; members: number }
 export interface Report {
   days: number;
+  api: ZoneReport;
+  search: {
+    siteDaily: Result<Row[]>; siteTop: Result<Row[]>; siteEmpty: Result<Row[]>; siteEmptyTotal: Result<Row[]>; siteErrors: Result<Row[]>;
+    apiDaily: Result<Row[]>; apiTop: Result<Row[]>; apiEmpty: Result<Row[]>; keys: Result<Row[]>; emptyTotal: Result<Row[]>;
+    routes: Result<Row[]>; sources: Result<Row[]>; agents: Result<Row[]>; countries: Result<Row[]>; statuses: Result<Row[]>;
+  };
+  site: { daily: Result<Row[]>; hosts: Result<Row[]>; pages: Result<Row[]>; tracks: Result<Row[]> };
   bot: {
     daily: Result<Row[]>; commands: Result<Row[]>; outcomes: Result<Row[]>; contexts: Result<Row[]>; servers: Result<Row[]>; misses: Result<Row[]>; latency: Result<Row[]>;
-    installs: Result<{ servers: number; users: number; app: string }>;
+    guilds: Result<Guild[]>; installs: Result<{ users: number | null; app: string }>;
   };
-  query: { daily: Result<Row[]>; routes: Result<Row[]>; sources: Result<Row[]>; agents: Result<Row[]>; countries: Result<Row[]>; statuses: Result<Row[]>; keys: Result<Row[]>; empty: Result<Row[]> };
-  site: { daily: Result<Row[]>; hosts: Result<Row[]>; pages: Result<Row[]>; tracks: Result<Row[]> };
-  zone: { hosts: Result<Row[]>; paths: Result<Row[]> };
 }
 
 /** Everything the page shows, gathered in parallel. */
-export async function gather(s: Sources, days: number, hosts: { api: string; query: string; bot: string; site: string }): Promise<Report> {
+export async function gather(s: Sources, days: number, hosts: { api: string; query: string; bot: string; site: string; stats?: string }): Promise<Report> {
   const w = window(days);
   const q = (text: string) => sql(s, text);
   const [
-    botDaily, botCommands, botOutcomes, botContexts, botServers, botMisses, botLatency, installs,
-    qDaily, qRoutes, qSources, qAgents, qCountries, qStatuses, qKeys, qEmpty,
-    sDaily, sHosts, sPages, sTracks, zHosts, zPaths,
+    api,
+    sDaily, sTop, sEmpty, sEmptyTotal, sErrors, aDaily, aTop, aEmpty, keys, emptyTotal, routes, sources, agents, countries, statuses,
+    cDaily, cHosts, cPages, cTracks,
+    bDaily, bCommands, bOutcomes, bContexts, bServers, bMisses, bLatency, guilds, installs,
   ] = await Promise.all([
-    q(`SELECT toStartOfInterval(timestamp, INTERVAL '1' DAY) AS day, ${N} FROM kairos_bot WHERE ${w} GROUP BY day ORDER BY day`),
+    zone(s, days, hosts),
+    q(`SELECT ${DAY}, ${N} FROM kairos_site WHERE ${w} AND blob5 = 'search' GROUP BY day ORDER BY day`),
+    q(`SELECT blob6 AS q, ${N}, AVG(double1) AS results FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 >= 0 GROUP BY q ORDER BY n DESC LIMIT 30`),
+    q(`SELECT blob6 AS q, ${N} FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 = 0 GROUP BY q ORDER BY n DESC LIMIT 20`),
+    q(`SELECT ${N} FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 = 0`),
+    q(`SELECT blob6 AS q, ${N} FROM kairos_site WHERE ${w} AND blob5 = 'search' AND double1 < 0 GROUP BY q ORDER BY n DESC LIMIT 20`),
+    q(`SELECT ${DAY}, ${N} FROM kairos_query WHERE ${w} GROUP BY day ORDER BY day`),
+    q(`SELECT blob6 AS q, ${N}, AVG(double3) AS results FROM kairos_query WHERE ${w} AND blob1 = '/cards' AND blob6 != '' GROUP BY q ORDER BY n DESC LIMIT 30`),
+    q(`SELECT blob6 AS q, ${N} FROM kairos_query WHERE ${w} AND blob1 = '/cards' AND blob6 != '' AND double3 = 0 GROUP BY q ORDER BY n DESC LIMIT 20`),
+    q(`SELECT blob5 AS keys, ${N} FROM kairos_query WHERE ${w} AND blob5 != '' GROUP BY keys ORDER BY n DESC LIMIT 15`),
+    q(`SELECT ${N} FROM kairos_query WHERE ${w} AND blob1 = '/cards' AND double3 = 0`),
+    q(`SELECT blob1 AS route, ${N} FROM kairos_query WHERE ${w} GROUP BY route ORDER BY n DESC`),
+    q(`SELECT blob2 AS source, ${N} FROM kairos_query WHERE ${w} GROUP BY source ORDER BY n DESC`),
+    q(`SELECT blob3 AS agent, ${N} FROM kairos_query WHERE ${w} GROUP BY agent ORDER BY n DESC LIMIT 15`),
+    q(`SELECT blob4 AS country, ${N} FROM kairos_query WHERE ${w} AND blob4 != '' GROUP BY country ORDER BY n DESC LIMIT 10`),
+    q(`SELECT double1 AS status, ${N} FROM kairos_query WHERE ${w} GROUP BY status ORDER BY n DESC`),
+    q(`SELECT ${DAY}, ${N} FROM kairos_site WHERE ${w} AND blob5 != 'search' GROUP BY day ORDER BY day`),
+    q(`SELECT blob1 AS host, ${N} FROM kairos_site WHERE ${w} AND blob5 != 'search' GROUP BY host ORDER BY n DESC LIMIT 15`),
+    q(`SELECT blob2 AS page, blob1 AS host, ${N} FROM kairos_site WHERE ${w} AND blob5 != 'search' GROUP BY page, host ORDER BY n DESC LIMIT 15`),
+    q(`SELECT blob3 AS track, ${N} FROM kairos_site WHERE ${w} AND blob5 != 'search' AND blob3 != '' GROUP BY track ORDER BY n DESC`),
+    q(`SELECT ${DAY}, ${N} FROM kairos_bot WHERE ${w} GROUP BY day ORDER BY day`),
     q(`SELECT blob1 AS kind, blob2 AS name, ${N} FROM kairos_bot WHERE ${w} AND blob1 != 'ping' GROUP BY kind, name ORDER BY n DESC LIMIT 20`),
     q(`SELECT blob3 AS outcome, ${N} FROM kairos_bot WHERE ${w} GROUP BY outcome ORDER BY n DESC`),
     q(`SELECT blob4 AS context, ${N} FROM kairos_bot WHERE ${w} AND blob1 IN ('command', 'menu', 'component') GROUP BY context ORDER BY n DESC`),
     q(`SELECT COUNT(DISTINCT blob5) AS servers FROM kairos_bot WHERE ${w} AND blob5 != ''`),
     q(`SELECT blob7 AS miss, ${N} FROM kairos_bot WHERE ${w} AND blob7 != '' GROUP BY miss ORDER BY n DESC LIMIT 15`),
     q(`SELECT quantileWeighted(0.5)(double1, _sample_interval) AS p50, quantileWeighted(0.95)(double1, _sample_interval) AS p95 FROM kairos_bot WHERE ${w} AND blob1 IN ('command', 'menu', 'component')`),
+    discordGuilds(s),
     discordInstalls(s),
-    q(`SELECT toStartOfInterval(timestamp, INTERVAL '1' DAY) AS day, ${N} FROM kairos_query WHERE ${w} GROUP BY day ORDER BY day`),
-    q(`SELECT blob1 AS route, ${N} FROM kairos_query WHERE ${w} GROUP BY route ORDER BY n DESC`),
-    q(`SELECT blob2 AS source, ${N} FROM kairos_query WHERE ${w} GROUP BY source ORDER BY n DESC`),
-    q(`SELECT blob3 AS agent, ${N} FROM kairos_query WHERE ${w} GROUP BY agent ORDER BY n DESC LIMIT 15`),
-    q(`SELECT blob4 AS country, ${N} FROM kairos_query WHERE ${w} AND blob4 != '' GROUP BY country ORDER BY n DESC LIMIT 10`),
-    q(`SELECT double1 AS status, ${N} FROM kairos_query WHERE ${w} GROUP BY status ORDER BY n DESC`),
-    q(`SELECT blob5 AS keys, ${N} FROM kairos_query WHERE ${w} AND blob5 != '' GROUP BY keys ORDER BY n DESC LIMIT 15`),
-    q(`SELECT ${N} FROM kairos_query WHERE ${w} AND blob1 = '/cards' AND double3 = 0`),
-    q(`SELECT toStartOfInterval(timestamp, INTERVAL '1' DAY) AS day, ${N} FROM kairos_site WHERE ${w} GROUP BY day ORDER BY day`),
-    q(`SELECT blob1 AS host, ${N} FROM kairos_site WHERE ${w} GROUP BY host ORDER BY n DESC LIMIT 15`),
-    q(`SELECT blob2 AS page, blob1 AS host, ${N} FROM kairos_site WHERE ${w} GROUP BY page, host ORDER BY n DESC LIMIT 15`),
-    q(`SELECT blob3 AS track, ${N} FROM kairos_site WHERE ${w} AND blob3 != '' GROUP BY track ORDER BY n DESC`),
-    zoneHosts(s, days, [hosts.site, hosts.api, hosts.query, hosts.bot]),
-    zonePaths(s, days, hosts.api),
   ]);
   return {
     days,
-    bot: { daily: botDaily, commands: botCommands, outcomes: botOutcomes, contexts: botContexts, servers: botServers, misses: botMisses, latency: botLatency, installs },
-    query: { daily: qDaily, routes: qRoutes, sources: qSources, agents: qAgents, countries: qCountries, statuses: qStatuses, keys: qKeys, empty: qEmpty },
-    site: { daily: sDaily, hosts: sHosts, pages: sPages, tracks: sTracks },
-    zone: { hosts: zHosts, paths: zPaths },
+    api,
+    search: { siteDaily: sDaily, siteTop: sTop, siteEmpty: sEmpty, siteEmptyTotal: sEmptyTotal, siteErrors: sErrors, apiDaily: aDaily, apiTop: aTop, apiEmpty: aEmpty, keys, emptyTotal, routes, sources, agents, countries, statuses },
+    site: { daily: cDaily, hosts: cHosts, pages: cPages, tracks: cTracks },
+    bot: { daily: bDaily, commands: bCommands, outcomes: bOutcomes, contexts: bContexts, servers: bServers, misses: bMisses, latency: bLatency, guilds, installs },
   };
 }
 
-/** Discord's approximate counts of the servers and the accounts the
- * app is installed in, with the app's name so a token for the wrong
- * app is visible. A response without the counts is reported as such,
- * never as zero installs. */
-export async function discordInstalls(s: Sources): Promise<Result<{ servers: number; users: number; app: string }>> {
+// ---------------------------------------------------------------- Discord
+
+const DISCORD = "https://discord.com/api/v10";
+const discordHeaders = (token: string) => ({ authorization: `Bot ${token}`, "user-agent": "kairos-stats (+https://kairosarchive.net)" });
+
+/** The servers the bot user is a member of, from Discord's own list:
+ * exact, unlike the approximate counts on the application object, and
+ * with each server's name and size. Only servers installed with the
+ * `bot` scope have a bot user in them; a commands-only install shows
+ * up in the interactions, never here. */
+export async function discordGuilds(s: Sources): Promise<Result<Guild[]>> {
   if (!s.botToken) return { ok: false, error: "DISCORD_BOT_TOKEN is not set." };
   try {
-    const res = await s.fetchImpl("https://discord.com/api/v10/applications/@me", { headers: { authorization: `Bot ${s.botToken}`, "user-agent": "kairos-stats (+https://kairosarchive.net)" } });
-    if (!res.ok) return { ok: false, error: `Discord: HTTP ${res.status}` };
-    const app = (await res.json()) as { name?: string; approximate_guild_count?: number; approximate_user_install_count?: number };
-    const name = app.name ?? "unnamed app";
-    if (typeof app.approximate_guild_count !== "number" && typeof app.approximate_user_install_count !== "number") {
-      return { ok: false, error: `Discord reported no install counts for ${name}.` };
+    const guilds: Guild[] = [];
+    let after = "";
+    for (let page = 0; page < 10; page++) {
+      const res = await s.fetchImpl(`${DISCORD}/users/@me/guilds?with_counts=true&limit=200${after ? `&after=${after}` : ""}`, { headers: discordHeaders(s.botToken) });
+      if (!res.ok) return { ok: false, error: `Discord: HTTP ${res.status}` };
+      const batch = (await res.json()) as { id: string; name: string; approximate_member_count?: number }[];
+      for (const g of batch) guilds.push({ id: g.id, name: g.name, members: g.approximate_member_count ?? 0 });
+      if (batch.length < 200) break;
+      after = batch.at(-1)!.id;
     }
-    return { ok: true, value: { servers: app.approximate_guild_count ?? 0, users: app.approximate_user_install_count ?? 0, app: name } };
+    return { ok: true, value: guilds.sort((a, b) => b.members - a.members) };
   } catch (err) {
     return { ok: false, error: String(err) };
   }
 }
 
-async function graphql(s: Sources, query: string, variables: Record<string, unknown>): Promise<Result<unknown>> {
-  if (!s.zone) return { ok: false, error: "CF_ZONE_ID is not set." };
+/** Discord's approximate count of the accounts the app is installed on
+ * (user installs), with the app's name so a token for the wrong app is
+ * visible. A response without the count reports null, never zero. */
+export async function discordInstalls(s: Sources): Promise<Result<{ users: number | null; app: string }>> {
+  if (!s.botToken) return { ok: false, error: "DISCORD_BOT_TOKEN is not set." };
   try {
-    const res = await s.fetchImpl(`${CF}/graphql`, { method: "POST", headers: { authorization: `Bearer ${s.token}`, "content-type": "application/json" }, body: JSON.stringify({ query, variables: { zone: s.zone, ...variables } }) });
-    const body = (await res.json()) as { data?: { viewer?: { zones?: { groups?: unknown }[] } }; errors?: { message: string }[] };
-    if (body.errors?.length) return { ok: false, error: body.errors.map((e) => e.message).join("; ").slice(0, 300) };
-    return { ok: true, value: body.data?.viewer?.zones?.[0]?.groups ?? [] };
+    const res = await s.fetchImpl(`${DISCORD}/applications/@me`, { headers: discordHeaders(s.botToken) });
+    if (!res.ok) return { ok: false, error: `Discord: HTTP ${res.status}` };
+    const app = (await res.json()) as { name?: string; approximate_user_install_count?: number };
+    return { ok: true, value: { users: typeof app.approximate_user_install_count === "number" ? app.approximate_user_install_count : null, app: app.name ?? "unnamed app" } };
   } catch (err) {
     return { ok: false, error: String(err) };
   }
 }
 
-function since(days: number): { since: string; until: string } {
-  const until = new Date();
-  const from = new Date(until.getTime() - days * 86400 * 1000);
-  return { since: from.toISOString(), until: until.toISOString() };
+// ------------------------------------------------------------------- Zone
+
+/** What the zone's request analytics say about the API host and the
+ * others, over as much of the window as the plan allows. */
+export interface ZoneReport {
+  /** Days the numbers cover, and the days asked for. */
+  covered: number; asked: number;
+  hosts: Result<Row[]>;
+  /** The API host's traffic by what was asked for: the whole dataset,
+   * indexes, single objects, images, the alias, metadata. */
+  kinds: Result<Row[]>;
+  /** Whole-dataset downloads by file, status and client software. */
+  downloads: Result<Row[]>;
+  paths: Result<Row[]>; agents: Result<Row[]>; imageAgents: Result<Row[]>; referers: Result<Row[]>; countries: Result<Row[]>; statuses: Result<Row[]>;
 }
+
+/** Every zone table for one window, in one GraphQL request. Adaptive
+ * datasets are sampled: `count` is the number of samples and each
+ * group's average sample interval scales it back to an estimate. */
+const ZONE_QUERY = `query($zone: String!, $since: Time!, $until: Time!, $hosts: [String!], $api: String!, $bulk: [String!]) {
+  viewer { zones(filter: { zoneTag: $zone }) {
+    hosts: httpRequestsAdaptiveGroups(limit: 100, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost_in: $hosts }) {
+      count avg { sampleInterval } sum { edgeResponseBytes } dimensions { clientRequestHTTPHost cacheStatus } }
+    paths: httpRequestsAdaptiveGroups(limit: 1000, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
+      count avg { sampleInterval } dimensions { clientRequestPath } }
+    downloads: httpRequestsAdaptiveGroups(limit: 200, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api, clientRequestPath_in: $bulk }) {
+      count avg { sampleInterval } dimensions { clientRequestPath edgeResponseStatus userAgent } }
+    agents: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
+      count avg { sampleInterval } dimensions { userAgent } }
+    images: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api, clientRequestPath_like: "/images/%" }) {
+      count avg { sampleInterval } dimensions { userAgent } }
+    referers: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
+      count avg { sampleInterval } dimensions { clientRequestReferer } }
+    countries: httpRequestsAdaptiveGroups(limit: 50, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
+      count avg { sampleInterval } dimensions { clientCountryName } }
+    statuses: httpRequestsAdaptiveGroups(limit: 30, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
+      count avg { sampleInterval } dimensions { edgeResponseStatus } }
+  } } }`;
+
+type Group = { count: number; avg?: { sampleInterval?: number }; sum?: { edgeResponseBytes?: number }; dimensions: Record<string, string | number> };
+type ZoneSlice = Record<string, Group[]>;
 
 /** The widest window the zone's plan allows, read from the API's own
  * refusal ("cannot request a time range wider than 1d"), in days. */
@@ -133,46 +195,141 @@ export function allowedDays(error: string): number | undefined {
   return m[2] === "w" ? n * 7 : m[2] === "h" ? n / 24 : n;
 }
 
-/** Run a zone query over the window asked for; when the plan refuses a
- * window that wide, run it again over the widest it allows and say so. */
-async function zoneQuery(s: Sources, query: string, days: number, variables: Record<string, unknown>): Promise<Result<unknown>> {
-  const first = await graphql(s, query, { ...since(days), ...variables });
-  if (first.ok) return first;
-  const allowed = allowedDays(first.error);
-  if (allowed === undefined || allowed >= days) return first;
-  const again = await graphql(s, query, { ...since(allowed), ...variables });
-  if (!again.ok) return again;
-  return { ...again, note: `Last ${allowed >= 1 ? `${allowed} day${allowed === 1 ? "" : "s"}` : `${Math.round(allowed * 24)} hours`} only: the zone's plan allows no wider window.` };
-}
+/** At most this many slices per page view, so a 90-day window on a
+ * plan limited to one day asks for 30 requests, not 90. */
+export const MAX_SLICES = 30;
 
-/** Requests, cache hits and bytes per hostname, from the zone's sampled
- * request analytics. */
-export async function zoneHosts(s: Sources, days: number, hosts: string[]): Promise<Result<Row[]>> {
-  const r = await zoneQuery(s, `query($zone: String!, $since: Time!, $until: Time!, $hosts: [String!]) {
-    viewer { zones(filter: { zoneTag: $zone }) {
-      groups: httpRequestsAdaptiveGroups(limit: 200, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost_in: $hosts }) {
-        count sum { edgeResponseBytes } dimensions { clientRequestHTTPHost cacheStatus } } } } }`, days, { hosts });
-  if (!r.ok) return r;
-  const groups = r.value as { count: number; sum: { edgeResponseBytes: number }; dimensions: { clientRequestHTTPHost: string; cacheStatus: string } }[];
-  const byHost = new Map<string, Row>();
-  for (const g of groups) {
-    const host = g.dimensions.clientRequestHTTPHost;
-    const row = byHost.get(host) ?? { host, requests: 0, hits: 0, bytes: 0 };
-    row.requests = (row.requests as number) + g.count;
-    row.bytes = (row.bytes as number) + g.sum.edgeResponseBytes;
-    if (g.dimensions.cacheStatus === "hit") row.hits = (row.hits as number) + g.count;
-    byHost.set(host, row);
+/** [since, until] pairs walking back from now in steps of `width` days. */
+export function slices(days: number, width: number, now = Date.now()): { since: string; until: string }[] {
+  const out: { since: string; until: string }[] = [];
+  const count = Math.min(MAX_SLICES, Math.ceil(days / width));
+  for (let i = 0; i < count; i++) {
+    const until = now - i * width * 86400 * 1000;
+    const since = Math.max(until - width * 86400 * 1000, now - days * 86400 * 1000);
+    out.push({ since: new Date(since).toISOString(), until: new Date(until).toISOString() });
   }
-  return { ok: true, value: [...byHost.values()].sort((a, b) => (b.requests as number) - (a.requests as number)), note: r.note };
+  return out;
 }
 
-/** The most requested paths on the API host. */
-export async function zonePaths(s: Sources, days: number, host: string): Promise<Result<Row[]>> {
-  const r = await zoneQuery(s, `query($zone: String!, $since: Time!, $until: Time!, $host: String!) {
-    viewer { zones(filter: { zoneTag: $zone }) {
-      groups: httpRequestsAdaptiveGroups(limit: 15, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $host }) {
-        count dimensions { clientRequestPath } } } } }`, days, { host });
-  if (!r.ok) return r;
-  const groups = r.value as { count: number; dimensions: { clientRequestPath: string } }[];
-  return { ok: true, value: groups.map((g) => ({ path: g.dimensions.clientRequestPath, requests: g.count })), note: r.note };
+async function zoneRequest(s: Sources, variables: Record<string, unknown>): Promise<Result<ZoneSlice>> {
+  try {
+    const res = await s.fetchImpl(`${CF}/graphql`, { method: "POST", headers: { authorization: `Bearer ${s.token}`, "content-type": "application/json" }, body: JSON.stringify({ query: ZONE_QUERY, variables: { zone: s.zone, ...variables } }) });
+    const body = (await res.json()) as { data?: { viewer?: { zones?: ZoneSlice[] } }; errors?: { message: string }[] };
+    if (body.errors?.length) return { ok: false, error: body.errors.map((e) => e.message).join("; ").slice(0, 300) };
+    return { ok: true, value: body.data?.viewer?.zones?.[0] ?? {} };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
+/** The whole-dataset files every release publishes, so the download
+ * count filters on exact paths rather than guessing from a pattern.
+ * Read from the API's own versions.json; empty when it cannot be read. */
+export async function bulkPaths(s: Sources): Promise<string[]> {
+  const base = s.apiBase ?? "https://api.kairosarchive.net";
+  try {
+    const res = await s.fetchImpl(`${base}/versions.json`, { headers: { "user-agent": "kairos-stats (+https://kairosarchive.net)" } });
+    if (!res.ok) return [];
+    const doc = (await res.json()) as { latest?: Record<string, string>; releases?: { tag: string }[] };
+    const tags = new Set<string>([...(doc.releases ?? []).map((r) => r.tag), ...Object.values(doc.latest ?? {})]);
+    return [...tags].flatMap((tag) => [`/${tag}/registry.json`, `/${tag}/registry.json.gz`]);
+  } catch {
+    return [];
+  }
+}
+
+const estimate = (g: Group) => g.count * (g.avg?.sampleInterval ?? 1);
+
+/** "/v3.4.1/registry.json" → "whole dataset"; "/images/…" → "images". */
+export function kindOf(path: string): string {
+  if (/^\/images\//.test(path)) return "images";
+  if (/^\/v\d+\//.test(path)) return "alias (/vN → release)";
+  if (/^\/v[\d.]+\/registry\.json(\.gz)?$/.test(path)) return "whole dataset";
+  if (/^\/v[\d.]+\/index\//.test(path)) return "indexes";
+  if (/^\/v[\d.]+\/(cards|printings|sets|slugs|history)\//.test(path) || /^\/v[\d.]+\/sets\.json$/.test(path)) return "single objects";
+  if (path === "/versions.json" || /^\/v[\d.]+\/(index|schema|changes|manifest|registry\.json\.sha256|types\.d\.ts|RELEASED)/.test(path)) return "release metadata";
+  return "other";
+}
+
+const BROWSERS: [RegExp, string][] = [[/Discordbot/i, "discordbot"], [/Edg\//, "edge"], [/OPR\//, "opera"], [/Firefox\//, "firefox"], [/Chrome\//, "chrome"], [/Safari\//, "safari"]];
+
+/** A User-Agent as a family name, the same rule the query API uses. */
+export function agentFamily(userAgent: string | null | undefined): string {
+  const ua = (userAgent ?? "").trim();
+  if (!ua) return "(none)";
+  for (const [re, name] of BROWSERS) if (re.test(ua)) return name;
+  return ua.split(/[/\s(]/)[0]!.toLowerCase().slice(0, 32);
+}
+
+function refererHost(ref: string | number | undefined): string {
+  const s = String(ref ?? "");
+  if (!s) return "(direct)";
+  try { return new URL(s).host; } catch { return s.slice(0, 60); }
+}
+
+/** Sum groups across slices by a key drawn from their dimensions. */
+function merge(slicesDone: ZoneSlice[], field: string, key: (g: Group) => string, extra?: (row: Row, g: Group) => void): Row[] {
+  const rows = new Map<string, Row>();
+  for (const slice of slicesDone) {
+    for (const g of slice[field] ?? []) {
+      const k = key(g);
+      const row = rows.get(k) ?? { key: k, n: 0 };
+      row.n = (row.n as number) + estimate(g);
+      extra?.(row, g);
+      rows.set(k, row);
+    }
+  }
+  return [...rows.values()].map((r) => ({ ...r, n: Math.round(r.n as number) })).sort((a, b) => (b.n as number) - (a.n as number));
+}
+
+export async function zone(s: Sources, days: number, hosts: { api: string; query: string; bot: string; site: string; stats?: string }): Promise<ZoneReport> {
+  const fail = (error: string): ZoneReport => {
+    const r: Result<Row[]> = { ok: false, error };
+    return { covered: 0, asked: days, hosts: r, kinds: r, downloads: r, paths: r, agents: r, imageAgents: r, referers: r, countries: r, statuses: r };
+  };
+  if (!s.zone) return fail("CF_ZONE_ID is not set.");
+  const bulk = await bulkPaths(s);
+  const vars = { hosts: [hosts.site, hosts.api, hosts.query, hosts.bot, ...(hosts.stats ? [hosts.stats] : [])], api: hosts.api, bulk };
+
+  // The whole window first; when the plan refuses it, as many slices of
+  // the widest window it allows as fit, in parallel.
+  let done: ZoneSlice[] = [];
+  let covered = days;
+  let note: string | undefined;
+  const whole = await zoneRequest(s, { ...slices(days, days)[0], ...vars });
+  if (whole.ok) {
+    done = [whole.value];
+  } else {
+    const width = allowedDays(whole.error);
+    if (width === undefined || width >= days) return fail(whole.error);
+    const wanted = slices(days, width);
+    const answers = await Promise.all(wanted.map((sl) => zoneRequest(s, { ...sl, ...vars })));
+    done = answers.filter((a): a is { ok: true; value: ZoneSlice } => a.ok).map((a) => a.value);
+    if (!done.length) return fail(answers.find((a) => !a.ok)?.error ?? "no zone data");
+    covered = Math.min(days, done.length * width);
+    const failed = answers.length - done.length;
+    note = `${covered === days ? "The whole window" : `Last ${covered} day${covered === 1 ? "" : "s"} only`}, in ${answers.length} request${answers.length === 1 ? "" : "s"} of ${width} day${width === 1 ? "" : "s"}${failed ? ` (${failed} answered with an error)` : ""}: the zone's plan allows no wider query.`;
+  }
+
+  const ok = (value: Row[]): Result<Row[]> => ({ ok: true, value, note });
+  const hostRows = merge(done, "hosts", (g) => String(g.dimensions.clientRequestHTTPHost), (row, g) => {
+    row.host = String(g.dimensions.clientRequestHTTPHost);
+    row.bytes = ((row.bytes as number) ?? 0) + (g.sum?.edgeResponseBytes ?? 0) * (g.avg?.sampleInterval ?? 1);
+    if (g.dimensions.cacheStatus === "hit") row.hits = ((row.hits as number) ?? 0) + estimate(g);
+  }).map((r) => ({ ...r, hits: Math.round((r.hits as number) ?? 0), bytes: Math.round((r.bytes as number) ?? 0) }));
+  const pathRows = merge(done, "paths", (g) => String(g.dimensions.clientRequestPath), (row, g) => { row.path = String(g.dimensions.clientRequestPath); });
+  const kindRows = merge(done, "paths", (g) => kindOf(String(g.dimensions.clientRequestPath)), (row, g) => { row.kind = kindOf(String(g.dimensions.clientRequestPath)); });
+  const downloadRows = merge(done, "downloads", (g) => `${g.dimensions.clientRequestPath}\t${g.dimensions.edgeResponseStatus}\t${agentFamily(String(g.dimensions.userAgent))}`, (row, g) => {
+    row.path = String(g.dimensions.clientRequestPath); row.status = Number(g.dimensions.edgeResponseStatus); row.agent = agentFamily(String(g.dimensions.userAgent));
+  });
+  const agentRows = merge(done, "agents", (g) => agentFamily(String(g.dimensions.userAgent)), (row, g) => { row.agent = agentFamily(String(g.dimensions.userAgent)); });
+  const imageAgentRows = merge(done, "images", (g) => agentFamily(String(g.dimensions.userAgent)), (row, g) => { row.agent = agentFamily(String(g.dimensions.userAgent)); });
+  const refererRows = merge(done, "referers", (g) => refererHost(g.dimensions.clientRequestReferer), (row, g) => { row.referer = refererHost(g.dimensions.clientRequestReferer); });
+  const countryRows = merge(done, "countries", (g) => String(g.dimensions.clientCountryName), (row, g) => { row.country = String(g.dimensions.clientCountryName); });
+  const statusRows = merge(done, "statuses", (g) => String(g.dimensions.edgeResponseStatus), (row, g) => { row.status = Number(g.dimensions.edgeResponseStatus); });
+  return {
+    covered, asked: days,
+    hosts: ok(hostRows), kinds: ok(kindRows), downloads: ok(downloadRows), paths: ok(pathRows.slice(0, 25)),
+    agents: ok(agentRows.slice(0, 15)), imageAgents: ok(imageAgentRows.slice(0, 10)), referers: ok(refererRows.slice(0, 15)), countries: ok(countryRows.slice(0, 12)), statuses: ok(statusRows),
+  };
 }

@@ -1,7 +1,7 @@
 /** The beacon route and the dashboard, end to end with fake sources. */
 import { beforeEach, describe, expect, it } from "vitest";
 import { forgetKeys } from "../src/access";
-import { BLOBS } from "../src/event";
+import { BLOBS, DOUBLES } from "../src/event";
 import { handle, type Env } from "../src/worker";
 import { NOW, fakeCerts, good, token } from "./helpers";
 
@@ -11,16 +11,24 @@ function dataset() {
   return { points, writeDataPoint: (p?: Point) => { if (p) points.push(p); } };
 }
 const SITE = "https://site.test";
-const env: Env = { SITE_BASE_URL: SITE, ACCESS_TEAM_DOMAIN: "kairos.cloudflareaccess.com", ACCESS_AUD: "aud-0123", CF_API_TOKEN: "tok", CF_ACCOUNT_ID: "acc", CF_ZONE_ID: "zone", DISCORD_BOT_TOKEN: "bot" };
+const env: Env = { SITE_BASE_URL: SITE, API_HOST: "api.test", ACCESS_TEAM_DOMAIN: "kairos.cloudflareaccess.com", ACCESS_AUD: "aud-0123", CF_API_TOKEN: "tok", CF_ACCOUNT_ID: "acc", CF_ZONE_ID: "zone", DISCORD_BOT_TOKEN: "bot" };
+
+interface Opts { zoneMaxDays?: number; discord?: Record<string, unknown>; guilds?: Record<string, unknown>[] | number; untimed?: boolean; noVersions?: boolean }
 
 /** Answers every source with plausible data, or fails the ones named. */
-function sources(failing: string[] = [], opts: { zoneMaxDays?: number; discord?: Record<string, unknown>; untimed?: boolean } = {}) {
+function sources(failing: string[] = [], opts: Opts = {}) {
   const asked: string[] = [];
+  const bodies: string[] = [];
   const fetchImpl = async (url: string, init?: RequestInit) => {
     asked.push(url);
     if (url.includes("/cdn-cgi/access/certs")) return fakeCerts(url);
+    if (url === "https://api.test/versions.json") {
+      if (opts.noVersions) return new Response("nf", { status: 404 });
+      return new Response(JSON.stringify({ latest: { v3: "v3.4.1" }, releases: [{ tag: "v3.4.0" }, { tag: "v3.4.1" }] }));
+    }
     if (url.endsWith("/analytics_engine/sql")) {
       const q = String(init?.body);
+      bodies.push(q);
       if (failing.some((f) => q.includes(f))) return new Response("boom", { status: 500 });
       if (q.includes("AS day")) return new Response(JSON.stringify({ data: [{ day: "2027-01-05 00:00:00", n: "12" }, { day: "2027-01-06 00:00:00", n: "30" }] }));
       if (q.includes("COUNT(DISTINCT")) return new Response(JSON.stringify({ data: [{ servers: "4" }] }));
@@ -28,28 +36,46 @@ function sources(failing: string[] = [], opts: { zoneMaxDays?: number; discord?:
       if (q.includes("AS kind")) return new Response(JSON.stringify({ data: [{ kind: "command", name: "card", n: "25" }, { kind: "component", name: "pick", n: "5" }] }));
       if (q.includes("AS track")) return new Response(JSON.stringify({ data: [{ track: "discord-install", n: "3" }] }));
       if (q.includes("AS route")) return new Response(JSON.stringify({ data: [{ route: "/cards", n: "40" }, { route: "/cards/random", n: "2" }] }));
-      if (q.includes("double3 = 0")) return new Response(JSON.stringify({ data: [{ n: "8" }] }));
+      if (q.includes("blob6 AS q") && q.includes("kairos_site") && q.includes("double1 >= 0")) return new Response(JSON.stringify({ data: [{ q: "t:minion <b>", n: "9", results: 12.4 }, { q: "007", n: "3", results: 1 }] }));
+      if (q.includes("kairos_site") && q.includes("double1 = 0") && !q.includes("AS q")) return new Response(JSON.stringify({ data: [{ n: "5" }] }));
+      if (q.includes("kairos_query") && q.includes("double3 = 0") && !q.includes("AS q")) return new Response(JSON.stringify({ data: [{ n: "8" }] }));
       // Anything else: one row with every alias the query names set to a
       // string that must come out escaped.
       const aliases = [...q.matchAll(/ AS (\w+)/g)].map((m) => m[1]!).filter((a) => a !== "n");
       return new Response(JSON.stringify({ data: [{ ...Object.fromEntries(aliases.map((a) => [a, "<b>"])), n: "1" }] }));
     }
     if (url.includes("discord.com/api/v10/applications/@me")) return new Response(JSON.stringify(opts.discord ?? { name: "Kairos", approximate_guild_count: 7, approximate_user_install_count: 19 }));
+    if (url.includes("discord.com/api/v10/users/@me/guilds")) {
+      if (typeof opts.guilds === "number") return new Response("nope", { status: opts.guilds });
+      const after = new URL(url).searchParams.get("after");
+      const all = opts.guilds ?? [{ id: "1", name: "Sorcerer's <Summit>", approximate_member_count: 1200 }, { id: "2", name: "Kitchen table", approximate_member_count: 9 }];
+      const from = after ? all.findIndex((g) => g.id === after) + 1 : 0;
+      return new Response(JSON.stringify(all.slice(from, from + 200)));
+    }
     if (url.endsWith("/graphql")) {
-      const body = JSON.parse(String(init?.body)) as { query: string; variables: { since: string; until: string } };
+      const body = JSON.parse(String(init?.body)) as { query: string; variables: { since: string; until: string; bulk: string[] } };
+      bodies.push(String(init?.body));
       if (failing.includes("graphql")) return new Response(JSON.stringify({ errors: [{ message: "zone analytics: not allowed" }] }));
       const span = (Date.parse(body.variables.until) - Date.parse(body.variables.since)) / 86400000;
       if (opts.zoneMaxDays !== undefined && span > opts.zoneMaxDays + 0.01) {
         return new Response(JSON.stringify({ errors: [{ message: `zone "z" cannot request a time range wider than ${opts.zoneMaxDays}d, but your query time range spans 1w` }] }));
       }
-      const groups = body.query.includes("clientRequestPath")
-        ? [{ count: 900, dimensions: { clientRequestPath: "/v3/cards/C000230.json" } }]
-        : [{ count: 1000, sum: { edgeResponseBytes: 5000 }, dimensions: { clientRequestHTTPHost: "api.kairosarchive.net", cacheStatus: "hit" } }, { count: 200, sum: { edgeResponseBytes: 900 }, dimensions: { clientRequestHTTPHost: "api.kairosarchive.net", cacheStatus: "miss" } }];
-      return new Response(JSON.stringify({ data: { viewer: { zones: [{ groups }] } } }));
+      const g = (count: number, dimensions: Record<string, string | number>, extra: Record<string, unknown> = {}) => ({ count, avg: { sampleInterval: 2 }, ...extra, dimensions });
+      const zone = {
+        hosts: [g(500, { clientRequestHTTPHost: "api.test", cacheStatus: "hit" }, { sum: { edgeResponseBytes: 2500 } }), g(100, { clientRequestHTTPHost: "api.test", cacheStatus: "miss" }, { sum: { edgeResponseBytes: 450 } }), g(50, { clientRequestHTTPHost: "site.test", cacheStatus: "hit" }, { sum: { edgeResponseBytes: 100 } })],
+        paths: [g(300, { clientRequestPath: "/images/P000937.ab12cd34ef56.normal.webp" }), g(20, { clientRequestPath: "/v3.4.1/cards/C000230.json" }), g(5, { clientRequestPath: "/v3.4.1/registry.json" }), g(2, { clientRequestPath: "/v3/cards/C000230.json" }), g(1, { clientRequestPath: "/versions.json" }), g(1, { clientRequestPath: "/<x>" })],
+        downloads: [g(4, { clientRequestPath: "/v3.4.1/registry.json", edgeResponseStatus: 200, userAgent: "sorcery-registry-mcp (+https://kairosarchive.net)" }), g(1, { clientRequestPath: "/v3.4.1/registry.json", edgeResponseStatus: 304, userAgent: "curl/8.6.0" })],
+        agents: [g(300, { userAgent: "Mozilla/5.0 (X11) Chrome/140.0" }), g(4, { userAgent: "sorcery-registry-mcp (+https://kairosarchive.net)" })],
+        images: [g(200, { userAgent: "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)" }), g(100, { userAgent: "Mozilla/5.0 (X11) Chrome/140.0" })],
+        referers: [g(250, { clientRequestReferer: "https://kairosarchive.net/cards/C000230/polar-bears" }), g(50, { clientRequestReferer: "" })],
+        countries: [g(200, { clientCountryName: "AU" }), g(100, { clientCountryName: "US" })],
+        statuses: [g(290, { edgeResponseStatus: 200 }), g(10, { edgeResponseStatus: 404 })],
+      };
+      return new Response(JSON.stringify({ data: { viewer: { zones: [zone] } } }));
     }
     return new Response("nf", { status: 404 });
   };
-  return { fetchImpl, asked };
+  return { fetchImpl, asked, bodies };
 }
 
 describe("POST /event", () => {
@@ -60,13 +86,30 @@ describe("POST /event", () => {
     const res = await handle(req, { ...env, STATS: stats });
     return { res, points: stats.points };
   };
-  it("writes host, page, label and country, and answers 204 for the site's origin", async () => {
+  const named = (p: Point) => Object.fromEntries(BLOBS.map((k, i) => [k, p.blobs![i]]));
+  it("writes a click's host, page, label and country, and answers 204 for the site's origin", async () => {
     const { res, points } = await post(JSON.stringify({ h: "discord.com", p: "/discord", t: "discord-install" }), SITE, { country: "ES" });
     expect(res.status).toBe(204);
     expect(res.headers.get("access-control-allow-origin")).toBe(SITE);
     expect(points).toHaveLength(1);
-    expect(Object.fromEntries(BLOBS.map((k, i) => [k, points[0]!.blobs![i]]))).toEqual({ host: "discord.com", page: "/discord", track: "discord-install", country: "ES" });
+    expect(named(points[0]!)).toEqual({ host: "discord.com", page: "/discord", track: "discord-install", country: "ES", kind: "click", q: "" });
     expect(points[0]!.indexes).toEqual(["discord.com"]);
+    expect(points[0]!.doubles).toEqual([0]);
+  });
+  it("writes a search's query and result count, clipped, and refuses a malformed one", async () => {
+    const { res, points } = await post(JSON.stringify({ k: "search", q: "  t:minion e:water ", n: 12, p: "/search" }), SITE, { country: "AU" });
+    expect(res.status).toBe(204);
+    expect(named(points[0]!)).toEqual({ host: "", page: "/search", track: "", country: "AU", kind: "search", q: "t:minion e:water" });
+    expect(points[0]!.indexes).toEqual(["search"]);
+    expect(DOUBLES.map((_, i) => points[0]!.doubles![i])).toEqual([12]);
+    const rejected = await post(JSON.stringify({ k: "search", q: "t:", n: -1, p: "/cards" }));
+    expect(rejected.points[0]!.doubles).toEqual([-1]);
+    const long = await post(JSON.stringify({ k: "search", q: "x".repeat(300), n: 0, p: "/search" }));
+    expect(named(long.points[0]!).q).toHaveLength(200);
+    expect((await post(JSON.stringify({ k: "search", q: "", n: 1, p: "/search" }))).res.status).toBe(400);
+    expect((await post(JSON.stringify({ k: "search", q: "a", n: -2, p: "/search" }))).res.status).toBe(400);
+    expect((await post(JSON.stringify({ k: "search", q: "a", n: 1.5, p: "/search" }))).res.status).toBe(400);
+    expect((await post(JSON.stringify({ k: "search", q: "a", n: 1, p: "search" }))).res.status).toBe(400);
   });
   it("refuses other origins, bad bodies and long bodies, and preflights", async () => {
     expect((await post("{}", "https://evil.example")).res.status).toBe(403);
@@ -85,63 +128,95 @@ describe("GET /", () => {
   beforeEach(forgetKeys);
   const get = (t: string | null, env2: Env = env, src = sources(), path = "/") =>
     handle(new Request(`https://stats.test${path}`, { headers: t ? { "cf-access-jwt-assertion": t } : {} }), env2, { fetchImpl: src.fetchImpl, now: () => NOW });
+  const page = async (src = sources(), path = "/", env2: Env = env) => (await get(await token(good), env2, src, path)).text();
+
   it("refuses without a valid Access token and says why", async () => {
     const res = await get(null);
     expect(res.status).toBe(403);
     expect(await res.text()).toContain("No Access token");
     expect((await get(await token({ ...good, aud: "other" }))).status).toBe(403);
   });
-  it("renders the report for a good token", async () => {
+  it("renders the report for a good token, sections in priority order", async () => {
     const src = sources();
     const res = await get(await token(good), env, src);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const html = await res.text();
     expect(html).toContain("Kairos Archive · usage");
-    expect(html).toContain("owner@example.com");
-    expect(html).toContain("<div class=\"value\">42</div>");          // 12 + 30 interactions
-    expect(html).toContain("7 servers · 19 accounts");
+    const order = ["Data and images", "<h2>Search</h2>", "<h2>Site</h2>", "Discord bot"].map((s) => html.indexOf(s));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(order.every((i) => i > 0)).toBe(true);
+    // Zone numbers are scaled by the sample interval (2 here).
+    expect(html).toContain('<td class="text">api.test</td><td class="n bar" style="--w:100%">1,200</td><td class="n">1,000</td><td class="n">5.8 KB</td>');
+    expect(html).toContain("whole-dataset downloads");
+    expect(html).toMatch(/<div class="value">8<\/div><div class="label">whole-dataset downloads<\/div>/);   // 4 samples × 2, the 304 not counted
+    expect(html).toContain("sorcery-registry-mcp");
+    expect(html).toContain('<span class="status s3">304</span>');
+    expect(html).toContain("<td class=\"text\">images</td>");
+    expect(html).toContain("<td class=\"text\">whole dataset</td>");
+    expect(html).toContain("<td class=\"text\">alias (/vN → release)</td>");
+    expect(html).toContain("<td class=\"text\">discordbot</td>");
+    expect(html).toContain("<td class=\"text\">kairosarchive.net</td>");
+    expect(html).toContain("<td class=\"text\">(direct)</td>");
+    expect(html).toContain("&lt;x&gt;");                                                // escaped path
+    expect(html).toContain("<code>t:minion &lt;b&gt;</code>");                         // escaped query
+    expect(html).toContain("<code>007</code>");                                        // a numeric-looking query stays text
+    expect(html).toContain("5 found nothing (12%)");                                   // site: 5 of 42 searches
+    expect(html).toContain("8 found nothing (20%)");                                   // API: 8 of 40
     expect(html).toContain("p50 42 ms · p95 120 ms");
-    expect(html).toContain("<td>command</td><td>card</td><td>25</td>");
-    expect(html).toContain("20% of list queries");                     // 8 of 40
-    expect(html).toContain("&lt;b&gt;");                               // escaped
+    expect(html).toContain('<td class="text">command</td><td class="text">card</td><td class="n bar" style="--w:100%">25</td>');
+    expect(html).toContain("Sorcerer&#39;s &lt;Summit&gt;");
+    expect(html).toContain('<div class="value">2</div><div class="label">servers it is installed in</div>');
+    expect(html).toContain('<div class="value">19</div><div class="label">accounts it is installed on</div>');
+    expect(html).toContain("Discord&#39;s live count for Kairos");
     expect(html).toContain("<polyline");
-    expect(html).toContain("<td>api.kairosarchive.net</td><td>1,200</td><td>1,000</td><td>5,900</td>");
-    expect(html).toContain("/v3/cards/C000230.json");
-    expect(src.asked.filter((u) => u.endsWith("/analytics_engine/sql")).length).toBeGreaterThan(15);
+    expect(src.asked.filter((u) => u.endsWith("/analytics_engine/sql")).length).toBeGreaterThan(20);
+    const bulk = (JSON.parse(src.bodies.find((b) => b.startsWith("{"))!) as { variables: { bulk: string[] } }).variables.bulk;
+    expect(bulk).toEqual(["/v3.4.0/registry.json", "/v3.4.0/registry.json.gz", "/v3.4.1/registry.json", "/v3.4.1/registry.json.gz"]);
   });
   it("shows a failed source in its own section and keeps the rest", async () => {
-    const res = await get(await token(good), env, sources(["AS kind", "graphql"]));
-    const html = await res.text();
-    expect(res.status).toBe(200);
+    const html = await page(sources(["AS kind", "graphql"]));
     expect(html).toContain("HTTP 500: boom");
     expect(html).toContain("zone analytics: not allowed");
-    expect(html).toContain("7 servers · 19 accounts");
-    expect(html).toContain("Discord&#39;s count for Kairos, live");
+    expect(html).toContain("Sorcerer&#39;s &lt;Summit&gt;");
   });
-  it("narrows the zone window to what the plan allows and says so", async () => {
+  it("asks the zone day by day when the plan allows no more, and says how much it covered", async () => {
     const src = sources([], { zoneMaxDays: 1 });
-    const html = await (await get(await token(good), env, src, "/?days=7")).text();
-    expect(html).toContain("<td>api.kairosarchive.net</td><td>1,200</td>");
-    expect(html).toContain("/v3/cards/C000230.json");
-    expect(html).toContain("Last 1 day only: the zone&#39;s plan allows no wider window.");
+    const html = await page(src, "/?days=7");
+    expect(html).toContain("The whole window, in 7 requests of 1 day: the zone&#39;s plan allows no wider query.");
+    expect(html).toContain('<td class="text">api.test</td><td class="n bar" style="--w:100%">8,400</td>');   // 7 × 1,200
     expect(html).not.toContain("wider than");
-    expect(src.asked.filter((u) => u.endsWith("/graphql")).length).toBe(4);   // two queries, each asked twice
+    expect(src.asked.filter((u) => u.endsWith("/graphql")).length).toBe(8);   // the whole window once, then 7 slices
     const narrow = sources([], { zoneMaxDays: 1 });
-    const day = await (await get(await token(good), env, narrow, "/?days=1")).text();
+    const day = await page(narrow, "/?days=1");
     expect(day).not.toContain("plan allows");
-    expect(narrow.asked.filter((u) => u.endsWith("/graphql")).length).toBe(2);
+    expect(narrow.asked.filter((u) => u.endsWith("/graphql")).length).toBe(1);
+    const long = sources([], { zoneMaxDays: 1 });
+    const html90 = await page(long, "/?days=90");
+    expect(html90).toContain("Last 30 days only, in 30 requests of 1 day");
+    expect(long.asked.filter((u) => u.endsWith("/graphql")).length).toBe(31);
   });
-  it("never shows zero installs when Discord omits the counts, and no latency without timed answers", async () => {
-    const html = await (await get(await token(good), env, sources([], { discord: { name: "Kairos" }, untimed: true }))).text();
-    expect(html).toContain("Discord reported no install counts for Kairos.");
-    expect(html).not.toContain("0 servers · 0 accounts");
+  it("reports Discord's answers honestly: no guild list, no user count, no timed answers", async () => {
+    const html = await page(sources([], { guilds: 401, discord: { name: "Kairos" }, untimed: true }));
+    expect(html).toContain("Discord: HTTP 401");
+    expect(html).toContain('<div class="value">not reported</div><div class="label">accounts it is installed on</div>');
     expect(html).toContain("no timed answers yet");
     expect(html).not.toContain("p50");
+    const many = Array.from({ length: 250 }, (_, i) => ({ id: String(i + 1), name: `g${i}`, approximate_member_count: i }));
+    const src = sources([], { guilds: many });
+    const paged = await page(src);
+    expect(paged).toContain('<div class="value">250</div><div class="label">servers it is installed in</div>');
+    expect(src.asked.filter((u) => u.includes("/users/@me/guilds")).length).toBe(2);
+  });
+  it("counts downloads on no paths when versions.json cannot be read, rather than guessing", async () => {
+    const src = sources([], { noVersions: true });
+    await page(src);
+    const bulk = (JSON.parse(src.bodies.find((b) => b.startsWith("{"))!) as { variables: { bulk: string[] } }).variables.bulk;
+    expect(bulk).toEqual([]);
   });
   it("honours the window and refuses an unconfigured dashboard", async () => {
     const src = sources();
-    await get(await token(good), env, src, "/?days=30");
+    await page(src, "/?days=30");
     expect(src.asked.length).toBeGreaterThan(0);
     const res = await get(await token(good), { ...env, CF_API_TOKEN: undefined }, src);
     expect(res.status).toBe(503);

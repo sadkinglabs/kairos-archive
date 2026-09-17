@@ -1,5 +1,5 @@
-/** Two jobs on one hostname. POST /event takes the site's outbound-click
- * beacon and writes it to Analytics Engine; it accepts only the site's
+/** Two jobs on one hostname. POST /event takes the site's beacon (an
+ * outbound click or a search) and writes it to Analytics Engine; it accepts only the site's
  * origin and a tiny body, and answers 204. GET / is the owner's
  * dashboard: the Cloudflare Access token is verified, the sources are
  * read, the page is rendered. GET /health answers for the deploy check. */
@@ -9,7 +9,7 @@ import { gather } from "./sources";
 import { record } from "./event";
 
 export interface Env {
-  SITE_BASE_URL?: string; API_HOST?: string; QUERY_HOST?: string; BOT_HOST?: string; SITE_HOST?: string;
+  SITE_BASE_URL?: string; API_HOST?: string; QUERY_HOST?: string; BOT_HOST?: string; SITE_HOST?: string; STATS_HOST?: string;
   CF_API_TOKEN?: string; CF_ACCOUNT_ID?: string; CF_ZONE_ID?: string;
   ACCESS_TEAM_DOMAIN?: string; ACCESS_AUD?: string;
   DISCORD_BOT_TOKEN?: string;
@@ -42,9 +42,9 @@ export async function handle(request: Request, env: Env, deps: Deps = {}, ctx?: 
 
   const days = Math.max(1, Math.min(90, Number(url.searchParams.get("days") ?? "7") || 7));
   const report = await gather(
-    { fetchImpl, token: env.CF_API_TOKEN, account: env.CF_ACCOUNT_ID, zone: env.CF_ZONE_ID, botToken: env.DISCORD_BOT_TOKEN },
+    { fetchImpl, token: env.CF_API_TOKEN, account: env.CF_ACCOUNT_ID, zone: env.CF_ZONE_ID, botToken: env.DISCORD_BOT_TOKEN, apiBase: `https://${env.API_HOST ?? "api.kairosarchive.net"}` },
     days,
-    { api: env.API_HOST ?? "api.kairosarchive.net", query: env.QUERY_HOST ?? "query.kairosarchive.net", bot: env.BOT_HOST ?? "bot.kairosarchive.net", site: env.SITE_HOST ?? "kairosarchive.net" },
+    { api: env.API_HOST ?? "api.kairosarchive.net", query: env.QUERY_HOST ?? "query.kairosarchive.net", bot: env.BOT_HOST ?? "bot.kairosarchive.net", site: env.SITE_HOST ?? "kairosarchive.net", stats: env.STATS_HOST ?? "stats.kairosarchive.net" },
   );
   void ctx;
   return new Response(render(report, verdict.email ?? "you"), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
