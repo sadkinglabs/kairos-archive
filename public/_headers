@@ -1,14 +1,19 @@
 # Browser hardening for every page. Cloudflare Pages reads this file from
 # the build output and adds the headers at the edge.
 #
-# The policy is strict because the site earns it: the built HTML carries no
-# inline script, no inline style, no on* handlers and no style= attributes -
-# every script and stylesheet is an external /_astro/ file - so 'self' is
-# enough for both, with two named exceptions. Card images and the JSON the
-# Download button fetches come from api.kairosarchive.net; the Fun Zone's
-# tools ask the query API on query.kairosarchive.net from the browser.
-# Outbound-click beacons go to stats.kairosarchive.net (Base.astro, sendBeacon). When the
-# Web Analytics token is set at build time, Base.astro loads Cloudflare's
+# The policy is strict where it matters. Scripts: the built HTML carries no
+# inline script and no on* handlers - every script is an external /_astro/
+# file - so script-src is 'self' plus the analytics host, and an injected
+# script could never run. Styles: 'unsafe-inline' is allowed on purpose,
+# the one exception, because Shiki colours code samples with a style
+# attribute on every token (CodeExample.astro); a static site with no
+# user content rendered into its pages gives CSS injection nothing to
+# work with, and the highlighting is worth more than the last letter of
+# a header grade. Card images and the JSON the Download button fetches
+# come from api.kairosarchive.net; the Fun Zone's tools ask the query API
+# on query.kairosarchive.net from the browser. Outbound-click beacons go
+# to stats.kairosarchive.net (Base.astro, sendBeacon). When the Web
+# Analytics token is set at build time, Base.astro loads Cloudflare's
 # beacon script from static.cloudflareinsights.com and that script reports
 # to cloudflareinsights.com; both are listed here whether or not the token
 # is set, since this file is static, and neither can be reached by anything
@@ -16,7 +21,7 @@
 # and X-Frame-Options together stop the site being framed by anyone, which
 # is the one thing a card archive never needs.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' https://api.kairosarchive.net; connect-src 'self' https://api.kairosarchive.net https://query.kairosarchive.net https://stats.kairosarchive.net https://cloudflareinsights.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' https://api.kairosarchive.net; connect-src 'self' https://api.kairosarchive.net https://query.kairosarchive.net https://stats.kairosarchive.net https://cloudflareinsights.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
