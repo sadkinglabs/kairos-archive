@@ -10,6 +10,24 @@
 - **Images** come from `api.kairosarchive.net/images/` (the registry hosts them as the publisher's API guidance asks) and are displayed with `border-radius: 4.75% / 3.5%`.
 - **Rebuilds.** The registry's release workflow POSTs the Pages deploy hook after every verified release, so the site always shows the newest data.
 
+## Usage counts
+
+Three things are counted, and nothing else; the [usage page](https://kairosarchive.net/usage) says so publicly.
+
+- **The site** loads Cloudflare Web Analytics (page views, referrers; no cookie, no identifier) when `PUBLIC_CF_BEACON_TOKEN` is set at build time, and sends a beacon to the stats Worker for clicks on links that leave the site: the host they go to, the page, and the link's `data-track` label when it has one.
+- **The query API** (`worker/src/stats.ts`) and **the bot** write one Analytics Engine data point per request: route or command, outcome, client software as a family, country, query keys, latency. Never the address, the query text or the full `User-Agent`.
+- **The stats Worker** (`stats/`, on `stats.kairosarchive.net`) takes the beacon at `POST /event` (only from the site's origin) and serves the owner's dashboard at `GET /`, behind Cloudflare Access: the Access token is verified in the Worker too, so a hostname without a policy fails closed. The page reads the three datasets through the Analytics Engine SQL API, Discord's install counts, and the zone's sampled request analytics for the hosts no Worker runs on.
+
+Setting up the dashboard, once:
+
+1. **Access.** Zero Trust → Access → Applications → add a self-hosted application for `stats.kairosarchive.net` with a policy allowing your email (one-time PIN). Note the application's **Audience (AUD) tag** and your **team domain** (`<team>.cloudflareaccess.com`).
+2. **An API token** with *Account Analytics: Read* and *Zone Analytics: Read* for the zone.
+3. **Repository secrets:** `STATS_CF_API_TOKEN` (that token), `CF_ZONE_ID`, `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `DISCORD_BOT_TOKEN` (the bot's, for install counts). `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are the ones the other deploys already use.
+4. **Web Analytics.** Analytics & Logs → Web Analytics → add the site, copy the token into the Pages project's build variable `PUBLIC_CF_BEACON_TOKEN`, and redeploy.
+5. Run the **deploy-stats** workflow (it also runs on every push touching `stats/`). It deploys, pushes the secrets that are set, and checks `/health`, that `/` refuses without Access, and that `/event` refuses another origin.
+
+The bot's `STATS_SALT` secret keys its server hash; without it the bot writes no server hash at all.
+
 ## Develop
 
 ```bash

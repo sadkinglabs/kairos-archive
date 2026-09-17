@@ -36,6 +36,8 @@ jobs:
       - run: npm test
       - run: npm run worker:check   # the query Worker's own tsconfig (workers-types, not node)
       - run: npm run worker:bundle  # a dry-run deploy: what would be uploaded
+      - run: npm run stats:check    # the stats Worker (stats/), the same way
+      - run: npm run stats:bundle
       - run: npm run build
       - name: Summary
         run: |
