@@ -8,7 +8,9 @@ import type { Fetch } from "./access";
 
 export interface Sources { fetchImpl: Fetch; token: string; account: string; zone?: string; botToken?: string; appId?: string }
 
-export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
+/** A source's answer. `note` is a caveat worth showing next to the
+ * value, such as a window narrower than the one asked for. */
+export type Result<T> = { ok: true; value: T; note?: string } | { ok: false; error: string };
 export type Row = Record<string, string | number | null>;
 
 const CF = "https://api.cloudflare.com/client/v4";
@@ -36,7 +38,7 @@ export interface Report {
   days: number;
   bot: {
     daily: Result<Row[]>; commands: Result<Row[]>; outcomes: Result<Row[]>; contexts: Result<Row[]>; servers: Result<Row[]>; misses: Result<Row[]>; latency: Result<Row[]>;
-    installs: Result<{ servers: number; users: number }>;
+    installs: Result<{ servers: number; users: number; app: string }>;
   };
   query: { daily: Result<Row[]>; routes: Result<Row[]>; sources: Result<Row[]>; agents: Result<Row[]>; countries: Result<Row[]>; statuses: Result<Row[]>; keys: Result<Row[]>; empty: Result<Row[]> };
   site: { daily: Result<Row[]>; hosts: Result<Row[]>; pages: Result<Row[]>; tracks: Result<Row[]> };
@@ -85,14 +87,20 @@ export async function gather(s: Sources, days: number, hosts: { api: string; que
 }
 
 /** Discord's approximate counts of the servers and the accounts the
- * app is installed in. */
-export async function discordInstalls(s: Sources): Promise<Result<{ servers: number; users: number }>> {
+ * app is installed in, with the app's name so a token for the wrong
+ * app is visible. A response without the counts is reported as such,
+ * never as zero installs. */
+export async function discordInstalls(s: Sources): Promise<Result<{ servers: number; users: number; app: string }>> {
   if (!s.botToken) return { ok: false, error: "DISCORD_BOT_TOKEN is not set." };
   try {
     const res = await s.fetchImpl("https://discord.com/api/v10/applications/@me", { headers: { authorization: `Bot ${s.botToken}`, "user-agent": "kairos-stats (+https://kairosarchive.net)" } });
     if (!res.ok) return { ok: false, error: `Discord: HTTP ${res.status}` };
-    const app = (await res.json()) as { approximate_guild_count?: number; approximate_user_install_count?: number };
-    return { ok: true, value: { servers: app.approximate_guild_count ?? 0, users: app.approximate_user_install_count ?? 0 } };
+    const app = (await res.json()) as { name?: string; approximate_guild_count?: number; approximate_user_install_count?: number };
+    const name = app.name ?? "unnamed app";
+    if (typeof app.approximate_guild_count !== "number" && typeof app.approximate_user_install_count !== "number") {
+      return { ok: false, error: `Discord reported no install counts for ${name}.` };
+    }
+    return { ok: true, value: { servers: app.approximate_guild_count ?? 0, users: app.approximate_user_install_count ?? 0, app: name } };
   } catch (err) {
     return { ok: false, error: String(err) };
   }
@@ -116,13 +124,34 @@ function since(days: number): { since: string; until: string } {
   return { since: from.toISOString(), until: until.toISOString() };
 }
 
+/** The widest window the zone's plan allows, read from the API's own
+ * refusal ("cannot request a time range wider than 1d"), in days. */
+export function allowedDays(error: string): number | undefined {
+  const m = /wider than (\d+)([hdw])/.exec(error);
+  if (!m) return undefined;
+  const n = Number(m[1]);
+  return m[2] === "w" ? n * 7 : m[2] === "h" ? n / 24 : n;
+}
+
+/** Run a zone query over the window asked for; when the plan refuses a
+ * window that wide, run it again over the widest it allows and say so. */
+async function zoneQuery(s: Sources, query: string, days: number, variables: Record<string, unknown>): Promise<Result<unknown>> {
+  const first = await graphql(s, query, { ...since(days), ...variables });
+  if (first.ok) return first;
+  const allowed = allowedDays(first.error);
+  if (allowed === undefined || allowed >= days) return first;
+  const again = await graphql(s, query, { ...since(allowed), ...variables });
+  if (!again.ok) return again;
+  return { ...again, note: `Last ${allowed >= 1 ? `${allowed} day${allowed === 1 ? "" : "s"}` : `${Math.round(allowed * 24)} hours`} only: the zone's plan allows no wider window.` };
+}
+
 /** Requests, cache hits and bytes per hostname, from the zone's sampled
  * request analytics. */
 export async function zoneHosts(s: Sources, days: number, hosts: string[]): Promise<Result<Row[]>> {
-  const r = await graphql(s, `query($zone: String!, $since: Time!, $until: Time!, $hosts: [String!]) {
+  const r = await zoneQuery(s, `query($zone: String!, $since: Time!, $until: Time!, $hosts: [String!]) {
     viewer { zones(filter: { zoneTag: $zone }) {
       groups: httpRequestsAdaptiveGroups(limit: 200, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost_in: $hosts }) {
-        count sum { edgeResponseBytes } dimensions { clientRequestHTTPHost cacheStatus } } } } }`, { ...since(days), hosts });
+        count sum { edgeResponseBytes } dimensions { clientRequestHTTPHost cacheStatus } } } } }`, days, { hosts });
   if (!r.ok) return r;
   const groups = r.value as { count: number; sum: { edgeResponseBytes: number }; dimensions: { clientRequestHTTPHost: string; cacheStatus: string } }[];
   const byHost = new Map<string, Row>();
@@ -134,16 +163,16 @@ export async function zoneHosts(s: Sources, days: number, hosts: string[]): Prom
     if (g.dimensions.cacheStatus === "hit") row.hits = (row.hits as number) + g.count;
     byHost.set(host, row);
   }
-  return { ok: true, value: [...byHost.values()].sort((a, b) => (b.requests as number) - (a.requests as number)) };
+  return { ok: true, value: [...byHost.values()].sort((a, b) => (b.requests as number) - (a.requests as number)), note: r.note };
 }
 
 /** The most requested paths on the API host. */
 export async function zonePaths(s: Sources, days: number, host: string): Promise<Result<Row[]>> {
-  const r = await graphql(s, `query($zone: String!, $since: Time!, $until: Time!, $host: String!) {
+  const r = await zoneQuery(s, `query($zone: String!, $since: Time!, $until: Time!, $host: String!) {
     viewer { zones(filter: { zoneTag: $zone }) {
       groups: httpRequestsAdaptiveGroups(limit: 15, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $host }) {
-        count dimensions { clientRequestPath } } } } }`, { ...since(days), host });
+        count dimensions { clientRequestPath } } } } }`, days, { host });
   if (!r.ok) return r;
   const groups = r.value as { count: number; dimensions: { clientRequestPath: string } }[];
-  return { ok: true, value: groups.map((g) => ({ path: g.dimensions.clientRequestPath, requests: g.count })) };
+  return { ok: true, value: groups.map((g) => ({ path: g.dimensions.clientRequestPath, requests: g.count })), note: r.note };
 }

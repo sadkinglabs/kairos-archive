@@ -14,7 +14,7 @@ const SITE = "https://site.test";
 const env: Env = { SITE_BASE_URL: SITE, ACCESS_TEAM_DOMAIN: "kairos.cloudflareaccess.com", ACCESS_AUD: "aud-0123", CF_API_TOKEN: "tok", CF_ACCOUNT_ID: "acc", CF_ZONE_ID: "zone", DISCORD_BOT_TOKEN: "bot" };
 
 /** Answers every source with plausible data, or fails the ones named. */
-function sources(failing: string[] = []) {
+function sources(failing: string[] = [], opts: { zoneMaxDays?: number; discord?: Record<string, unknown>; untimed?: boolean } = {}) {
   const asked: string[] = [];
   const fetchImpl = async (url: string, init?: RequestInit) => {
     asked.push(url);
@@ -24,7 +24,7 @@ function sources(failing: string[] = []) {
       if (failing.some((f) => q.includes(f))) return new Response("boom", { status: 500 });
       if (q.includes("AS day")) return new Response(JSON.stringify({ data: [{ day: "2027-01-05 00:00:00", n: "12" }, { day: "2027-01-06 00:00:00", n: "30" }] }));
       if (q.includes("COUNT(DISTINCT")) return new Response(JSON.stringify({ data: [{ servers: "4" }] }));
-      if (q.includes("quantileWeighted")) return new Response(JSON.stringify({ data: [{ p50: 41.5, p95: 120 }] }));
+      if (q.includes("quantileWeighted")) return new Response(JSON.stringify({ data: [opts.untimed ? { p50: null, p95: null } : { p50: 41.5, p95: 120 }] }));
       if (q.includes("AS kind")) return new Response(JSON.stringify({ data: [{ kind: "command", name: "card", n: "25" }, { kind: "component", name: "pick", n: "5" }] }));
       if (q.includes("AS track")) return new Response(JSON.stringify({ data: [{ track: "discord-install", n: "3" }] }));
       if (q.includes("AS route")) return new Response(JSON.stringify({ data: [{ route: "/cards", n: "40" }, { route: "/cards/random", n: "2" }] }));
@@ -34,10 +34,14 @@ function sources(failing: string[] = []) {
       const aliases = [...q.matchAll(/ AS (\w+)/g)].map((m) => m[1]!).filter((a) => a !== "n");
       return new Response(JSON.stringify({ data: [{ ...Object.fromEntries(aliases.map((a) => [a, "<b>"])), n: "1" }] }));
     }
-    if (url.includes("discord.com/api/v10/applications/@me")) return new Response(JSON.stringify({ approximate_guild_count: 7, approximate_user_install_count: 19 }));
+    if (url.includes("discord.com/api/v10/applications/@me")) return new Response(JSON.stringify(opts.discord ?? { name: "Kairos", approximate_guild_count: 7, approximate_user_install_count: 19 }));
     if (url.endsWith("/graphql")) {
-      const body = JSON.parse(String(init?.body)) as { query: string };
+      const body = JSON.parse(String(init?.body)) as { query: string; variables: { since: string; until: string } };
       if (failing.includes("graphql")) return new Response(JSON.stringify({ errors: [{ message: "zone analytics: not allowed" }] }));
+      const span = (Date.parse(body.variables.until) - Date.parse(body.variables.since)) / 86400000;
+      if (opts.zoneMaxDays !== undefined && span > opts.zoneMaxDays + 0.01) {
+        return new Response(JSON.stringify({ errors: [{ message: `zone "z" cannot request a time range wider than ${opts.zoneMaxDays}d, but your query time range spans 1w` }] }));
+      }
       const groups = body.query.includes("clientRequestPath")
         ? [{ count: 900, dimensions: { clientRequestPath: "/v3/cards/C000230.json" } }]
         : [{ count: 1000, sum: { edgeResponseBytes: 5000 }, dimensions: { clientRequestHTTPHost: "api.kairosarchive.net", cacheStatus: "hit" } }, { count: 200, sum: { edgeResponseBytes: 900 }, dimensions: { clientRequestHTTPHost: "api.kairosarchive.net", cacheStatus: "miss" } }];
@@ -113,6 +117,27 @@ describe("GET /", () => {
     expect(html).toContain("HTTP 500: boom");
     expect(html).toContain("zone analytics: not allowed");
     expect(html).toContain("7 servers · 19 accounts");
+    expect(html).toContain("Discord&#39;s count for Kairos, live");
+  });
+  it("narrows the zone window to what the plan allows and says so", async () => {
+    const src = sources([], { zoneMaxDays: 1 });
+    const html = await (await get(await token(good), env, src, "/?days=7")).text();
+    expect(html).toContain("<td>api.kairosarchive.net</td><td>1,200</td>");
+    expect(html).toContain("/v3/cards/C000230.json");
+    expect(html).toContain("Last 1 day only: the zone&#39;s plan allows no wider window.");
+    expect(html).not.toContain("wider than");
+    expect(src.asked.filter((u) => u.endsWith("/graphql")).length).toBe(4);   // two queries, each asked twice
+    const narrow = sources([], { zoneMaxDays: 1 });
+    const day = await (await get(await token(good), env, narrow, "/?days=1")).text();
+    expect(day).not.toContain("plan allows");
+    expect(narrow.asked.filter((u) => u.endsWith("/graphql")).length).toBe(2);
+  });
+  it("never shows zero installs when Discord omits the counts, and no latency without timed answers", async () => {
+    const html = await (await get(await token(good), env, sources([], { discord: { name: "Kairos" }, untimed: true }))).text();
+    expect(html).toContain("Discord reported no install counts for Kairos.");
+    expect(html).not.toContain("0 servers · 0 accounts");
+    expect(html).toContain("no timed answers yet");
+    expect(html).not.toContain("p50");
   });
   it("honours the window and refuses an unconfigured dashboard", async () => {
     const src = sources();

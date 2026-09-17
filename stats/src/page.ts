@@ -32,10 +32,11 @@ export function sparkline(r: Result<Row[]>, days: number): string {
 
 function table(title: string, r: Result<Row[]>, columns: [string, string][]): string {
   if (!r.ok) return `<section><h3>${esc(title)}</h3><p class="err">${esc(r.error)}</p></section>`;
-  if (!r.value.length) return `<section><h3>${esc(title)}</h3><p class="muted">Nothing yet.</p></section>`;
+  const note = r.note ? `<p class="muted">${esc(r.note)}</p>` : "";
+  if (!r.value.length) return `<section><h3>${esc(title)}</h3><p class="muted">Nothing yet.</p>${note}</section>`;
   const head = columns.map(([, label]) => `<th>${esc(label)}</th>`).join("");
   const rows = r.value.map((row) => `<tr>${columns.map(([key]) => `<td>${num(row[key])}</td>`).join("")}</tr>`).join("");
-  return `<section><h3>${esc(title)}</h3><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></section>`;
+  return `<section><h3>${esc(title)}</h3>${note}<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></section>`;
 }
 
 function counter(label: string, value: string, note = ""): string {
@@ -52,7 +53,9 @@ export function render(report: Report, who: string): string {
   const botTotal = total(bot.daily); const qTotal = total(q.daily); const clicks = total(site.daily);
   const servers = bot.servers.ok ? Number(bot.servers.value[0]?.servers ?? 0) : 0;
   const installs = bot.installs.ok ? `${bot.installs.value.servers.toLocaleString("en-GB")} servers · ${bot.installs.value.users.toLocaleString("en-GB")} accounts` : bot.installs.error;
-  const latency = bot.latency.ok && bot.latency.value[0] ? `p50 ${num(bot.latency.value[0].p50)} ms · p95 ${num(bot.latency.value[0].p95)} ms` : "";
+  const installsNote = bot.installs.ok ? `Discord's count for ${bot.installs.value.app}, live` : "Discord's count, live";
+  const timed = bot.latency.ok ? bot.latency.value[0] : undefined;
+  const latency = typeof timed?.p50 === "number" ? `p50 ${num(timed.p50)} ms · p95 ${num(timed.p95)} ms` : "no timed answers yet";
   const empty = total(q.empty);
   const listTotal = q.routes.ok ? Number(q.routes.value.find((r) => r.route === "/cards")?.n ?? 0) : 0;
   const discordClicks = site.tracks.ok ? Number(site.tracks.value.find((r) => r.track === "discord-install")?.n ?? 0) : 0;
@@ -79,7 +82,7 @@ table{border-collapse:collapse;width:100%;font-size:.92rem}td,th{text-align:left
 <div class="counters">
 ${counter("interactions", num(botTotal), latency)}
 ${counter("distinct servers", num(servers), "keyed hash, not ids")}
-${counter("installed in", esc(installs), "Discord's count, live")}
+${counter("installed in", esc(installs), installsNote)}
 </div>
 ${sparkline(bot.daily, d)}
 <div class="grid">
