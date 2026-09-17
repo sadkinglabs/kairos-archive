@@ -102,7 +102,7 @@ if (typeof document !== "undefined" && document.getElementById("analyser-form"))
       let html = renderReport(a, nameOf(first));
       if (second.value) {
         const b = await analyseSet(second.value);
-        html += renderComparison(a, nameOf(first), b, nameOf(second)) + renderReport(b, nameOf(second));
+        html += renderReport(b, nameOf(second)) + renderComparison(a, nameOf(first), b, nameOf(second));
       }
       out.innerHTML = html;
     } catch (err) {
