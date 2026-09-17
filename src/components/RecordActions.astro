@@ -7,8 +7,12 @@
  * Without any links it is a bare centred identifier line rather than an
  * empty panel (the printing page names its card that way). */
 import Icon from './Icon.astro';
-interface Props { id?: string | null; url?: string | null; label?: string; official?: string | null }
-const { id, url, label = 'Card ID', official } = Astro.props;
+interface Props {
+  id?: string | null; url?: string | null; label?: string; official?: string | null;
+  /** The record this one belongs to (a printing's card): its id and page, on a second line. */
+  parent?: { label: string; id: string; href: string; text: string } | null;
+}
+const { id, url, label = 'Codex ID', official, parent = null } = Astro.props;
 const links = Boolean(url || official);
 ---
 <div class:list={['record-block', { bare: !links }]}>
@@ -18,4 +22,5 @@ const links = Boolean(url || official);
     {url && <a class="btn secondary" href={url} data-download={id ?? url.split('/').pop()?.replace(/\.json$/, '') ?? 'record'}><Icon name="download" size={16} /> Download JSON</a>}
     {official && <a class="btn secondary" href={official}>SorceryTCG.com <Icon name="external" size={15} /></a>}
   </div>}
+  {parent && <p class="record-id parent"><span class="muted">{parent.label}</span> <code>{parent.id}</code> <button class="copy" data-copy={parent.id} aria-label={`Copy ${parent.label} ${parent.id}`}>Copy</button> <a href={parent.href}>{parent.text}</a></p>}
 </div>

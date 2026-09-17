@@ -51,7 +51,8 @@ const setsIn = registry.sets.filter(s => card.set_codes.includes(s.set_code ?? '
     <div class="art-column"><CardArt urls={card.image_urls} status={card.image_status} name={card.name} type={card.type} />{defaultPrinting?.back && <CardArt urls={defaultPrinting.back.image_urls} status={defaultPrinting.image_status} name={`${card.name}, back face`} type={card.back?.type} back />}</div>
     <div class="card-content">
       <FaceBox face={card} title={card.name} level={1} printing={defaultPrinting} errata={card.errata} id={card.codex_id} sets={setsIn}
-        erratumNote={card.errata ? (defaultPrinting?.printed_as_current === false ? 'This printing shows earlier values.' : 'This card has recorded errata.') : null} />
+        erratumNote={card.errata ? (defaultPrinting?.printed_as_current === false ? 'This printing shows earlier values.' : 'This card has recorded errata.') : null}
+        historyHref={history.length > 1 ? '#face-printings-title' : '#history'} />
       {card.back && <details class="face-disclosure">
         <summary><span class="label">Back face</span><span class="muted">{[card.back.type, ...card.back.subtypes].filter(Boolean).join(' · ')}</span></summary>
         <FaceBox face={card.back} printing={defaultPrinting?.back ?? null} />
