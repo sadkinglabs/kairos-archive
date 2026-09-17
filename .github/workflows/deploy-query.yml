@@ -45,10 +45,15 @@ jobs:
       - name: Check the deployed API answers
         if: env.skip != 'true'
         run: |
-          sleep 5
-          curl -sS --fail --max-time 20 -A "kairos-archive-ci (+https://kairosarchive.net)" \
-            'https://api.kairosarchive.net/cards?q=t:minion&page_size=1' | head -c 400
-          echo
-          code=$(curl -sS -o /dev/null -w '%{http_code}' -A "kairos-archive-ci (+https://kairosarchive.net)" 'https://api.kairosarchive.net/cards/nope')
+          # A fresh custom domain can take a moment to resolve; try for a minute.
+          set -o pipefail
+          for i in $(seq 1 12); do
+            if body=$(curl -sS --fail --max-time 20 -A "kairos-archive-ci (+https://kairosarchive.net)" \
+                 'https://query.kairosarchive.net/cards?q=t:minion&page_size=1'); then break; fi
+            sleep 5
+          done
+          printf '%s' "$body" | head -c 400; echo
+          printf '%s' "$body" | grep -q '"object":"list"' || { echo "::error::the live API did not answer with a list"; exit 1; }
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -A "kairos-archive-ci (+https://kairosarchive.net)" 'https://query.kairosarchive.net/cards/nope')
           echo "unknown path: HTTP $code (404 expected)"
           [ "$code" = "404" ]

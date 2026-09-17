@@ -4,7 +4,7 @@
  * copy of the Worker, so the shapes on this page are the shapes served. */
 import Docs from '../../layouts/Docs.astro';
 import CodeExample from '../../components/CodeExample.astro';
-const base = 'https://api.kairosarchive.net';
+const base = 'https://query.kairosarchive.net';
 const curl = `curl --fail --location \\
   --user-agent 'my-card-tool/1.0 (contact@example.com)' \\
   '${base}/cards?q=t:minion%20e:fire%20cost<=2'`;
@@ -26,7 +26,7 @@ const list = `{
       "rules_text": "…", "has_back": false, "errata": true,
       "set_codes": ["001", "002"], "printing_ids": ["P000573", "P000574", "P000575", "P000576"],
       "default_printing_id": "P000575", "image_status": "lowres",
-      "api_url": "${base}/v3/cards/C000140.json",
+      "api_url": "https://api.kairosarchive.net/v3/cards/C000140.json",
       "kairos_url": "https://kairosarchive.net/cards/C000575/awakened-mummies",
       "image_urls": { "small": "…", "normal": "…", "large": "…", "original": "…" },
       "printing": { "printing_id": "P000575", "api_url": "…", "kairos_url": "…" }
@@ -41,8 +41,8 @@ url.searchParams.set("q", 'a:"Drew Tucker" unique:prints');
 const page = await (await fetch(url)).json();
 for (const card of page.data) console.log(card.name, card.printing.set_name, card.printing.finish);`;
 ---
-<Docs title="Query API" description="Search the registry with the site's syntax and get JSON back. One endpoint, four routes, on the API domain.">
-  <p>Everything else on the API is a static file. This is the one part that computes: <code>GET {base}/cards?q=…</code> runs the same parser and evaluator the <a href="/search">search page</a> runs in your browser, over the same records, and returns a page of card records as JSON. The full <a href="/syntax">search syntax</a> applies, including <code>unique:</code>, <code>sort:</code> and <code>order:</code>. It exists for tools and bots; for anything heavier than a lookup, <a href="/docs/data">download the data</a> and query it locally.</p>
+<Docs title="Query API" description="Search the registry with the site's syntax and get JSON back. One endpoint, four routes, on query.kairosarchive.net.">
+  <p>Everything else on the API is a static file. This is the one part that computes, on its own hostname: <code>GET {base}/cards?q=…</code> runs the same parser and evaluator the <a href="/search">search page</a> runs in your browser, over the same records, and returns a page of card records as JSON. The full <a href="/syntax">search syntax</a> applies, including <code>unique:</code>, <code>sort:</code> and <code>order:</code>. It exists for tools and bots; for anything heavier than a lookup, <a href="/docs/data">download the data</a> and query it locally.</p>
 
   <h2>Routes</h2>
   <div class="table-wrap"><table>
@@ -52,7 +52,7 @@ for (const card of page.data) console.log(card.name, card.printing.set_name, car
       <tr><td><code class="endpoint">/cards/named?exact=…</code></td><td>One card by its exact name, case-insensitive. <code>fuzzy=…</code> instead takes the best match for a partial name.</td></tr>
       <tr><td><code class="endpoint">/cards/random</code></td><td>A random card; <code>q=…</code> narrows the pool to a query's matches. Never cached.</td></tr>
       <tr><td><code class="endpoint">/cards/autocomplete?q=…</code></td><td>Up to 20 card names for a partial name, ranked the way the site's search box ranks them.</td></tr>
-      <tr><td><code class="endpoint">/cards/C000230</code></td><td>A <code>302</code> to the static object, <code>/v3/cards/C000230.json</code>; likewise <code>/cards/P000937</code>.</td></tr>
+      <tr><td><code class="endpoint">/cards/C000230</code></td><td>A <code>302</code> to the static object, <code>api.kairosarchive.net/v3/cards/C000230.json</code>; likewise <code>/cards/P000937</code>.</td></tr>
     </tbody>
   </table></div>
 

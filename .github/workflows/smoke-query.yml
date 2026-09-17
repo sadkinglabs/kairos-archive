@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Query API, live
         env:
-          BASE: https://api.kairosarchive.net
+          BASE: https://query.kairosarchive.net
           UA: kairos-archive-smoke (+https://kairosarchive.net)
         run: |
           set -euo pipefail
@@ -50,8 +50,9 @@ jobs:
           loc=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' -A "$UA" "$BASE/cards/C000230")
           [ "$loc" = "302 https://api.kairosarchive.net/v3/cards/C000230.json" ] || { echo "::error::redirect: $loc"; exit 1; }
           echo "ok  $loc"
-          code=$(curl -sS -o /dev/null -w '%{http_code}' -L -A "$UA" "$BASE/v3/cards/C000230.json"); [ "$code" = "200" ] || { echo "::error::static object: $code"; exit 1; }
-          echo "ok  200  /v3/cards/C000230.json (static path untouched)"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -L -A "$UA" "https://api.kairosarchive.net/v3/cards/C000230.json"); [ "$code" = "200" ] || { echo "::error::static object: $code"; exit 1; }
+          echo "ok  200  api.kairosarchive.net/v3/cards/C000230.json (the objects, untouched)"
+
           # CORS and cache headers, and a preflight.
           h=$(curl -sS -D - -o /dev/null -A "$UA" "$BASE/cards?q=t:minion&page_size=1" | tr -d '\r' | tr 'A-Z' 'a-z')
           echo "$h" | grep -q '^access-control-allow-origin: \*' || { echo "::error::no CORS header"; exit 1; }

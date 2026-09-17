@@ -15,13 +15,14 @@ import { Data } from "./data";
 import { cardRecord, type CardRecord } from "./records";
 import { error, json, preflight } from "./respond";
 
-export interface Env { SITE_BASE_URL?: string; API_BASE_URL?: string }
+export interface Env { SITE_BASE_URL?: string; API_BASE_URL?: string; QUERY_BASE_URL?: string }
 
 export const PAGE_SIZE = 100;
 export const MAX_PAGE_SIZE = 200;
 export const MAX_QUERY = 500;
 export const DEFAULT_SITE = "https://kairosarchive.net";
 export const DEFAULT_API = "https://api.kairosarchive.net";
+export const DEFAULT_QUERY = "https://query.kairosarchive.net";
 
 let held: Data | null = null;
 function dataFor(env: Env): Data {
@@ -37,6 +38,7 @@ export async function handle(request: Request, env: Env, deps: Deps = { data: da
   if (request.method !== "GET" && request.method !== "HEAD") return error(405, "method_not_allowed", "Only GET is served.");
   const url = new URL(request.url);
   const apiBase = env.API_BASE_URL ?? DEFAULT_API;
+  const queryBase = env.QUERY_BASE_URL ?? DEFAULT_QUERY;
   const path = url.pathname.replace(/\/+$/, "") || "/";
   try {
     const idPath = /^\/cards\/([CP]\d{6})$/i.exec(path);
@@ -46,11 +48,11 @@ export async function handle(request: Request, env: Env, deps: Deps = { data: da
       return Response.redirect(`${apiBase}/v3/${id.startsWith("C") ? "cards" : "printings"}/${id}.json`, 302);
     }
     switch (path) {
-      case "/cards": return await list(url, apiBase, deps);
+      case "/cards": return await list(url, queryBase, deps);
       case "/cards/named": return await named(url, deps);
       case "/cards/random": return await random(url, deps);
       case "/cards/autocomplete": return await autocomplete(url, deps);
-      default: return error(404, "not_found", `Nothing is served at ${path}. The query API is /cards?q=…, /cards/named, /cards/random and /cards/autocomplete; the objects are under /v3/.`);
+      default: return error(404, "not_found", `Nothing is served at ${path}. The query API is /cards?q=…, /cards/named, /cards/random and /cards/autocomplete; the static objects live at ${apiBase}/v3/.`);
     }
   } catch (err) {
     console.error(err);
@@ -104,7 +106,7 @@ async function load(q: string, deps: Deps): Promise<{ data: SearchData; tag: str
   return { data: { cards: cards.cards, printings: printings.printings }, tag: cards.tag };
 }
 
-async function list(url: URL, apiBase: string, deps: Deps): Promise<Response> {
+async function list(url: URL, queryBase: string, deps: Deps): Promise<Response> {
   const raw = (url.searchParams.get("q") ?? "").trim();
   if (!raw) return error(400, "missing_query", "Give a query in q, in the search syntax: https://kairosarchive.net/syntax");
   if (raw.length > MAX_QUERY) return error(400, "query_too_long", `q may be at most ${MAX_QUERY} characters.`);
@@ -144,7 +146,7 @@ async function list(url: URL, apiBase: string, deps: Deps): Promise<Response> {
     page_size: size,
     total_pages: info.totalPages,
     has_more: info.page < info.totalPages,
-    next_page: info.page < info.totalPages ? `${apiBase}/cards${next.search}` : null,
+    next_page: info.page < info.totalPages ? `${queryBase}/cards${next.search}` : null,
     rules_text_total: rulesText.length,
     rules_text_hits: rulesText.slice(0, 20).map((c) => ({ codex_id: c.codex_id, name: c.name, kairos_url: cardRecord(c, null).kairos_url })),
     data: items.map((h) => cardRecord(h.card, h.printing)),
