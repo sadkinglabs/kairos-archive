@@ -19,7 +19,7 @@ const isHome = here === "/";
 const menu: [string, string][][] = [
   [["/sets", "Sets"], ["/cards", "All Cards"], ["/tokens", "Tokens"]],
   [["/changes", "Changes & Errata"]],
-  [["/syntax", "Search Syntax"], ["/docs", "API Docs"], ["/docs/data", "Download the Data"], ["/about", "About"]],
+  [["/syntax", "Search Syntax"], ["/docs", "API Docs"], ["/docs/data", "Download the Data"], ["/fun", "Fun Zone"], ["/about", "About"]],
 ];
 const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archive`;
 /** Cloudflare Web Analytics (page views, referrers; no cookies, no
@@ -29,7 +29,7 @@ const beaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN as string | undefined
 const statsBase = (import.meta.env.PUBLIC_STATS_BASE_URL as string | undefined) ?? "https://stats.kairosarchive.net";
 /** The footer's site map: every way around the archive, in four groups. */
 const footerGroups: [string, [string, string][]][] = [
-  ["Cards", [["/advanced", "Advanced Search"], ["/syntax", "Search Syntax"], ["/sets", "All Sets"], ["/cards", "All Cards"], ["/random", "Random Card"]]],
+  ["Cards", [["/advanced", "Advanced Search"], ["/syntax", "Search Syntax"], ["/sets", "All Sets"], ["/cards", "All Cards"], ["/random", "Random Card"], ["/fun", "Fun Zone"]]],
   ["Archive", [["/changes", "Changes & Errata"], ["/tokens", "Tokens"], ["/discord", "Discord Bot"], ["/about", "About"]]],
   ["Developers", [["/docs", "API Documentation"], ["/docs/data", "Download the Data"], ["/docs/types/card", "Card Object"], ["/docs/changelog", "API Changelog"], ["/usage", "Usage & Attribution"]]],
   ["Source", [["https://github.com/sadkinglabs/sorcery-registry", "Registry on GitHub"], ["https://github.com/sadkinglabs/kairos-archive", "Site on GitHub"], ["https://github.com/sadkinglabs/sorcery-registry/issues", "Report an Issue"]]],
