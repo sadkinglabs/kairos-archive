@@ -5,7 +5,7 @@
 import Base from "../../layouts/Base.astro";
 import CodeExample from "../../components/CodeExample.astro";
 import source from "../../fun/random-deck.js?raw";
-import { ATLAS, COLLECTION_MAX, SPELLS, SPLIT, TOOLBOX_MAX } from "../../fun/random-deck.js";
+import { ATLAS, COLLECTION, SPELLBOOK, SPLIT } from "../../fun/random-deck.js";
 import { loadRegistry, orderedSets } from "../../data/registry";
 
 const sections = source.split(/^(?=\/\/ ── )/m).map((chunk) => chunk.trim());
@@ -20,28 +20,24 @@ const lines = source.split("\n").length;
 <Base title="Random deck" canonical="/fun/random-deck" description="Pick elements and a spell split, get a random Sorcery deck list drawn to the copy rules from the Kairos Archive query API. Plain JavaScript, on the page, step by step.">
   <p class="eyebrow"><a href="/fun">Fun Zone</a></p>
   <h1>Random deck</h1>
-  <p class="intro">Pick the elements, the sets, how the spellbook splits and whether Toolbox is in, and deal: one avatar, sixty spells, thirty sites, no card above what its rarity allows. Every part of the deck is one search query, the same syntax as the search box, answered by the <a href="/docs/query">query API</a>. The list shows the query each part came from. It is {lines} lines of plain JavaScript, and all of it is on this page.</p>
+  <p class="intro">Pick the elements, the sets, how the spellbook splits and how many Toolbox, and deal: one avatar, a spellbook of {SPELLBOOK}, an atlas of {ATLAS}, and with any Toolbox a collection of {COLLECTION} Ordinary spells for it to cast, no card above what its rarity allows. Every part of the deck is one search query, the same syntax as the search box, answered by the <a href="/docs/query">query API</a>, and the list shows the query each part came from. Booster printings only, never promos. It is {lines} lines of plain JavaScript, all on this page.</p>
 
   <form id="deck-form" class="deck-form">
     <fieldset>
       <legend>Elements</legend>
-      <div class="chips">{elements.map((e) => <label><input type="checkbox" name="element" value={e} checked={e === "Fire" || e === "Water"} /> {e}</label>)}</div>
-      <p class="muted small">Cards with no element are always in. A card with two elements needs both.</p>
+      <div class="row">{elements.map((e) => <label><input type="checkbox" name="element" value={e} checked={e === "Fire" || e === "Water"} /> {e}</label>)}</div>
     </fieldset>
     <fieldset>
       <legend>Sets</legend>
-      <div class="chips">{sets.map((s) => <label><input type="checkbox" name="set" value={s.set_code} checked /> {s.set_name}</label>)}</div>
-      <p class="muted small">Booster printings only; promos are never drawn. No set ticked means every set.</p>
+      <div class="row">{sets.map((s) => <label><input type="checkbox" name="set" value={s.set_code} checked /> {s.set_name}</label>)}</div>
     </fieldset>
     <fieldset>
-      <legend>Spellbook, {SPELLS} spells</legend>
-      <div class="split">{Object.entries(SPLIT).map(([type, n]) => <label>{type}s <input type="number" name={type} value={n} min="0" max={SPELLS} /></label>)}</div>
-      <p class="muted small">Proportions, scaled to the spells left after Toolbox and the Collection. The atlas is {ATLAS} sites.</p>
-      <div class="split">
-        <span class="chips" role="radiogroup" aria-label="Copies of Toolbox">Toolbox {Array.from({ length: TOOLBOX_MAX + 1 }, (_, n) => <label><input type="radio" name="toolbox" value={n} checked={n === 0} /> {n}</label>)}</span>
-        <label>Collection <input type="number" name="collection" value={COLLECTION_MAX} min="0" max={COLLECTION_MAX} /></label>
-      </div>
-      <p class="muted small">Toolbox casts Ordinary spells from your collection. Any copies at all add a Collection part of that many Ordinary spells; both count toward the {SPELLS}.</p>
+      <legend>Spellbook split</legend>
+      <div class="row">{Object.entries(SPLIT).map(([type, n]) => <label>{type}s <input type="number" name={type} value={n} min="0" max={SPELLBOOK} /></label>)}</div>
+    </fieldset>
+    <fieldset>
+      <legend>Toolbox</legend>
+      <div class="row">{[0, 1, 2, 3].map((n) => <label><input type="radio" name="toolbox" value={n} checked={n === 0} /> {n}</label>)}</div>
     </fieldset>
     <button type="submit">Deal a deck</button>
   </form>
@@ -51,11 +47,11 @@ const lines = source.split("\n").length;
   <p>JavaScript, the plain kind: no framework, no build step, no key. Nine parts, in the order they run; the code under each heading is read from the file this page is running.</p>
 
   <h3>0. The rules</h3>
-  <p>Four copies of an Ordinary, three of an Exceptional, two of an Elite, one of a Unique. Sixty spells and thirty sites. The default split by type. Two avatars a random deck should not hand you. Toolbox at most three, a Collection at most ten.</p>
+  <p>Four copies of an Ordinary, three of an Exceptional, two of an Elite, one of a Unique. Sixty spells, thirty sites, ten in the collection. The default split by type, in the order the list shows it.</p>
   <CodeExample code={step(0)} lang="javascript" title="the rules" />
 
   <h3>1. One search query per part</h3>
-  <p>The deck is nothing but search results. <code>t:minion (e:fire,water or e:none) s:001,006 is:booster</code> is every minion with Fire, Water or no element, printed in a booster of Alpha or Gothic. Paste it into the search box and you see the cards the deal draws from. The Collection asks for <code>cat:spell rarity:ordinary</code>; Toolbox is its own name, <code>!"Toolbox"</code>.</p>
+  <p>The deck is nothing but search results. <code>t:minion (e:fire,water or e:none) s:001,006 is:booster</code> is every minion with Fire, Water or no element, printed in a booster of Alpha or Gothic. Paste it into the search box and you see the cards the deal draws from. The collection asks for <code>cat:spell rarity:ordinary</code>; Toolbox is its own name, <code>!"Toolbox"</code>, and when it is in, the artifacts leave it out.</p>
   <CodeExample code={step(1)} lang="javascript" title="the query" />
 
   <h3>2. Every card the query matches</h3>
@@ -71,19 +67,19 @@ const lines = source.split("\n").length;
   <CodeExample code={step(4)} lang="javascript" title="the draw" />
 
   <h3>5. The sizes</h3>
-  <p>The split is proportions. Whatever Toolbox and the Collection take comes off the sixty first, and the rest is shared out in those proportions, whole cards, the largest remainders rounding up.</p>
+  <p>The spellbook is sixty with Toolbox among them. The split is proportions: whatever Toolbox takes comes off first and the rest is shared out, rounded, with the odd card going to the largest type.</p>
   <CodeExample code={step(5)} lang="javascript" title="the sizes" />
 
   <h3>6. A deck</h3>
-  <p>One query per part, one draw per part, in order: the avatar, Toolbox by the copy, the Collection, each spell type, the sites. A card drawn into one part is kept out of the later ones, so a Collection artifact never comes back as an Artifact.</p>
+  <p>One query per part, one draw per part, in the order the list shows: the avatar, the spellbook by type, Toolbox, the sites, then the collection. The collection skips any card already in the deck, because a card's copies are counted across the whole deck.</p>
   <CodeExample code={step(6)} lang="javascript" title="the deal" />
 
   <h3>7. The list</h3>
-  <p>Each part with its count and the query it came from, then its cards by name, then the totals. Text, so it pastes anywhere.</p>
+  <p>Each part with its count and the query it came from, then its cards by name, then how many cards in all: 91, or 101 with a Toolbox and its collection.</p>
   <CodeExample code={step(7)} lang="javascript" title="the list" />
 
   <h3>8. The form</h3>
-  <p>Read the boxes, clamp the numbers, deal, print. This is the only part that needs a browser.</p>
+  <p>Read the boxes, deal, print. This is the only part that needs a browser.</p>
   <CodeExample code={step(8)} lang="javascript" title="the form" />
 
   <h2>Make it yours</h2>
@@ -99,14 +95,12 @@ const lines = source.split("\n").length;
 </script>
 
 <style>
-  .deck-form { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
-  .deck-form fieldset { border: 0; padding: 0; margin: 0 0 1rem; }
-  .deck-form legend { font-weight: 600; }
-  .deck-form .chips { margin: .5rem 0; font-size: 1rem; }
-  .deck-form .split .chips { margin: 0; gap: .6rem; }
-  .deck-form .split { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; margin: .5rem 0; }
-  .deck-form .split label { display: flex; align-items: center; gap: .5rem; }
-  .deck-form .split input { width: 5rem; min-height: 38px; }
-  .deck-form .small { font-size: .85rem; margin: .25rem 0 0; }
+  .deck-form { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: .75rem 1rem; margin: 1.5rem 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem 1.5rem; align-items: start; }
+  .deck-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+  .deck-form legend { font-weight: 600; font-size: .85rem; padding: 0; margin-bottom: .2rem; }
+  .deck-form .row { display: flex; flex-wrap: wrap; gap: .25rem .9rem; align-items: center; }
+  .deck-form .row label { display: flex; align-items: center; gap: .3rem; white-space: nowrap; }
+  .deck-form input[type="number"] { width: 3.6rem; min-height: 34px; padding: .2rem .4rem; }
+  .deck-form button { justify-self: start; min-height: 38px; }
   .deck { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; line-height: 1.5; }
 </style>
