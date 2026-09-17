@@ -18,7 +18,7 @@ const hasDiff = row && (changedFields(row, card).length || changedFields(row.bac
     </a>
     <div class="printing-heading"><h3><a href={setPath(p)}>{p.set_name}</a> <span class:list={['badge', p.finish ? `finish-${p.finish.toLowerCase()}` : '']}>{p.finish ?? 'Unspecified finish'}</span></h3><p>{p.product ?? 'Unspecified product'} <span aria-hidden="true">·</span> <span class="muted">{p.released_at ?? 'Release date unknown'}</span></p><p class="muted">Art by {p.artist ?? 'unrecorded artist'}</p></div>
     <div class="printing-verdict">{history.length > 1 && verdict.verdict !== 'undated'
-      ? <a class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']} href="#face-printings-title" title={`${verdict.long} — see which printings carry which values`}>{verdict.short}</a>
+      ? <a class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']} href="#face-printings-title" title="See which printings carry which values">{verdict.short}</a>
       : <span class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']} title={verdict.long}>{verdict.short}</span>}{p.retired_at && <span class="badge">Retired {p.retired_at}</span>}</div>
   </div>
   <div class="printing-links"><a href={printingPath(p)}><code>{p.printing_id}</code></a><button class="copy" data-copy={p.printing_id} aria-label={`Copy printing ID ${p.printing_id}`}>Copy</button>{p.printing_id === card.default_printing_id && <span class="muted">Default image</span>}<a class="push-right" href={printingPath(p)}>Printing details →</a></div>
