@@ -20,3 +20,13 @@ QUERY_BASE_URL = "https://query.kairosarchive.net"
 
 [observability]
 enabled = true
+
+# Fair use: sixty requests a minute from one address, counted per
+# Cloudflare location, then 429 for the rest of the minute. Enough for
+# any person, bot or script doing lookups; not enough to wire a search
+# engine through. Requests over a service binding carry no client
+# address and are not counted.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }

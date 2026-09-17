@@ -12,17 +12,17 @@ const HEADERS = {
   "access-control-allow-headers": "*",
 };
 
-export function json(body: unknown, status = 200, cacheSeconds = 300): Response {
+export function json(body: unknown, status = 200, cacheSeconds = 300, extra: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...HEADERS, "cache-control": status === 200 ? `public, max-age=${cacheSeconds}` : "no-store" },
+    headers: { ...HEADERS, "cache-control": status === 200 ? `public, max-age=${cacheSeconds}` : "no-store", ...extra },
   });
 }
 
-export function error(status: number, code: string, details: string, warnings?: string[]): Response {
+export function error(status: number, code: string, details: string, warnings?: string[], extra: Record<string, string> = {}): Response {
   const body: ErrorBody = { object: "error", status, code, details };
   if (warnings?.length) body.warnings = warnings;
-  return json(body, status);
+  return json(body, status, 0, extra);
 }
 
 export function preflight(): Response {

@@ -15,11 +15,19 @@ import { Data } from "./data";
 import { cardRecord, type CardRecord } from "./records";
 import { error, json, preflight } from "./respond";
 
-export interface Env { SITE_BASE_URL?: string; API_BASE_URL?: string; QUERY_BASE_URL?: string }
+export interface Env {
+  SITE_BASE_URL?: string; API_BASE_URL?: string; QUERY_BASE_URL?: string;
+  /** The per-address rate limit (wrangler.toml [[ratelimits]]); absent in tests that do not set one. */
+  LIMITER?: RateLimit;
+}
+
+export const FAIR_USE = "The query API is for lookups by people and their tools, not a backend for another service. If your application answers searches, download the data and query it locally: https://kairosarchive.net/docs/data";
 
 export const PAGE_SIZE = 100;
 export const MAX_PAGE_SIZE = 200;
 export const MAX_QUERY = 500;
+/** Must match wrangler.toml [[ratelimits]] simple.limit; the number is only quoted here. */
+export const RATE_LIMIT = 60;
 export const DEFAULT_SITE = "https://kairosarchive.net";
 export const DEFAULT_API = "https://api.kairosarchive.net";
 export const DEFAULT_QUERY = "https://query.kairosarchive.net";
@@ -36,6 +44,18 @@ export interface Deps { data: Data; random?: () => number }
 export async function handle(request: Request, env: Env, deps: Deps = { data: dataFor(env) }): Promise<Response> {
   if (request.method === "OPTIONS") return preflight();
   if (request.method !== "GET" && request.method !== "HEAD") return error(405, "method_not_allowed", "Only GET is served.");
+  // The same rule as the rest of the API: say who you are.
+  if (!(request.headers.get("user-agent") ?? "").trim()) {
+    return error(403, "user_agent_required", "Send a User-Agent naming your project and a way to reach you. https://kairosarchive.net/docs");
+  }
+  // Fair use: a public request carries the client's address (Cloudflare
+  // sets it; a client cannot forge it); a request over a service binding
+  // carries none and is not counted.
+  const ip = request.headers.get("cf-connecting-ip");
+  if (ip && env.LIMITER) {
+    const { success } = await env.LIMITER.limit({ key: ip });
+    if (!success) return error(429, "rate_limited", `More than ${RATE_LIMIT} requests a minute from your address. ${FAIR_USE}`, undefined, { "retry-after": "60" });
+  }
   const url = new URL(request.url);
   const apiBase = env.API_BASE_URL ?? DEFAULT_API;
   const queryBase = env.QUERY_BASE_URL ?? DEFAULT_QUERY;

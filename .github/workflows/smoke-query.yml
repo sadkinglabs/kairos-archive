@@ -68,3 +68,11 @@ jobs:
             printf '%s ' "$(curl -sS -o /dev/null -w '%{time_total}' -A "$UA" "$BASE/cards?q=$q&page_size=1")"
           done; echo "(seconds, printing queries)"
           echo "release served: $(get "$BASE/cards?q=C000230" | head -n 1 | jq -r .release)"
+          # Fair use: no User-Agent is a JSON 403; a burst past sixty in a minute meets a 429.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -A "" -H "User-Agent:" "$BASE/cards?q=t:minion&page_size=1"); [ "$code" = "403" ] || { echo "::error::no User-Agent -> $code, expected 403"; exit 1; }
+          echo "ok  403  without a User-Agent"
+          hits=0; for i in $(seq 1 80); do
+            c=$(curl -sS -o /dev/null -w '%{http_code}' -A "$UA" "$BASE/cards?q=t:minion&page_size=1&burst=$i"); [ "$c" = "429" ] && hits=$((hits+1)) || true
+          done
+          echo "burst of 80: $hits answered 429"
+          [ "$hits" -gt 0 ] || { echo "::error::no 429 in a burst of 80; the rate limit is not in effect"; exit 1; }

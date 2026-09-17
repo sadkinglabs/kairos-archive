@@ -77,12 +77,18 @@ for (const card of page.data) console.log(card.name, card.printing.set_name, car
       <tr><td>400</td><td><code>query_too_long</code></td><td><code>q</code> is over 500 characters</td></tr>
       <tr><td>400</td><td><code>bad_parameter</code></td><td><code>unique</code>, <code>sort</code>, <code>order</code> or <code>page_size</code> is not a value the API takes</td></tr>
       <tr><td>400</td><td><code>missing_parameter</code></td><td><code>/cards/named</code> without <code>exact</code> or <code>fuzzy</code></td></tr>
+      <tr><td>403</td><td><code>user_agent_required</code></td><td>the request sent no <code>User-Agent</code></td></tr>
       <tr><td>404</td><td><code>not_found</code></td><td>no such name, no random match, or no such route</td></tr>
+      <tr><td>429</td><td><code>rate_limited</code></td><td>more than 60 requests a minute from one address; <code>Retry-After: 60</code></td></tr>
       <tr><td>405</td><td><code>method_not_allowed</code></td><td>anything but <code>GET</code>, <code>HEAD</code> or <code>OPTIONS</code></td></tr>
       <tr><td>503</td><td><code>data_unavailable</code></td><td>the card data could not be loaded; try again shortly</td></tr>
     </tbody>
   </table></div>
-  <p>The <a href="/docs">User-Agent rule</a> applies here as everywhere on the API: a request without one is refused at the edge before it reaches the query.</p>
+  <p>The <a href="/docs">User-Agent rule</a> applies here as everywhere on the API; the query checks it itself, so a request without one gets a JSON <code>403</code>.</p>
+
+  <h2>Fair use</h2>
+  <p>The query API is for lookups by people and their tools: a bot answering a question in a channel, a script checking a few cards, a page showing a result. It is not a backend for another service. If your application answers searches, <a href="/docs/data">download the data</a>, one file that changes a few times a year, and query it locally; the <a href="https://github.com/sadkinglabs/kairos-archive/tree/main/src/search">search grammar</a> is open source and runs anywhere JavaScript does.</p>
+  <p>Two rules keep it that way. A request must carry a <code>User-Agent</code> naming your project, as everywhere on the API. And one address gets 60 requests a minute; past that the API answers <code>429</code> with <code>Retry-After</code> for the rest of the minute. Answers cache for five minutes, so a repeated query costs nothing.</p>
 
   <h2>What it reads, and how fresh it is</h2>
   <p>The API reads the same compact card and printing lists this site builds from the verified release, so an answer and the search page agree to the card. A new release rebuilds the site; the API picks the new lists up within ten minutes and says which release it answered from. Slug lookups resolve current slugs; for any slug ever issued, use <code>/v3/slugs/{'{'}slug{'}'}.json</code>.</p>
