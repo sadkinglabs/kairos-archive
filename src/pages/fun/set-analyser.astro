@@ -1,0 +1,109 @@
+---
+/** The set analyser: a live tool on top, and under it a walkthrough of
+ * fetching a whole set from the query API and analysing the records
+ * with plain JavaScript, read from the file the page runs. The form
+ * and the drawing live in analyser-page.js and stay out of the tutorial. */
+import Base from "../../layouts/Base.astro";
+import CodeExample from "../../components/CodeExample.astro";
+import source from "../../fun/set-analyser.js?raw";
+import { loadRegistry, orderedSets } from "../../data/registry";
+
+const sections = source.split(/^(?=\/\/ ── )/m).map((chunk) => chunk.trim());
+const step = (n: number) => sections.find((s) => s.startsWith(`// ── ${n}.`)) ?? "";
+const usage = `const report = await analyseSet("001");
+
+console.log(report.curve);      // { 0: 1, 1: 39, 2: 87, ... }
+console.log(report.elements);   // { Air: 21, Earth: 21, ... }
+console.log(report.facts);      // ["68% of cards cost 4 or less.", ...]`;
+const repo = "https://github.com/sadkinglabs/kairos-archive/blob/main/src/fun";
+const { registry } = await loadRegistry();
+const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !== "999");
+---
+<Base title="Set analyser" canonical="/fun/set-analyser" description="Fetch a whole Sorcery set from the Kairos Archive query API and turn the records into a mana curve, element and type shares, notable cards and derived facts, with plain JavaScript.">
+  <p class="eyebrow"><a href="/fun">Fun Zone</a></p>
+  <h1>Set analyser</h1>
+  <p class="intro">Choose a set and get its fingerprint: the mana curve, how the elements and card types share it, a few notable cards, and facts that no API field holds. Add a second set to see the two side by side. Under the tool, how it is built.</p>
+
+  <form id="analyser-form" class="analyser-form">
+    <label>Set <select name="set">{sets.map((s) => <option value={s.set_code} selected={s.set_code === "001"}>{s.set_name}</option>)}</select></label>
+    <label>Compare with <select name="compare"><option value="">nothing</option>{sets.map((s) => <option value={s.set_code}>{s.set_name}</option>)}</select></label>
+    <button type="submit">Analyse</button>
+  </form>
+  <section id="report" class="report" aria-live="polite"><p class="muted">The report appears here.</p></section>
+
+  <section class="tutorial">
+  <h2>Build a set analyser</h2>
+  <p>One Kairos query can give us an entire Sorcery set as structured JSON. From there, ordinary JavaScript is enough to build mana curves, element distributions, card-type breakdowns and other statistics. No key, no library; the code below is the file this page runs.</p>
+
+  <h3>1. Fetch the set</h3>
+  <p><code>s:001</code> is the same search syntax you can type into the search box: every card printed in set 001. The request goes to <code>/cards</code> on the query API. Each answer holds up to two hundred card records in <code>body.data</code> and says in <code>body.has_more</code> whether another page exists, so the loop asks until there is none. That is the whole API.</p>
+  <CodeExample code={step(1)} lang="javascript" title="1 · getSetCards" />
+
+  <h3>2. Build a mana curve</h3>
+  <p>Each record has a <code>cost</code>: a number, or <code>null</code> for sites, avatars and X-cost cards. Count the cards at each cost into an object and the curve is done; the tool draws it as bars.</p>
+  <CodeExample code={step(2)} lang="javascript" title="2 · manaCurve" />
+
+  <h3>3. Analyse elements</h3>
+  <p><code>elements</code> is a list. A card with two elements counts once for each, and a card with none carries <code>"None"</code>, so elementless cards are counted too. The shares are percentages of the set's cards, which is why they can add up to more than a hundred.</p>
+  <CodeExample code={step(3)} lang="javascript" title="3 · elementShares" />
+
+  <h3>4. Analyse card types</h3>
+  <p><code>type</code> is one of Minion, Magic, Aura, Artifact, Site and Avatar. Same idea, with the counters created as the types turn up.</p>
+  <CodeExample code={step(4)} lang="javascript" title="4 · typeShares" />
+
+  <h3>5. Find notable cards</h3>
+  <p>The records are objects, so they can be compared, not just counted. Each of these walks the set once and keeps the best card it has seen. <code>power</code> is worked out by Kairos from attack and defense, so the strongest minion needs no arithmetic here.</p>
+  <CodeExample code={step(5)} lang="javascript" title="5 · mostExpensive, cheapestUnique, strongestMinion" />
+
+  <h3>6. Build the report</h3>
+  <p>A few more numbers that no API field holds, from one more pass over the records, and then everything gathered into one report by one function.</p>
+  <CodeExample code={step(6)} lang="javascript" title="6 · facts and analyseSet" />
+
+  <h3>Try it</h3>
+  <CodeExample code={usage} lang="javascript" title="usage" />
+
+  <p class="takeaway">We only asked Kairos for the set once. Everything else, the mana curve, the percentages, the notable cards and the facts, came from analysing the returned records locally.</p>
+
+  <details class="all">
+    <summary>See the complete code</summary>
+    <p>The file in one block: <a href={`${repo}/set-analyser.js`}>set-analyser.js</a>. The form and the bars are their own file, <a href={`${repo}/analyser-page.js`}>analyser-page.js</a>, and not part of the tutorial.</p>
+    <CodeExample code={`${source}\n\n${usage}`} lang="javascript" title="set-analyser.js" />
+  </details>
+  </section>
+</Base>
+
+<script>
+  import "../../fun/analyser-page.js";
+</script>
+
+<style>
+  .analyser-form { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: .75rem 1rem; margin: 1.5rem 0; display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; align-items: end; }
+  .analyser-form label { display: flex; flex-direction: column; gap: .25rem; font-weight: 600; font-size: .85rem; }
+  .analyser-form select { min-width: 12rem; }
+  .analyser-form button { min-height: 44px; }
+  .report :global(.report-head) { margin: 1.5rem 0 .5rem; }
+  .report :global(.report-head h2) { margin: 0; }
+  .report :global(.report-head p) { margin: .2rem 0 0; }
+  .report :global(.panels) { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .report :global(.panel) { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: .9rem 1rem; min-width: 0; }
+  .report :global(.panel.compare) { grid-column: 1 / -1; }
+  .report :global(.panel h3) { font: 600 .78rem/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 .6rem; }
+  .report :global(.bar-row) { display: grid; grid-template-columns: 6.5rem 1fr 3rem; gap: .5rem; align-items: center; font-size: .9rem; margin: .2rem 0; font-variant-numeric: tabular-nums; }
+  .report :global(.bar) { display: block; height: .8rem; background: var(--badge); border-radius: 3px; overflow: hidden; }
+  .report :global(.fill) { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .report :global(.bar-value) { text-align: right; }
+  .report :global(.notable), .report :global(.facts) { list-style: none; padding: 0; margin: 0; font-size: .92rem; }
+  .report :global(.notable li), .report :global(.facts li) { padding: .3rem 0; border-top: 1px solid var(--line); }
+  .report :global(.notable li:first-child), .report :global(.facts li:first-child) { border-top: 0; }
+  .report :global(.notable .muted) { font-size: .82rem; }
+  .report :global(table) { width: 100%; border-collapse: collapse; font-size: .92rem; font-variant-numeric: tabular-nums; }
+  .report :global(th), .report :global(td) { text-align: left; padding: .3rem .5rem; border-bottom: 1px solid var(--line); }
+  .report :global(th:not(:first-child)), .report :global(td:not(:first-child)) { text-align: right; }
+  .report :global(.err) { color: var(--removed-fg); }
+  .takeaway { font-family: var(--display); font-size: 1.3rem; line-height: 1.4; border-left: 3px solid var(--accent); padding-left: 1rem; margin: 2rem 0; }
+  .tutorial :global(.code-example) { margin: 1rem 0 2.75rem; }
+  .tutorial h3 { margin-top: 2.5rem; }
+  .all { margin-top: 2.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  .all summary { cursor: pointer; font: 600 1.05rem/1.4 var(--display); color: var(--accent); }
+  .all[open] summary { margin-bottom: .75rem; }
+</style>

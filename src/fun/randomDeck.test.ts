@@ -1,7 +1,8 @@
 /** The tutorial's deck builder against the deck-building rules, and the page's list. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ATLAS, COLLECTION, COPIES, drawCards, getCards, makeDeck, makeQuery, onlyChosenElements } from "./random-deck.js";
-import { formatDeck, rememberQueryAnswers } from "./deck-page.js";
+import { formatDeck } from "./deck-page.js";
+import { rememberQueryAnswers } from "./remember.js";
 
 type Card = { name: string; type: string; rarity: string | null; elements: string[] };
 const card = (name: string, rarity: string | null, elements: string[] = ["Fire"], type = "Minion"): Card => ({ name, type, rarity, elements });
@@ -114,7 +115,7 @@ describe("the page's memory", () => {
       if (failNext) { failNext = false; return new Response("busy", { status: 429 }); }
       return new Response(JSON.stringify({ data: [{ name: url }], has_more: false }));
     };
-    const fetchImpl = rememberQueryAnswers(real as unknown as typeof fetch);
+    const fetchImpl = rememberQueryAnswers(real as unknown as typeof fetch, "https://query.kairosarchive.net");
     const url = "https://query.kairosarchive.net/cards?q=t%3Asite&page_size=200&page=1";
     expect((await fetchImpl(url)).status).toBe(429);          // not remembered
     expect((await (await fetchImpl(url)).json()).data[0].name).toBe(url);
