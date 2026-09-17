@@ -38,7 +38,7 @@ const lines = source.split("\n").length;
       <div class="split">{Object.entries(SPLIT).map(([type, n]) => <label>{type}s <input type="number" name={type} value={n} min="0" max={SPELLS} /></label>)}</div>
       <p class="muted small">Proportions, scaled to the spells left after Toolbox and the Collection. The atlas is {ATLAS} sites.</p>
       <div class="split">
-        <label>Toolbox <input type="number" name="toolbox" value="0" min="0" max={TOOLBOX_MAX} /></label>
+        <span class="chips" role="radiogroup" aria-label="Copies of Toolbox">Toolbox {Array.from({ length: TOOLBOX_MAX + 1 }, (_, n) => <label><input type="radio" name="toolbox" value={n} checked={n === 0} /> {n}</label>)}</span>
         <label>Collection <input type="number" name="collection" value={COLLECTION_MAX} min="0" max={COLLECTION_MAX} /></label>
       </div>
       <p class="muted small">Toolbox casts Ordinary spells from your collection. Any copies at all add a Collection part of that many Ordinary spells; both count toward the {SPELLS}.</p>
@@ -103,6 +103,7 @@ const lines = source.split("\n").length;
   .deck-form fieldset { border: 0; padding: 0; margin: 0 0 1rem; }
   .deck-form legend { font-weight: 600; }
   .deck-form .chips { margin: .5rem 0; font-size: 1rem; }
+  .deck-form .split .chips { margin: 0; gap: .6rem; }
   .deck-form .split { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; margin: .5rem 0; }
   .deck-form .split label { display: flex; align-items: center; gap: .5rem; }
   .deck-form .split input { width: 5rem; min-height: 38px; }
