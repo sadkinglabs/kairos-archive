@@ -76,7 +76,7 @@ const lines = source.split("\n").length;
   <CodeExample code={step(6)} lang="javascript" title="the list" />
 
   <h3>7. The form</h3>
-  <p>Read the boxes, deal, print. The spellbook count under the boxes is the four numbers plus Toolbox, kept up to date as you type and red past sixty: the deal never refuses, it deals what you asked for and the list says what that came to.</p>
+  <p>Read the boxes, deal, print. The spellbook count under the boxes is the four numbers plus Toolbox, kept up to date as you type. Past sixty it turns red and the button switches off until the numbers are fixed; under sixty the deal goes ahead and the list says what it came to.</p>
   <CodeExample code={step(7)} lang="javascript" title="the form" />
 
   <h2>Make it yours</h2>
@@ -99,6 +99,7 @@ const lines = source.split("\n").length;
   .deck-form .row label { display: flex; align-items: center; gap: .3rem; white-space: nowrap; }
   .deck-form input[type="number"] { width: 3.6rem; min-height: 34px; padding: .2rem .4rem; }
   .deck-form button { justify-self: start; min-height: 38px; }
+  .deck-form button:disabled { opacity: .45; cursor: not-allowed; }
   .deck-form .total { display: block; margin-top: .4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
   .deck-form .total.over { color: var(--removed-fg); }
   .deck { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; line-height: 1.5; }

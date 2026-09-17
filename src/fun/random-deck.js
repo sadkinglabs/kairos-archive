@@ -106,12 +106,13 @@ if (typeof document !== "undefined" && document.getElementById("deck-form")) {
     for (const type in SPLIT) choice.split[type] = Number(data.get(type)) || 0;
     return choice;
   };
-  // The spellbook count, as it is typed: red past sixty.
+  // The spellbook count, as it is typed: red past sixty, and no deal until it is fixed.
   const count = () => {
     const choice = read();
     const spells = Object.values(choice.split).reduce((a, b) => a + b, 0) + choice.toolbox;
     total.textContent = `${spells} / ${SPELLBOOK} spells`;
     total.classList.toggle("over", spells > SPELLBOOK);
+    form.querySelector("button").disabled = spells > SPELLBOOK;
   };
   form.addEventListener("input", count);
   count();
