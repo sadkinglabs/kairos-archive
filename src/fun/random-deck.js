@@ -77,6 +77,7 @@ export function fit(split, total) {
 }
 
 // ── 6. A deck: one query per part, drawn to its size, no card in two parts
+/** @param {{ elements: string[], sets?: string[], split?: Record<string, number>, toolbox?: number, collection?: number }} choice */
 export async function deal({ elements, sets = [], split = SPLIT, toolbox = 0, collection = COLLECTION_MAX }, fetchImpl = fetch, random = Math.random) {
   const extras = toolbox ? { Toolbox: toolbox, Collection: collection } : {};
   const sizes = { Avatar: 1, ...extras, ...fit(split, SPELLS - toolbox - (toolbox ? collection : 0)), Site: ATLAS };
