@@ -14,9 +14,12 @@ const commands: [string, string][] = [
   ["/random", "A random card. The embed says which printing it is showing."],
   ["/search query", "The first five matches for a query in the search syntax, each with its art, the total, and a button to all results on this site."],
   ["/syntax", "The search syntax on one screen, shown to you alone."],
+  ["/history name", "Every face the card has had, oldest first, each change against the one before: mana, stats, thresholds, rules text before and after, and any earlier names."],
+  ["/set name", "A set by name or code: release date, how many cards and printings, some of its cards, and a search for all of them."],
+  ["Find cards", "Right-click any message, open Apps and pick Find cards: every [[card name]] in that message, up to five, with their art. A message with no brackets is tried as one name."],
 ];
 ---
-<Base title="Discord bot" canonical="/discord" description="Kairos Archive's Discord bot: card lookups and searches in any server, with the same data and syntax as this site.">
+<Base title="Discord bot" canonical="/discord" description="Kairos Archive's Discord bot: card lookups, printings, histories, sets and searches in any server, with the same data and syntax as this site.">
   <h1>Discord bot</h1>
   <p>Kairos Archive's bot answers card questions inside Discord with the same data and the same search syntax as this site. Slash commands only: it never reads messages, never posts unprompted, and stores nothing.</p>
 
@@ -29,6 +32,9 @@ const commands: [string, string][] = [
     <thead><tr><th>Command</th><th>What it does</th></tr></thead>
     <tbody>{commands.map(([cmd, what]) => <tr><td><code>{cmd}</code></td><td>{what}</td></tr>)}</tbody>
   </table></div>
+
+  <h2>Flipping through printings and results</h2>
+  <p>A card answer carries a menu of the card's printings when it has more than one. Pick one and the message becomes that printing: its own art, artist, flavour text, and a note when it was printed with earlier values. Search results carry <strong>Next 5</strong> and <strong>Previous</strong> buttons that turn the page in place. Anyone in the channel can use them, not only whoever asked.</p>
 
   <h2>What an answer shows</h2>
   <p>A card embed carries the type line as printed (<em>Minion — Ordinary Giant</em>), mana, threshold drawn with the game's element symbols, power (attack and defense when they differ), life, the sets it appears in, which printing is pictured (<em>Shown: Gothic · Booster · Standard, art by Dan Seagrave</em>), the card's ids (<code>C000927 · P002719</code>), the rules text, and buttons to the card's page here and its JSON record. A double-faced card gets a second embed for its back face. A card with recorded errata says so.</p>
