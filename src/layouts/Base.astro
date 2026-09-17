@@ -22,6 +22,11 @@ const menu: [string, string][][] = [
   [["/syntax", "Search Syntax"], ["/docs", "API Docs"], ["/docs/data", "Download the Data"], ["/about", "About"]],
 ];
 const pageTitle = title === "Kairos Archive" ? title : `${title} · Kairos Archive`;
+/** Cloudflare Web Analytics (page views, referrers; no cookies, no
+ * identifiers), only when the zone's token is set at build time. */
+const beaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN as string | undefined;
+/** Where outbound clicks are counted (stats Worker, POST /event). */
+const statsBase = (import.meta.env.PUBLIC_STATS_BASE_URL as string | undefined) ?? "https://stats.kairosarchive.net";
 /** The footer's site map: every way around the archive, in four groups. */
 const footerGroups: [string, [string, string][]][] = [
   ["Cards", [["/advanced", "Advanced Search"], ["/syntax", "Search Syntax"], ["/sets", "All Sets"], ["/cards", "All Cards"], ["/random", "Random Card"]]],
@@ -31,7 +36,7 @@ const footerGroups: [string, [string, string][]][] = [
 ];
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en" data-stats={statsBase}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -48,6 +53,7 @@ const footerGroups: [string, [string, string][]][] = [
     <link rel="icon" type="image/png" href="/brand/icon-192.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/brand/icon-180.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
+    {beaconToken && <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: beaconToken })}></script>}
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -91,6 +97,21 @@ const footerGroups: [string, [string, string][]][] = [
         for (const popover of popovers) {
           if (popover.open && event.target instanceof Node && !popover.contains(event.target)) popover.open = false;
         }
+      });
+      // Outbound clicks are counted, and only outbound clicks: the host the
+      // link goes to, the page it was on, and the link's data-track label
+      // when it has one. Nothing about who clicked. A text/plain body keeps
+      // the beacon a simple request, so no preflight.
+      const statsBase = document.documentElement.dataset.stats;
+      document.addEventListener('click', event => {
+        if (!statsBase || !(event.target instanceof Element)) return;
+        const link = event.target.closest('a[href]');
+        if (!(link instanceof HTMLAnchorElement)) return;
+        let target: URL;
+        try { target = new URL(link.href, location.href); } catch { return; }
+        if (target.host === location.host || !/^https?:$/.test(target.protocol)) return;
+        const body = JSON.stringify({ h: target.host.slice(0, 80), p: location.pathname.slice(0, 120), t: (link.dataset.track ?? '').slice(0, 40) });
+        try { navigator.sendBeacon(`${statsBase}/event`, new Blob([body], { type: 'text/plain' })); } catch { /* counting is never the page's problem */ }
       });
       document.querySelectorAll<HTMLImageElement>('img.card-img').forEach(image => {
         const fallback = () => {
