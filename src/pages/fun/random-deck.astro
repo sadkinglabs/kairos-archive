@@ -1,79 +1,78 @@
 ---
-/** A random deck generator, and the walkthrough of how it is built. The
- * code the page runs is the code the page shows: one module, split at
- * its section comments so each step sits next to its prose. */
+/** A random deck generator and the walkthrough of how it is built. The
+ * code the page runs is the code the page shows: one JavaScript file,
+ * split at its section comments so each step sits beside its prose. */
 import Base from "../../layouts/Base.astro";
 import CodeExample from "../../components/CodeExample.astro";
 import source from "../../fun/random-deck.js?raw";
-import { ELEMENTS } from "../../fun/random-deck.js";
+import { ATLAS, SPELLBOOK } from "../../fun/random-deck.js";
 
-/** The module's sections, in order, by their "// ── N." comments. */
 const sections = source.split(/^(?=\/\/ ── )/m).map((chunk) => chunk.trim());
 const step = (n: number) => sections.find((s) => s.startsWith(`// ── ${n}.`)) ?? "";
 const sourceUrl = "https://github.com/sadkinglabs/kairos-archive/blob/main/src/fun/random-deck.js";
+const elements = ["Air", "Earth", "Fire", "Water"];
+const lines = source.split("\n").length;
 ---
-<Base title="Random deck" canonical="/fun/random-deck" description="Pick elements and get a random Sorcery deck drawn to the copy rules, from the Kairos Archive query API and image CDN. The code is on the page, step by step.">
+<Base title="Random deck" canonical="/fun/random-deck" description="Pick elements and a spell split, get a random Sorcery deck list drawn to the copy rules from the Kairos Archive query API. Plain JavaScript, on the page, step by step.">
   <p class="eyebrow"><a href="/fun">Fun Zone</a></p>
   <h1>Random deck</h1>
-  <p class="intro">Choose the elements you want to play and deal a deck: one avatar, a spellbook of sixty spells and an atlas of thirty sites, no card above what its rarity allows. It is drawn in your browser from the <a href="/docs/query">query API</a>, and every picture comes from the <a href="/docs/images">image CDN</a>. The whole program is about a hundred lines, and it is all on this page.</p>
+  <p class="intro">Pick the elements and how the spellbook splits, and deal: one avatar, sixty spells, thirty sites, no card above what its rarity allows. Every part of the deck is one search query, the same syntax as the search box, answered by the <a href="/docs/query">query API</a>. The list shows the query each part came from. It is {lines} lines of plain JavaScript, and all of it is on this page.</p>
 
-  <form id="deck-form" class="deck-form" aria-label="Choose elements">
+  <form id="deck-form" class="deck-form">
     <fieldset>
       <legend>Elements</legend>
-      <div class="chips">
-        {ELEMENTS.map((e) => <label><input type="checkbox" name="element" value={e} checked={e === "Fire" || e === "Water"} /> {e}</label>)}
-      </div>
+      <div class="chips">{elements.map((e) => <label><input type="checkbox" name="element" value={e} checked={e === "Fire" || e === "Water"} /> {e}</label>)}</div>
+      <p class="muted small">Cards with no element are always in. A card with two elements needs both.</p>
     </fieldset>
-    <p class="muted small">Cards with no element are always in the pool. A card with two elements needs both chosen.</p>
+    <fieldset>
+      <legend>Spellbook, 60 spells</legend>
+      <div class="split">{Object.entries(SPELLBOOK).map(([type, n]) => <label>{type}s <input type="number" name={type} value={n} min="0" max="60" /></label>)}</div>
+      <p class="muted small">The atlas is {ATLAS} sites. A split that does not add up to 60 gives a spellbook of that size, which the list will say.</p>
+    </fieldset>
     <button type="submit">Deal a deck</button>
-    <p id="deck-status" class="muted" aria-live="polite"></p>
   </form>
-  <section id="deck" class="deck" aria-live="polite"></section>
+  <pre id="deck" class="rules deck" aria-live="polite">Your deck appears here.</pre>
 
   <h2>How it is built</h2>
-  <p>Seven small parts, in the order they run. The code under each heading is the code this page is running, read from the same file.</p>
+  <p>JavaScript, the plain kind: no framework, no build step, no key. Seven parts, in the order they run; the code under each heading is read from the file this page is running.</p>
 
   <h3>0. The rules</h3>
-  <p>Everything the deck must obey, in one place. Four copies of an Ordinary, three of an Exceptional, two of an Elite, one of a Unique; sixty in the spellbook, thirty in the atlas; and two avatars a random deck should not hand you.</p>
-  <CodeExample code={step(0)} lang="javascript" title="random-deck.js · the rules" />
+  <p>Four copies of an Ordinary, three of an Exceptional, two of an Elite, one of a Unique. Thirty sites. Sixty spells, split by type, and the default split. Two avatars a random deck should not hand you.</p>
+  <CodeExample code={step(0)} lang="javascript" title="the rules" />
 
-  <h3>1. Ask for the pool</h3>
-  <p>One query per zone, written in the <a href="/syntax">search syntax</a> this site uses. <code>cat:spell</code> is every spell, which in Sorcery means minions, magics, auras and artifacts; <code>t:site</code> is every site; <code>t:avatar</code> every avatar. <code>e:air,fire</code> reads "has Air or has Fire", <code>e:none</code> is a card with no element at all, and <code>-!"Duplicator"</code> drops one exact name. Try any of these in the search box first; the API answers exactly what the site would show.</p>
-  <CodeExample code={step(1)} lang="javascript" title="random-deck.js · the queries" />
+  <h3>1. One search query per card type</h3>
+  <p>The deck is nothing but search results. <code>t:minion (e:fire,water or e:none)</code> is every minion that has Fire or Water or no element. Paste it into the search box and you see the same cards the deal draws from. The avatar query drops two names with <code>-!"Name"</code>.</p>
+  <CodeExample code={step(1)} lang="javascript" title="the query" />
 
-  <h3>2. Fetch every page</h3>
-  <p>The API answers a page at a time, up to two hundred cards, and each answer says whether there is more. The loop asks until there is not. There are fewer than a thousand spells, so a full pool is at most five requests.</p>
-  <CodeExample code={step(2)} lang="javascript" title="random-deck.js · paging" />
+  <h3>2. Every card the query matches</h3>
+  <p>The API answers two hundred cards a page and says whether there are more, so the loop asks until there are not. The answer is remembered: a second deal with the same choices asks nothing. The API allows sixty requests a minute from one address, and a deal is about eight.</p>
+  <CodeExample code={step(2)} lang="javascript" title="fetching" />
 
-  <h3>3. Keep the elements honest</h3>
-  <p><code>e:air,fire</code> admits a card that has Air and Water, because it has Air. A deck of Air and Fire should not hold it. The API could be asked for every exact combination, but a one-line filter in the browser reads better: keep a card only when every element it has was chosen. A card with no element always passes.</p>
-  <CodeExample code={step(3)} lang="javascript" title="random-deck.js · the filter" />
+  <h3>3. Only the chosen elements</h3>
+  <p><code>e:fire,water</code> also admits a Fire and Air card, because it has Fire. One line keeps a card only when every element it has was chosen.</p>
+  <CodeExample code={step(3)} lang="javascript" title="the filter" />
 
-  <h3>4. Draw</h3>
-  <p>Shuffle the pool, then walk it: for each card take a random number of copies, never more than its rarity allows and never more than the zone still needs, and stop when the zone is full. A pool too small to fill a zone gives a short zone, which the list says plainly, rather than a fifth copy.</p>
-  <CodeExample code={step(4)} lang="javascript" title="random-deck.js · the draw" />
+  <h3>4. Draw to the copy rules</h3>
+  <p>Shuffle, then walk the pool taking a random number of copies of each card, never more than its rarity allows, until the part is full. A pool too small for its part gives a short part, which the list says, never a fifth copy.</p>
+  <CodeExample code={step(4)} lang="javascript" title="the draw" />
 
   <h3>5. A deck</h3>
-  <p>Three pools, loaded once per choice of elements, then a deal that touches no network at all. That is why "Deal a deck" is instant the second time: the API was asked three times, and the shuffling is yours. The query API allows sixty requests a minute from one address; a tool that fetched the pool for every click would spend that in twenty clicks.</p>
-  <CodeExample code={step(5)} lang="javascript" title="random-deck.js · pools and a deal" />
+  <p>One query per part, one draw per part: the avatar, each spell type at its size, the sites.</p>
+  <CodeExample code={step(5)} lang="javascript" title="the deal" />
 
-  <h3>6. Write it down</h3>
-  <p>The deck as text, the way a deck list is usually shared: the avatar, then each zone grouped by card type with the count in front of each name.</p>
-  <CodeExample code={step(6)} lang="javascript" title="random-deck.js · the list" />
+  <h3>6. The list</h3>
+  <p>Each part with its count and the query it came from, then its cards by name. Text, so it pastes anywhere.</p>
+  <CodeExample code={step(6)} lang="javascript" title="the list" />
 
-  <h3>7. Show it</h3>
-  <p>Every card record the API returns carries <code>image_urls</code> for its default printing, four sizes at permanent addresses on the CDN, and <code>kairos_url</code>, its page on this site. A tile is an image and a link. The images are © Erik's Curiosa, served with credit; anything built on them should say so too. The rest is the form: the chosen elements go in the address bar so a choice can be shared.</p>
-  <CodeExample code={step(7)} lang="javascript" title="random-deck.js · tiles and the form" />
+  <h3>7. The form</h3>
+  <p>Read the boxes, deal, print. This is the only part that needs a browser.</p>
+  <CodeExample code={step(7)} lang="javascript" title="the form" />
 
   <h2>Make it yours</h2>
-  <ul>
-    <li>Narrow the pool with the query: <code>s:alpha</code> for one set, <code>cost&lt;=3</code> for a cheap deck, <code>-is:errata</code> to skip cards whose text has changed, <code>k:spellcaster</code> for a theme.</li>
-    <li>Shape the curve: draw sites and spells by cost bands instead of one pass.</li>
-    <li>Run it anywhere: the module has no browser code above step 7, so the same functions work in Node, a bot or a spreadsheet script. Send a <code>User-Agent</code> that names your tool when it is not a browser; the <a href="/usage">usage terms</a> ask for it.</li>
-  </ul>
+  <p>Change the queries. <code>s:alpha</code> for one set, <code>cost&lt;=3</code> for a cheap deck, <code>-is:errata</code> to skip cards whose text has changed, <code>k:spellcaster</code> for a theme: anything the <a href="/syntax">search syntax</a> can say, the deck can be drawn from. Parts 0 to 6 run in Node as they are; send a <code>User-Agent</code> that names your tool, as the <a href="/usage">usage terms</a> ask.</p>
 
   <h2>All of it</h2>
-  <p>The file this page runs, unabridged: <a href={sourceUrl}>random-deck.js on GitHub</a>.</p>
+  <p><a href={sourceUrl}>random-deck.js on GitHub</a>.</p>
   <CodeExample code={source} lang="javascript" title="random-deck.js" />
 </Base>
 
@@ -83,14 +82,12 @@ const sourceUrl = "https://github.com/sadkinglabs/kairos-archive/blob/main/src/f
 
 <style>
   .deck-form { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0; }
-  .deck-form fieldset { border: 0; padding: 0; margin: 0; }
+  .deck-form fieldset { border: 0; padding: 0; margin: 0 0 1rem; }
   .deck-form legend { font-weight: 600; }
-  .deck-form .chips { margin: .5rem 0 .75rem; font-size: 1rem; }
-  .deck-form .small { font-size: .85rem; margin: 0 0 .75rem; }
-  .deck-form #deck-status { margin: .75rem 0 0; }
-  /* The deck is built at runtime, so its elements carry no scope attribute: global selectors under the scoped container. */
-  .deck :global(h3) { margin-top: 1.5rem; }
-  .deck :global(.grid) { margin-bottom: .5rem; }
-  .deck :global(.rules) { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; line-height: 1.5; }
-  .deck :global(.deck-text) { margin-top: 1rem; }
+  .deck-form .chips { margin: .5rem 0; font-size: 1rem; }
+  .deck-form .split { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; margin: .5rem 0; }
+  .deck-form .split label { display: flex; align-items: center; gap: .5rem; }
+  .deck-form .split input { width: 5rem; min-height: 38px; }
+  .deck-form .small { font-size: .85rem; margin: .25rem 0 0; }
+  .deck { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; line-height: 1.5; }
 </style>
