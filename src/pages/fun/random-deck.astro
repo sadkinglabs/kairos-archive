@@ -32,19 +32,20 @@ const lines = source.split("\n").length;
       <div class="row">{sets.map((s) => <label><input type="checkbox" name="set" value={s.set_code} checked /> {s.set_name}</label>)}</div>
     </fieldset>
     <fieldset>
-      <legend>Spellbook split</legend>
+      <legend>Spellbook</legend>
       <div class="row">{Object.entries(SPLIT).map(([type, n]) => <label>{type}s <input type="number" name={type} value={n} min="0" max={SPELLBOOK} /></label>)}</div>
     </fieldset>
     <fieldset>
       <legend>Toolbox</legend>
       <div class="row">{[0, 1, 2, 3].map((n) => <label><input type="radio" name="toolbox" value={n} checked={n === 0} /> {n}</label>)}</div>
+      <output id="deck-total" class="total" for="Artifact Aura Magic Minion toolbox" aria-live="polite">{SPELLBOOK} / {SPELLBOOK} spells</output>
     </fieldset>
     <button type="submit">Deal a deck</button>
   </form>
   <pre id="deck" class="rules deck" aria-live="polite">Your deck appears here.</pre>
 
   <h2>How it is built</h2>
-  <p>JavaScript, the plain kind: no framework, no build step, no key. Nine parts, in the order they run; the code under each heading is read from the file this page is running.</p>
+  <p>JavaScript, the plain kind: no framework, no build step, no key. Eight parts, in the order they run; the code under each heading is read from the file this page is running.</p>
 
   <h3>0. The rules</h3>
   <p>Four copies of an Ordinary, three of an Exceptional, two of an Elite, one of a Unique. Sixty spells, thirty sites, ten in the collection. The default split by type, in the order the list shows it.</p>
@@ -66,24 +67,20 @@ const lines = source.split("\n").length;
   <p>Shuffle, then walk the pool taking a random number of copies of each card, never more than its rarity allows, until the part is full. A pool too small for its part gives a short part, which the list says, never a fifth copy.</p>
   <CodeExample code={step(4)} lang="javascript" title="the draw" />
 
-  <h3>5. The sizes</h3>
-  <p>The spellbook is sixty with Toolbox among them. The split is proportions: whatever Toolbox takes comes off first and the rest is shared out, rounded, with the odd card going to the largest type.</p>
-  <CodeExample code={step(5)} lang="javascript" title="the sizes" />
+  <h3>5. A deck</h3>
+  <p>One query per part, one draw per part, in the order the list shows: the avatar, the spellbook by type as the boxes say, Toolbox, the sites, then the collection. The collection skips any card already in the deck, because a card's copies are counted across the whole deck.</p>
+  <CodeExample code={step(5)} lang="javascript" title="the deal" />
 
-  <h3>6. A deck</h3>
-  <p>One query per part, one draw per part, in the order the list shows: the avatar, the spellbook by type, Toolbox, the sites, then the collection. The collection skips any card already in the deck, because a card's copies are counted across the whole deck.</p>
-  <CodeExample code={step(6)} lang="javascript" title="the deal" />
-
-  <h3>7. The list</h3>
+  <h3>6. The list</h3>
   <p>Each part with its count and the query it came from, then its cards by name, then how many cards in all: 91, or 101 with a Toolbox and its collection.</p>
-  <CodeExample code={step(7)} lang="javascript" title="the list" />
+  <CodeExample code={step(6)} lang="javascript" title="the list" />
 
-  <h3>8. The form</h3>
-  <p>Read the boxes, deal, print. This is the only part that needs a browser.</p>
-  <CodeExample code={step(8)} lang="javascript" title="the form" />
+  <h3>7. The form</h3>
+  <p>Read the boxes, deal, print. The spellbook count under the boxes is the four numbers plus Toolbox, kept up to date as you type and red past sixty: the deal never refuses, it deals what you asked for and the list says what that came to.</p>
+  <CodeExample code={step(7)} lang="javascript" title="the form" />
 
   <h2>Make it yours</h2>
-  <p>Change the queries. <code>s:alpha</code> for one set, <code>cost&lt;=3</code> for a cheap deck, <code>-is:errata</code> to skip cards whose text has changed, <code>k:spellcaster</code> for a theme: anything the <a href="/syntax">search syntax</a> can say, the deck can be drawn from. Parts 0 to 7 run in Node as they are; send a <code>User-Agent</code> that names your tool, as the <a href="/usage">usage terms</a> ask.</p>
+  <p>Change the queries. <code>s:alpha</code> for one set, <code>cost&lt;=3</code> for a cheap deck, <code>-is:errata</code> to skip cards whose text has changed, <code>k:spellcaster</code> for a theme: anything the <a href="/syntax">search syntax</a> can say, the deck can be drawn from. Parts 0 to 6 run in Node as they are; send a <code>User-Agent</code> that names your tool, as the <a href="/usage">usage terms</a> ask.</p>
 
   <h2>All of it</h2>
   <p><a href={sourceUrl}>random-deck.js on GitHub</a>.</p>
@@ -102,5 +99,7 @@ const lines = source.split("\n").length;
   .deck-form .row label { display: flex; align-items: center; gap: .3rem; white-space: nowrap; }
   .deck-form input[type="number"] { width: 3.6rem; min-height: 34px; padding: .2rem .4rem; }
   .deck-form button { justify-self: start; min-height: 38px; }
+  .deck-form .total { display: block; margin-top: .4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .deck-form .total.over { color: var(--removed-fg); }
   .deck { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; line-height: 1.5; }
 </style>
