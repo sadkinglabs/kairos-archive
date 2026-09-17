@@ -5,18 +5,22 @@
 import Base from "../../layouts/Base.astro";
 import CodeExample from "../../components/CodeExample.astro";
 import source from "../../fun/random-deck.js?raw";
-import { ATLAS, SPELLBOOK } from "../../fun/random-deck.js";
+import { ATLAS, COLLECTION_MAX, SPELLS, SPLIT, TOOLBOX_MAX } from "../../fun/random-deck.js";
+import { loadRegistry, orderedSets } from "../../data/registry";
 
 const sections = source.split(/^(?=\/\/ ── )/m).map((chunk) => chunk.trim());
 const step = (n: number) => sections.find((s) => s.startsWith(`// ── ${n}.`)) ?? "";
 const sourceUrl = "https://github.com/sadkinglabs/kairos-archive/blob/main/src/fun/random-deck.js";
 const elements = ["Air", "Earth", "Fire", "Water"];
+/** The sets a deck may draw from: every real set, never the promo bucket. */
+const { registry } = await loadRegistry();
+const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !== "999");
 const lines = source.split("\n").length;
 ---
 <Base title="Random deck" canonical="/fun/random-deck" description="Pick elements and a spell split, get a random Sorcery deck list drawn to the copy rules from the Kairos Archive query API. Plain JavaScript, on the page, step by step.">
   <p class="eyebrow"><a href="/fun">Fun Zone</a></p>
   <h1>Random deck</h1>
-  <p class="intro">Pick the elements and how the spellbook splits, and deal: one avatar, sixty spells, thirty sites, no card above what its rarity allows. Every part of the deck is one search query, the same syntax as the search box, answered by the <a href="/docs/query">query API</a>. The list shows the query each part came from. It is {lines} lines of plain JavaScript, and all of it is on this page.</p>
+  <p class="intro">Pick the elements, the sets, how the spellbook splits and whether Toolbox is in, and deal: one avatar, sixty spells, thirty sites, no card above what its rarity allows. Every part of the deck is one search query, the same syntax as the search box, answered by the <a href="/docs/query">query API</a>. The list shows the query each part came from. It is {lines} lines of plain JavaScript, and all of it is on this page.</p>
 
   <form id="deck-form" class="deck-form">
     <fieldset>
@@ -25,27 +29,37 @@ const lines = source.split("\n").length;
       <p class="muted small">Cards with no element are always in. A card with two elements needs both.</p>
     </fieldset>
     <fieldset>
-      <legend>Spellbook, 60 spells</legend>
-      <div class="split">{Object.entries(SPELLBOOK).map(([type, n]) => <label>{type}s <input type="number" name={type} value={n} min="0" max="60" /></label>)}</div>
-      <p class="muted small">The atlas is {ATLAS} sites. A split that does not add up to 60 gives a spellbook of that size, which the list will say.</p>
+      <legend>Sets</legend>
+      <div class="chips">{sets.map((s) => <label><input type="checkbox" name="set" value={s.set_code} checked /> {s.set_name}</label>)}</div>
+      <p class="muted small">Booster printings only; promos are never drawn. No set ticked means every set.</p>
+    </fieldset>
+    <fieldset>
+      <legend>Spellbook, {SPELLS} spells</legend>
+      <div class="split">{Object.entries(SPLIT).map(([type, n]) => <label>{type}s <input type="number" name={type} value={n} min="0" max={SPELLS} /></label>)}</div>
+      <p class="muted small">Proportions, scaled to the spells left after Toolbox and the Collection. The atlas is {ATLAS} sites.</p>
+      <div class="split">
+        <label>Toolbox <input type="number" name="toolbox" value="0" min="0" max={TOOLBOX_MAX} /></label>
+        <label>Collection <input type="number" name="collection" value={COLLECTION_MAX} min="0" max={COLLECTION_MAX} /></label>
+      </div>
+      <p class="muted small">Toolbox casts Ordinary spells from your collection. Any copies at all add a Collection part of that many Ordinary spells; both count toward the {SPELLS}.</p>
     </fieldset>
     <button type="submit">Deal a deck</button>
   </form>
   <pre id="deck" class="rules deck" aria-live="polite">Your deck appears here.</pre>
 
   <h2>How it is built</h2>
-  <p>JavaScript, the plain kind: no framework, no build step, no key. Seven parts, in the order they run; the code under each heading is read from the file this page is running.</p>
+  <p>JavaScript, the plain kind: no framework, no build step, no key. Nine parts, in the order they run; the code under each heading is read from the file this page is running.</p>
 
   <h3>0. The rules</h3>
-  <p>Four copies of an Ordinary, three of an Exceptional, two of an Elite, one of a Unique. Thirty sites. Sixty spells, split by type, and the default split. Two avatars a random deck should not hand you.</p>
+  <p>Four copies of an Ordinary, three of an Exceptional, two of an Elite, one of a Unique. Sixty spells and thirty sites. The default split by type. Two avatars a random deck should not hand you. Toolbox at most three, a Collection at most ten.</p>
   <CodeExample code={step(0)} lang="javascript" title="the rules" />
 
-  <h3>1. One search query per card type</h3>
-  <p>The deck is nothing but search results. <code>t:minion (e:fire,water or e:none)</code> is every minion that has Fire or Water or no element. Paste it into the search box and you see the same cards the deal draws from. The avatar query drops two names with <code>-!"Name"</code>.</p>
+  <h3>1. One search query per part</h3>
+  <p>The deck is nothing but search results. <code>t:minion (e:fire,water or e:none) s:001,006 is:booster</code> is every minion with Fire, Water or no element, printed in a booster of Alpha or Gothic. Paste it into the search box and you see the cards the deal draws from. The Collection asks for <code>cat:spell rarity:ordinary</code>; Toolbox is its own name, <code>!"Toolbox"</code>.</p>
   <CodeExample code={step(1)} lang="javascript" title="the query" />
 
   <h3>2. Every card the query matches</h3>
-  <p>The API answers two hundred cards a page and says whether there are more, so the loop asks until there are not. The answer is remembered: a second deal with the same choices asks nothing. The API allows sixty requests a minute from one address, and a deal is about eight.</p>
+  <p>The API answers two hundred cards a page and says whether there are more, so the loop asks until there are not. The answer is remembered: a second deal with the same choices asks nothing. The API allows sixty requests a minute from one address, and a deal is about ten.</p>
   <CodeExample code={step(2)} lang="javascript" title="fetching" />
 
   <h3>3. Only the chosen elements</h3>
@@ -56,20 +70,24 @@ const lines = source.split("\n").length;
   <p>Shuffle, then walk the pool taking a random number of copies of each card, never more than its rarity allows, until the part is full. A pool too small for its part gives a short part, which the list says, never a fifth copy.</p>
   <CodeExample code={step(4)} lang="javascript" title="the draw" />
 
-  <h3>5. A deck</h3>
-  <p>One query per part, one draw per part: the avatar, each spell type at its size, the sites.</p>
-  <CodeExample code={step(5)} lang="javascript" title="the deal" />
+  <h3>5. The sizes</h3>
+  <p>The split is proportions. Whatever Toolbox and the Collection take comes off the sixty first, and the rest is shared out in those proportions, whole cards, the largest remainders rounding up.</p>
+  <CodeExample code={step(5)} lang="javascript" title="the sizes" />
 
-  <h3>6. The list</h3>
-  <p>Each part with its count and the query it came from, then its cards by name. Text, so it pastes anywhere.</p>
-  <CodeExample code={step(6)} lang="javascript" title="the list" />
+  <h3>6. A deck</h3>
+  <p>One query per part, one draw per part, in order: the avatar, Toolbox by the copy, the Collection, each spell type, the sites. A card drawn into one part is kept out of the later ones, so a Collection artifact never comes back as an Artifact.</p>
+  <CodeExample code={step(6)} lang="javascript" title="the deal" />
 
-  <h3>7. The form</h3>
-  <p>Read the boxes, deal, print. This is the only part that needs a browser.</p>
-  <CodeExample code={step(7)} lang="javascript" title="the form" />
+  <h3>7. The list</h3>
+  <p>Each part with its count and the query it came from, then its cards by name, then the totals. Text, so it pastes anywhere.</p>
+  <CodeExample code={step(7)} lang="javascript" title="the list" />
+
+  <h3>8. The form</h3>
+  <p>Read the boxes, clamp the numbers, deal, print. This is the only part that needs a browser.</p>
+  <CodeExample code={step(8)} lang="javascript" title="the form" />
 
   <h2>Make it yours</h2>
-  <p>Change the queries. <code>s:alpha</code> for one set, <code>cost&lt;=3</code> for a cheap deck, <code>-is:errata</code> to skip cards whose text has changed, <code>k:spellcaster</code> for a theme: anything the <a href="/syntax">search syntax</a> can say, the deck can be drawn from. Parts 0 to 6 run in Node as they are; send a <code>User-Agent</code> that names your tool, as the <a href="/usage">usage terms</a> ask.</p>
+  <p>Change the queries. <code>s:alpha</code> for one set, <code>cost&lt;=3</code> for a cheap deck, <code>-is:errata</code> to skip cards whose text has changed, <code>k:spellcaster</code> for a theme: anything the <a href="/syntax">search syntax</a> can say, the deck can be drawn from. Parts 0 to 7 run in Node as they are; send a <code>User-Agent</code> that names your tool, as the <a href="/usage">usage terms</a> ask.</p>
 
   <h2>All of it</h2>
   <p><a href={sourceUrl}>random-deck.js on GitHub</a>.</p>
