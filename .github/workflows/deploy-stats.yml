@@ -76,3 +76,10 @@ jobs:
           code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'origin: https://evil.example' -d '{}' https://stats.kairosarchive.net/event)
           echo "beacon from another origin: HTTP $code (403 expected)"
           [ "$code" = "403" ]
+          # One synthetic event from the site's origin: proves the route
+          # accepts and records a beacon (204). It lands in the dataset as
+          # a click from a page called /_deploy-check, easy to filter.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H 'origin: https://kairosarchive.net' -H 'content-type: text/plain' \
+                 -d '{"h":"deploy-check.invalid","p":"/_deploy-check","t":"deploy-check"}' https://stats.kairosarchive.net/event)
+          echo "beacon from the site: HTTP $code (204 expected)"
+          [ "$code" = "204" ]

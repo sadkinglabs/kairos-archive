@@ -4,12 +4,18 @@
 # The policy is strict because the site earns it: the built HTML carries no
 # inline script, no inline style, no on* handlers and no style= attributes -
 # every script and stylesheet is an external /_astro/ file - so 'self' is
-# enough for both. Card images and the JSON the Download button fetches
-# come from api.kairosarchive.net, and nothing else leaves the origin.
-# frame-ancestors 'none' and X-Frame-Options together stop the site being
-# framed by anyone, which is the one thing a card archive never needs.
+# enough for both, with two named exceptions. Card images and the JSON the
+# Download button fetches come from api.kairosarchive.net. Outbound-click
+# beacons go to stats.kairosarchive.net (Base.astro, sendBeacon). When the
+# Web Analytics token is set at build time, Base.astro loads Cloudflare's
+# beacon script from static.cloudflareinsights.com and that script reports
+# to cloudflareinsights.com; both are listed here whether or not the token
+# is set, since this file is static, and neither can be reached by anything
+# but that script. Nothing else leaves the origin. frame-ancestors 'none'
+# and X-Frame-Options together stop the site being framed by anyone, which
+# is the one thing a card archive never needs.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://api.kairosarchive.net; connect-src 'self' https://api.kairosarchive.net; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' https://api.kairosarchive.net; connect-src 'self' https://api.kairosarchive.net https://stats.kairosarchive.net https://cloudflareinsights.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
