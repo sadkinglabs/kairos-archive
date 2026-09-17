@@ -1,0 +1,70 @@
+name: smoke-query
+
+# A live test of the query API, on demand: every route, the shapes the
+# docs page promises, the errors, the redirect, CORS, and the cold-start
+# budget. Runs from a GitHub runner because the API is public; needs no
+# secret. Fails on the first promise the live API does not keep.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query API, live
+        env:
+          BASE: https://query.kairosarchive.net
+          UA: kairos-archive-smoke (+https://kairosarchive.net)
+        run: |
+          set -euo pipefail
+          get() { curl -sS --max-time 20 -A "$UA" -w '\n%{http_code} %{time_total}' "$1"; }
+          check() { # url, expected status, jq assertion
+            out=$(get "$1"); body=$(printf '%s' "$out" | sed '$d'); meta=$(printf '%s' "$out" | tail -n 1)
+            status=${meta%% *}; t=${meta##* }
+            if [ "$status" != "$2" ]; then echo "::error::$1 -> HTTP $status, expected $2"; echo "$body" | head -c 400; echo; exit 1; fi
+            if ! printf '%s' "$body" | jq -e "$3" > /dev/null; then echo "::error::$1 -> body failed: $3"; echo "$body" | head -c 600; echo; exit 1; fi
+            echo "ok  $status  ${t}s  $1"
+          }
+          check "$BASE/cards?q=t:minion%20e:fire%20cost%3C%3D2" 200 '.object=="list" and .total>0 and (.data[0].object=="card") and (.data[0].api_url|startswith("https://api.kairosarchive.net/v3/cards/")) and (.data[0].image_urls.normal|test("^https://api.kairosarchive.net/images/P[0-9]{6}\\.[0-9a-f]{12}\\.normal\\.webp$")) and (.release|test("^v3\\."))'
+          check "$BASE/cards?q=s:alpha%20is:foil&unique=prints&page_size=2" 200 '.unique=="prints" and .page_size==2 and (.data|length)==2 and .has_more==true and (.next_page|test("page=2")) and (.data[0].printing.finish=="Foil") and (.data[0].printing.set_name=="Alpha")'
+          check "$BASE/cards?q=s:alpha%20is:foil&unique=prints&page_size=2&page=2" 200 '.page==2'
+          check "$BASE/cards?q=C000230" 200 '.total==1 and .data[0].name=="Polar Bears"'
+          check "$BASE/cards?q=001-apprentice_wizard-b-s" 200 '.total==1 and .data[0].printing.printing_id=="P000001"'
+          check "$BASE/cards?q=is:reprint%20sort:cost%20order:desc" 200 '.sort=="cost" and .order=="desc" and .total>0'
+          check "$BASE/cards?q=spell" 200 '.rules_text_total>=0 and (.rules_text_hits|type)=="array"'
+          check "$BASE/cards?q=t:site%20cost%3E99" 200 '.total==0 and .data==[]'
+          check "$BASE/cards" 400 '.object=="error" and .code=="missing_query"'
+          check "$BASE/cards?q=cost%3E%3E3" 400 '.code=="bad_query" and (.warnings|length)>0'
+          check "$BASE/cards?q=x&unique=nope" 400 '.code=="bad_parameter"'
+          check "$BASE/cards/named?exact=polar%20bears" 200 '.object=="card" and .codex_id=="C000230"'
+          check "$BASE/cards/named?fuzzy=appren" 200 '.codex_id=="C000001"'
+          check "$BASE/cards/named?exact=nope" 404 '.code=="not_found"'
+          check "$BASE/cards/random?q=t:site" 200 '.object=="card" and .type=="Site"'
+          check "$BASE/cards/autocomplete?q=dryad" 200 '.object=="catalog" and (.data[0].name|test("Dryad"))'
+          check "$BASE/cards/nope" 404 '.object=="error" and .code=="not_found"'
+          # The redirect for an id, and the static objects still served beside the Worker.
+          loc=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' -A "$UA" "$BASE/cards/C000230")
+          [ "$loc" = "302 https://api.kairosarchive.net/v3/cards/C000230.json" ] || { echo "::error::redirect: $loc"; exit 1; }
+          echo "ok  $loc"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -L -A "$UA" "https://api.kairosarchive.net/v3/cards/C000230.json"); [ "$code" = "200" ] || { echo "::error::static object: $code"; exit 1; }
+          echo "ok  200  api.kairosarchive.net/v3/cards/C000230.json (the objects, untouched)"
+
+          # CORS and cache headers, and a preflight.
+          h=$(curl -sS -D - -o /dev/null -A "$UA" "$BASE/cards?q=t:minion&page_size=1" | tr -d '\r' | tr 'A-Z' 'a-z')
+          echo "$h" | grep -q '^access-control-allow-origin: \*' || { echo "::error::no CORS header"; exit 1; }
+          echo "$h" | grep -q '^cache-control: public, max-age=300' || { echo "::error::no cache header"; exit 1; }
+          echo "$h" | grep -q '^content-type: application/json' || { echo "::error::content type"; exit 1; }
+          pre=$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS -A "$UA" "$BASE/cards"); [ "$pre" = "204" ] || { echo "::error::preflight: $pre"; exit 1; }
+          echo "ok  headers: CORS, cache-control, JSON; preflight 204"
+          # Timing: ten distinct queries in a row, to see cold and warm answers.
+          for q in t:minion t:site e:water 'k:airborne' 'rarity:unique' 'cost:x' 'is:errata' 'sub:beast' 'u:knight' 'is:dfc'; do
+            printf '%s ' "$(curl -sS -o /dev/null -w '%{time_total}' -A "$UA" "$BASE/cards?q=$q&page_size=1")"
+          done; echo "(seconds, card-only)"
+          for q in s:gothic f:foil pro:boxtopper 'a:tucker' 'year:2025'; do
+            printf '%s ' "$(curl -sS -o /dev/null -w '%{time_total}' -A "$UA" "$BASE/cards?q=$q&page_size=1")"
+          done; echo "(seconds, printing queries)"
+          echo "release served: $(get "$BASE/cards?q=C000230" | head -n 1 | jq -r .release)"

@@ -6,17 +6,17 @@ name = "kairos-query"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
 
-# On the API domain, beside the static objects. The route covers only
-# /cards and what is under it; /v3/… and /versions.json keep going to
-# the bucket. Remove the routes to serve from the workers.dev address.
-routes = [
-  { pattern = "api.kairosarchive.net/cards", zone_name = "kairosarchive.net" },
-  { pattern = "api.kairosarchive.net/cards/*", zone_name = "kairosarchive.net" },
-]
+# Its own hostname on the zone. api.kairosarchive.net is an R2 custom
+# domain, and a Workers route on that host never runs: R2 answers first
+# (a 404 for a key it does not hold), which the first deploy proved. A
+# custom domain here creates the DNS record on deploy. Remove the block
+# to serve from the workers.dev address instead.
+routes = [{ pattern = "query.kairosarchive.net", custom_domain = true }]
 
 [vars]
 SITE_BASE_URL = "https://kairosarchive.net"
 API_BASE_URL = "https://api.kairosarchive.net"
+QUERY_BASE_URL = "https://query.kairosarchive.net"
 
 [observability]
 enabled = true

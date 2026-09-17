@@ -25,7 +25,7 @@ const curl = `curl --fail --location \\
   'https://api.kairosarchive.net/v3/slugs/004-witch-b-s.json'`;
 ---
 <Docs title="Endpoints" description="Every endpoint is a file under a release folder. Same names under every release.">
-  <p>All paths below are relative to a release root (<code>/v3.3.0/</code>) or the <code>/v3/</code> alias. They are static files with no query parameters. To search, <a href="/docs/data">download the data</a> or an index and filter locally, or use the <a href="/docs/query">query API</a>, <code>/cards?q=…</code>, which runs the site's search syntax on the API domain.</p>
+  <p>All paths below are relative to a release root (<code>/v3.3.0/</code>) or the <code>/v3/</code> alias. They are static files with no query parameters. To search, <a href="/docs/data">download the data</a> or an index and filter locally, or use the <a href="/docs/query">query API</a>, <code>query.kairosarchive.net/cards?q=…</code>, which runs the site's search syntax.</p>
 
   <h2>The files</h2>
   <div class="table-wrap"><table><thead><tr><th>Path</th><th>What you get</th></tr></thead><tbody>{files.map(([path, what]) => <tr><td><code class="endpoint">{path}</code></td><td>{what}</td></tr>)}</tbody></table></div>

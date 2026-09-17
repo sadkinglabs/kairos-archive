@@ -4,7 +4,7 @@ import { handle, needsPrintings, type Env } from "../src/worker";
 import { SITE, TAG, fakeFetch } from "./fake";
 import { CARDS } from "../../src/search/fixture";
 
-const env: Env = { SITE_BASE_URL: SITE, API_BASE_URL: "https://api.test" };
+const env: Env = { SITE_BASE_URL: SITE, API_BASE_URL: "https://api.test", QUERY_BASE_URL: "https://query.test" };
 
 function app(now = () => 1000) {
   const f = fakeFetch();
@@ -71,7 +71,7 @@ describe("GET /cards", () => {
     expect(body.page_size).toBe(1);
     expect(body.data).toHaveLength(1);
     expect(body.has_more).toBe(true);
-    expect(body.next_page).toBe("https://api.test/cards?q=t%3Aminion&unique=prints&sort=cost&order=desc&page_size=1&page=2");
+    expect(body.next_page).toBe("https://query.test/cards?q=t%3Aminion&unique=prints&sort=cost&order=desc&page_size=1&page=2");
     const page2 = await get("/cards?q=t:minion&unique=prints&sort=cost&order=desc&page_size=1&page=2");
     expect(page2.body.page).toBe(2);
     expect(page2.body.data[0].printing.printing_id).not.toBe(body.data[0].printing.printing_id);
