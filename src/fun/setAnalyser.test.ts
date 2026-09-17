@@ -32,7 +32,7 @@ describe("the analysis", () => {
     expect(mostExpensive([card("Cave", { cost: null })])).toBeNull();
   });
   it("derives facts that are not API fields", () => {
-    expect(facts(set)).toEqual({ averageCost: 3.4, cheapShare: 80, fivePlusShare: 20, strongMinionShare: 67, multiElement: 1, elementlessShare: 29 });
+    expect(facts(set)).toEqual({ averageCost: 3.4, cheapShare: 80, strongMinionShare: 67, multiElement: 1, elementlessShare: 29 });
   });
 });
 
@@ -63,6 +63,7 @@ describe("the report", () => {
     const compare = renderComparison(report, "Alpha", report, "Beta");
     expect(compare).toContain("<th>Alpha</th><th>Beta</th>");
     expect(compare).toContain("<td>Average mana cost</td><td>3.4</td><td>3.4</td>");
+    expect(compare).toContain("<td>Cards costing 5+</td><td>20%</td><td>20%</td>");
   });
   it("stops with the API's status when a request fails", async () => {
     vi.stubGlobal("fetch", async () => new Response("no", { status: 503 }));
