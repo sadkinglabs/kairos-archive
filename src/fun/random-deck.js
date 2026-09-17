@@ -5,38 +5,34 @@
 // ── 0. The rules
 export const QUERY = "https://query.kairosarchive.net";
 export const COPIES = { Ordinary: 4, Exceptional: 3, Elite: 2, Unique: 1 };
-export const SPELLS = 60;
+export const SPELLBOOK = 60;
 export const ATLAS = 30;
-/** How the spellbook splits by type; the numbers are proportions. */
-export const SPLIT = { Minion: 30, Magic: 16, Artifact: 8, Aura: 6 };
-export const BANNED_AVATARS = ["Duplicator", "Magician"];
-/** Toolbox casts Ordinary spells from your collection: up to three
- * copies, and with any at all a Collection of up to ten Ordinary
- * spells. Both count toward the sixty. */
-export const TOOLBOX_MAX = 3;
-export const COLLECTION_MAX = 10;
+export const COLLECTION = 10;
+/** How the spellbook splits by type, as proportions. */
+export const SPLIT = { Artifact: 8, Aura: 6, Magic: 16, Minion: 30 };
 
 // ── 1. One search query per part of the deck
 /** The same syntax as the search box: t:minion is a type, e:fire,water
- * "has Fire or Water", e:none a card with no element, s:001,006 a card
- * printed in either set, is:booster not a promo, -!"Name" drops that
- * exact card and !"Toolbox" is exactly that card. */
-export function query(part, elements, sets) {
-  if (part === "Avatar") return `t:avatar ${BANNED_AVATARS.map((n) => `-!"${n}"`).join(" ")}`;
+ * "has Fire or Water", e:none a card with no element, s:001,006 printed
+ * in either set, is:booster not a promo, -!"Name" drops that exact
+ * card and !"Toolbox" is exactly that card. */
+export function query(part, choice) {
+  if (part === "Avatar") return 't:avatar -!"Duplicator" -!"Magician"';
   if (part === "Toolbox") return '!"Toolbox"';
-  const what = part === "Collection" ? "cat:spell rarity:ordinary" : `t:${part.toLowerCase()}`;
-  const e = elements.length ? `(e:${elements.join(",").toLowerCase()} or e:none)` : "e:none";
-  const s = sets.length ? ` s:${sets.join(",")} is:booster` : "";
-  return `${what} ${e}${s}`;
+  const type = part === "Collection" ? "cat:spell rarity:ordinary" : `t:${part.toLowerCase()}`;
+  const elements = choice.elements.length ? `(e:${choice.elements.join(",").toLowerCase()} or e:none)` : "e:none";
+  const sets = choice.sets.length ? ` s:${choice.sets.join(",")} is:booster` : "";
+  const noToolbox = part === "Artifact" && choice.toolbox ? ' -!"Toolbox"' : "";
+  return `${type} ${elements}${sets}${noToolbox}`;
 }
 
 // ── 2. Every card the query matches
 const cache = new Map();
-export async function matches(q, fetchImpl = fetch) {
+export async function matches(q) {
   if (cache.has(q)) return cache.get(q);
   const cards = [];
-  for (let page = 1; ; page += 1) {
-    const res = await fetchImpl(`${QUERY}/cards?q=${encodeURIComponent(q)}&page_size=200&page=${page}`);
+  for (let page = 1; ; page++) {
+    const res = await fetch(`${QUERY}/cards?q=${encodeURIComponent(q)}&page_size=200&page=${page}`);
     if (!res.ok) throw new Error(`The query API answered ${res.status} for "${q}".`);
     const body = await res.json();
     cards.push(...body.data);
@@ -49,63 +45,64 @@ export async function matches(q, fetchImpl = fetch) {
 // ── 3. Only the chosen elements
 /** e:fire,water also admits a Fire+Air card. Keep a card only when every
  * element it has was chosen; "None" always passes. */
-export const within = (cards, elements) => cards.filter((c) => c.elements.every((x) => x === "None" || elements.includes(x)));
+export function within(cards, elements) {
+  return cards.filter((card) => card.elements.every((e) => e === "None" || elements.includes(e)));
+}
 
 // ── 4. Draw to the copy rules
-export function draw(pool, size, random = Math.random) {
-  const deck = [];
+export function draw(pool, size) {
+  const picks = [];
   let total = 0;
-  const shuffled = pool.map((c) => [random(), c]).sort((a, b) => a[0] - b[0]).map(([, c]) => c);
-  for (const card of shuffled) {
+  for (const card of [...pool].sort(() => Math.random() - 0.5)) {
     if (total >= size) break;
-    const copies = Math.min(COPIES[card.rarity] ?? 1, size - total, 1 + Math.floor(random() * (COPIES[card.rarity] ?? 1)));
-    deck.push({ card, copies });
+    const most = Math.min(COPIES[card.rarity] || 1, size - total);
+    const copies = 1 + Math.floor(Math.random() * most);
+    picks.push({ card, copies });
     total += copies;
+  }
+  return picks;
+}
+
+// ── 5. The sizes: sixty spells, Toolbox among them, the rest in proportion
+export function sizes(choice) {
+  const left = SPELLBOOK - choice.toolbox;
+  const sum = Object.values(choice.split).reduce((a, b) => a + b, 0) || 1;
+  const out = {};
+  for (const type in choice.split) out[type] = Math.round((choice.split[type] * left) / sum);
+  const biggest = Object.keys(out).sort((a, b) => out[b] - out[a])[0];
+  out[biggest] += left - Object.values(out).reduce((a, b) => a + b, 0);   // rounding's odd card
+  return out;
+}
+
+// ── 6. A deck: one query per part, in the order the list shows
+export async function deal(choice) {
+  const parts = { Avatar: 1, ...sizes(choice), Toolbox: choice.toolbox, Site: ATLAS, Collection: choice.toolbox ? COLLECTION : 0 };
+  const deck = [];
+  const named = new Set();
+  for (const part in parts) {
+    if (!parts[part]) continue;
+    const q = query(part, choice);
+    let pool = within(await matches(q), choice.elements);
+    if (part === "Collection") pool = pool.filter((card) => !named.has(card.name));   // copies count across the whole deck
+    const picks = part === "Toolbox" ? pool.slice(0, 1).map((card) => ({ card, copies: parts[part] })) : draw(pool, parts[part]);
+    for (const pick of picks) named.add(pick.card.name);
+    deck.push({ part, q, pool: pool.length, size: parts[part], picks });
   }
   return deck;
 }
 
-// ── 5. The sizes: proportions scaled to what is left of the sixty
-export function fit(split, total) {
-  const sum = Object.values(split).reduce((a, b) => a + b, 0);
-  if (!sum) return Object.fromEntries(Object.keys(split).map((type) => [type, 0]));
-  const exact = Object.entries(split).map(([type, n]) => [type, (n * total) / sum]);
-  const sizes = Object.fromEntries(exact.map(([type, x]) => [type, Math.floor(x)]));
-  let left = total - Object.values(sizes).reduce((a, b) => a + b, 0);
-  for (const [type] of exact.sort((a, b) => (b[1] % 1) - (a[1] % 1))) if (left-- > 0) sizes[type] += 1;
-  return sizes;
-}
-
-// ── 6. A deck: one query per part, drawn to its size, no card in two parts
-/** @param {{ elements: string[], sets?: string[], split?: Record<string, number>, toolbox?: number, collection?: number }} choice */
-export async function deal({ elements, sets = [], split = SPLIT, toolbox = 0, collection = COLLECTION_MAX }, fetchImpl = fetch, random = Math.random) {
-  const extras = toolbox ? { Toolbox: toolbox, Collection: collection } : {};
-  const sizes = { Avatar: 1, ...extras, ...fit(split, SPELLS - toolbox - (toolbox ? collection : 0)), Site: ATLAS };
-  const zones = [];
-  const taken = new Set();
-  for (const [part, size] of Object.entries(sizes)) {
-    const q = query(part, elements, sets);
-    const pool = within(await matches(q, fetchImpl), elements).filter((c) => !taken.has(c.name));
-    // Toolbox is asked for by the copy; everything else is drawn.
-    const picks = part === "Toolbox" ? pool.slice(0, 1).map((card) => ({ card, copies: size })) : draw(pool, size, random);
-    for (const p of picks) taken.add(p.card.name);
-    zones.push({ part, q, pool: pool.length, size, picks });
-  }
-  return zones;
-}
-
 // ── 7. The list, with the query each part came from
-export function formatDeck(zones) {
+export function formatDeck(deck) {
   const lines = [];
-  let spells = 0;
-  for (const z of zones) {
+  let total = 0;
+  for (const z of deck) {
     const have = z.picks.reduce((n, p) => n + p.copies, 0);
-    if (z.part !== "Avatar" && z.part !== "Site") spells += have;
+    total += have;
     lines.push(`${z.part} ${have}/${z.size}   # ${z.q}  (${z.pool} cards)`);
     for (const p of z.picks.sort((a, b) => a.card.name.localeCompare(b.card.name))) lines.push(`  ${p.copies} ${p.card.name}`);
     lines.push("");
   }
-  lines.push(`Spells ${spells}/${SPELLS}, sites ${zones.find((z) => z.part === "Site")?.picks.reduce((n, p) => n + p.copies, 0) ?? 0}/${ATLAS}`);
+  lines.push(`${total} cards in all`);
   return lines.join("\n");
 }
 
@@ -116,14 +113,8 @@ if (typeof document !== "undefined" && document.getElementById("deck-form")) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(form);
-    const number = (name, max) => Math.max(0, Math.min(max, Number(data.get(name)) || 0));
-    const choice = {
-      elements: data.getAll("element"),
-      sets: data.getAll("set"),
-      split: Object.fromEntries(Object.keys(SPLIT).map((t) => [t, number(t, SPELLS)])),
-      toolbox: number("toolbox", TOOLBOX_MAX),
-      collection: number("collection", COLLECTION_MAX),
-    };
+    const choice = { elements: data.getAll("element"), sets: data.getAll("set"), toolbox: Number(data.get("toolbox")), split: {} };
+    for (const type in SPLIT) choice.split[type] = Number(data.get(type)) || 0;
     out.textContent = "Asking the query API…";
     try {
       out.textContent = formatDeck(await deal(choice));
