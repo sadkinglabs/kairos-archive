@@ -4,3 +4,6 @@ dist/
 .env
 .env.*
 *.log
+worker/dist/
+.wrangler/
+.dev.vars

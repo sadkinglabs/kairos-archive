@@ -1,8 +1,9 @@
 name: ci
 
 # Every push and pull request: lint, type-check, unit tests (the search
-# grammar), then a real build against the newest verified registry
-# release on api.kairosarchive.net - the same thing Cloudflare Pages does.
+# grammar and the query Worker), the Worker's type-check and dry-run
+# bundle, then a real build against the newest verified registry release
+# on api.kairosarchive.net - the same thing Cloudflare Pages does.
 #
 # Both type checkers run, because they see different files. tsc reads the
 # .ts modules and ignores .astro entirely; astro check reads the templates,
@@ -33,6 +34,8 @@ jobs:
       - run: npx tsc --noEmit -p tsconfig.json
       - run: npm run check   # astro check: the .astro templates tsc cannot see
       - run: npm test
+      - run: npm run worker:check   # the query Worker's own tsconfig (workers-types, not node)
+      - run: npm run worker:bundle  # a dry-run deploy: what would be uploaded
       - run: npm run build
       - name: Summary
         run: |

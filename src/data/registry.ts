@@ -166,15 +166,12 @@ export function loadRegistry(): Promise<Loaded> {
 
 // ---------------------------------------------------------------- derived views
 
-export function slugify(name: string): string {
-  return name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "card";
-}
-export const cardPath = (card: { codex_id: string; name: string }) => `/cards/${card.codex_id}/${slugify(card.name)}`;
-export const printingPath = (printing: { printing_id: string }) => `/printings/${printing.printing_id}`;
+export { slugify, cardPath, printingPath } from "./paths";
 export const setPath = (set: { set_code: string | null }) => `/sets/${set.set_code ?? "none"}`;
 
 
 export function toSearchData(registry: Registry): SearchData {
+  const hashById = new Map(registry.printings.map((p) => [p.printing_id, p.image_hash]));
   const cards: Card[] = registry.cards.map((c) => ({
     codex_id: c.codex_id, name: c.name, type: c.type, category: c.category, rarity: c.rarity, slot: c.slot,
     subtypes: c.subtypes, elements: c.elements, keywords: c.keywords, umbrellas: c.umbrellas,
@@ -182,7 +179,8 @@ export function toSearchData(registry: Registry): SearchData {
     thr_air: c.thr_air, thr_earth: c.thr_earth, thr_fire: c.thr_fire, thr_water: c.thr_water,
     rules_text: c.rules_text, has_back: c.back !== null, errata: c.errata, set_codes: c.set_codes,
     printing_ids: c.printing_ids, default_printing_id: c.default_printing_id, image_status: c.image_status,
-    image_hash: null,
+    // The default printing's art, so a card can be pictured without its printings loaded.
+    image_hash: c.default_printing_id ? hashById.get(c.default_printing_id) ?? null : null,
   }));
   const printings: Printing[] = registry.printings.map((p) => ({
     printing_id: p.printing_id, codex_id: p.codex_id, slug: p.slug, set_code: p.set_code, set_name: p.set_name,

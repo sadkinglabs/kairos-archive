@@ -244,7 +244,10 @@ export function evalNode(node: Node, card: Card, printing: Printing | null, ctx:
   }
 }
 
-function mentionsPrinting(node: Node): boolean {
+/** Whether any term or flag of a query reads the printing rather than the
+ * card. A query that does not can be answered from the card list alone,
+ * which the query API uses to skip loading the printings. */
+export function mentionsPrinting(node: Node): boolean {
   switch (node.kind) {
     case "and": case "or": return node.items.some(mentionsPrinting);
     case "not": return mentionsPrinting(node.item);
@@ -310,7 +313,11 @@ export function buildContext(data: SearchData, slugHistory?: { slug: string; pri
     slugOwners.set(p.slug.toLowerCase(), p.printing_id);
   }
   for (const row of slugHistory ?? []) slugOwners.set(row.slug.toLowerCase(), row.printing_id);
+  // Counts come from the printing list when there is one, else from the
+  // ids each card carries: the same number, so is:reprint holds without
+  // the printings loaded.
   const printingCounts = new Map<string, number>();
+  for (const card of data.cards) printingCounts.set(card.codex_id, card.printing_ids.length);
   for (const [id, list] of byCard) printingCounts.set(id, list.length);
   return { slugOwners, setNames, printingCounts, byCard };
 }

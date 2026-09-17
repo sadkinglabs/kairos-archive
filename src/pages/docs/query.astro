@@ -1,0 +1,89 @@
+---
+/** The query API: the site's search syntax, answered as JSON on the API
+ * domain. Every example here is one the CI follows against a running
+ * copy of the Worker, so the shapes on this page are the shapes served. */
+import Docs from '../../layouts/Docs.astro';
+import CodeExample from '../../components/CodeExample.astro';
+const base = 'https://api.kairosarchive.net';
+const curl = `curl --fail --location \\
+  --user-agent 'my-card-tool/1.0 (contact@example.com)' \\
+  '${base}/cards?q=t:minion%20e:fire%20cost<=2'`;
+const list = `{
+  "object": "list",
+  "release": "v3.3.3",
+  "q": "t:minion e:fire cost<=2",
+  "unique": "cards", "sort": null, "order": null,
+  "total": 32, "page": 1, "page_size": 100, "total_pages": 1,
+  "has_more": false, "next_page": null,
+  "rules_text_total": 0, "rules_text_hits": [],
+  "data": [
+    {
+      "object": "card",
+      "codex_id": "C000140", "name": "Awakened Mummies", "type": "Minion", "category": "Spell",
+      "rarity": "Exceptional", "slot": "Exceptional", "subtypes": ["Undead"], "elements": ["Fire"],
+      "keywords": ["Burrowing"], "umbrellas": ["Evil"], "cost": 1, "attack": 3, "defense": 3, "power": 3, "life": null,
+      "thr_air": 0, "thr_earth": 0, "thr_fire": 1, "thr_water": 0,
+      "rules_text": "…", "has_back": false, "errata": true,
+      "set_codes": ["001", "002"], "printing_ids": ["P000573", "P000574", "P000575", "P000576"],
+      "default_printing_id": "P000575", "image_status": "lowres",
+      "api_url": "${base}/v3/cards/C000140.json",
+      "kairos_url": "https://kairosarchive.net/cards/C000575/awakened-mummies",
+      "image_urls": { "small": "…", "normal": "…", "large": "…", "original": "…" },
+      "printing": { "printing_id": "P000575", "api_url": "…", "kairos_url": "…" }
+    }
+  ]
+}`;
+const error = `{ "object": "error", "status": 400, "code": "bad_query",
+  "details": "The query could not be read.",
+  "warnings": ["cost: \\">3\\" is not a number - try cost:3, cost>=3, …"] }`;
+const js = `const url = new URL("${base}/cards");
+url.searchParams.set("q", 'a:"Drew Tucker" unique:prints');
+const page = await (await fetch(url)).json();
+for (const card of page.data) console.log(card.name, card.printing.set_name, card.printing.finish);`;
+---
+<Docs title="Query API" description="Search the registry with the site's syntax and get JSON back. One endpoint, four routes, on the API domain.">
+  <p>Everything else on the API is a static file. This is the one part that computes: <code>GET {base}/cards?q=…</code> runs the same parser and evaluator the <a href="/search">search page</a> runs in your browser, over the same records, and returns a page of card records as JSON. The full <a href="/syntax">search syntax</a> applies, including <code>unique:</code>, <code>sort:</code> and <code>order:</code>. It exists for tools and bots; for anything heavier than a lookup, <a href="/docs/data">download the data</a> and query it locally.</p>
+
+  <h2>Routes</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Route</th><th>Answers</th></tr></thead>
+    <tbody>
+      <tr><td><code class="endpoint">/cards?q=…</code></td><td>A page of cards matching the query. Parameters: <code>page</code> (1-based), <code>page_size</code> (1 to 200, default 100), and <code>unique</code>, <code>sort</code>, <code>order</code> as alternatives to the words in the query.</td></tr>
+      <tr><td><code class="endpoint">/cards/named?exact=…</code></td><td>One card by its exact name, case-insensitive. <code>fuzzy=…</code> instead takes the best match for a partial name.</td></tr>
+      <tr><td><code class="endpoint">/cards/random</code></td><td>A random card; <code>q=…</code> narrows the pool to a query's matches. Never cached.</td></tr>
+      <tr><td><code class="endpoint">/cards/autocomplete?q=…</code></td><td>Up to 20 card names for a partial name, ranked the way the site's search box ranks them.</td></tr>
+      <tr><td><code class="endpoint">/cards/C000230</code></td><td>A <code>302</code> to the static object, <code>/v3/cards/C000230.json</code>; likewise <code>/cards/P000937</code>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>A query</h2>
+  <CodeExample code={curl} lang="bash" title="curl · minions of Fire costing 2 or less" />
+  <CodeExample code={list} lang="json" title="Response · a list" />
+  <p>A record is the compact card the search page uses, plus its addresses, its image addresses, and <code>printing</code>: the printing the match was judged on when the query read one (a set, finish, product, artist or date term, a printing flag, or <code>unique:prints</code>), with that printing's facts and addresses; otherwise the card's default printing by id. With <code>unique:prints</code> or <code>unique:art</code> the same card appears once per matching printing.</p>
+  <p><code>rules_text_hits</code> is the second group the search page shows: cards whose rules text, not their name, contains the bare words of a query, so a plain word never silently mixes the two. <code>release</code> names the registry release the answer came from. An id or a slug as the whole query answers with that one card.</p>
+
+  <h2>From page JavaScript</h2>
+  <p>Answers carry <code>Access-Control-Allow-Origin: *</code> and a five-minute <code>Cache-Control</code>, so a browser or a Worker can call the API directly.</p>
+  <CodeExample code={js} lang="js" title="fetch · every printing by one artist" />
+
+  <h2>Errors</h2>
+  <p>Every answer is JSON with an <code>object</code> field, errors included. A query the parser cannot read is a <code>400</code> with the parser's own messages in <code>warnings</code>; a query with no matches is a <code>200</code> with an empty <code>data</code>. A path the API does not serve is a JSON <code>404</code>.</p>
+  <CodeExample code={error} lang="json" title="Response · a query that could not be read" />
+  <div class="table-wrap"><table>
+    <thead><tr><th>Status</th><th><code>code</code></th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td>400</td><td><code>missing_query</code></td><td><code>q</code> is absent or blank</td></tr>
+      <tr><td>400</td><td><code>bad_query</code></td><td>the parser rejected the query; <code>warnings</code> says why</td></tr>
+      <tr><td>400</td><td><code>query_too_long</code></td><td><code>q</code> is over 500 characters</td></tr>
+      <tr><td>400</td><td><code>bad_parameter</code></td><td><code>unique</code>, <code>sort</code>, <code>order</code> or <code>page_size</code> is not a value the API takes</td></tr>
+      <tr><td>400</td><td><code>missing_parameter</code></td><td><code>/cards/named</code> without <code>exact</code> or <code>fuzzy</code></td></tr>
+      <tr><td>404</td><td><code>not_found</code></td><td>no such name, no random match, or no such route</td></tr>
+      <tr><td>405</td><td><code>method_not_allowed</code></td><td>anything but <code>GET</code>, <code>HEAD</code> or <code>OPTIONS</code></td></tr>
+      <tr><td>503</td><td><code>data_unavailable</code></td><td>the card data could not be loaded; try again shortly</td></tr>
+    </tbody>
+  </table></div>
+  <p>The <a href="/docs">User-Agent rule</a> applies here as everywhere on the API: a request without one is refused at the edge before it reaches the query.</p>
+
+  <h2>What it reads, and how fresh it is</h2>
+  <p>The API reads the same compact card and printing lists this site builds from the verified release, so an answer and the search page agree to the card. A new release rebuilds the site; the API picks the new lists up within ten minutes and says which release it answered from. Slug lookups resolve current slugs; for any slug ever issued, use <code>/v3/slugs/{'{'}slug{'}'}.json</code>.</p>
+</Docs>
