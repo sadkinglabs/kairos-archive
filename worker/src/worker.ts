@@ -14,11 +14,14 @@ import { SORT_FIELDS, UNITS, type SortField, type Unit } from "../../src/search/
 import { Data } from "./data";
 import { cardRecord, type CardRecord } from "./records";
 import { error, json, preflight } from "./respond";
+import { record } from "./stats";
 
 export interface Env {
   SITE_BASE_URL?: string; API_BASE_URL?: string; QUERY_BASE_URL?: string;
   /** The per-address rate limit (wrangler.toml [[ratelimits]]); absent in tests that do not set one. */
   LIMITER?: RateLimit;
+  /** Usage counts (wrangler.toml [[analytics_engine_datasets]]); absent in tests that do not set one. */
+  STATS?: AnalyticsEngineDataset;
 }
 
 export const FAIR_USE = "The query API is for lookups by people and their tools, not a backend for another service. If your application answers searches, download the data and query it locally: https://kairosarchive.net/docs/data";
@@ -41,8 +44,17 @@ function dataFor(env: Env): Data {
 
 export interface Deps { data: Data; random?: () => number }
 
-export async function handle(request: Request, env: Env, deps: Deps = { data: dataFor(env) }): Promise<Response> {
+export async function handle(request: Request, env: Env, deps: Deps = { data: dataFor(env) }, ctx?: ExecutionContext): Promise<Response> {
   if (request.method === "OPTIONS") return preflight();
+  const started = Date.now();
+  const res = await answer(request, env, deps);
+  // The count is written after the answer leaves; in tests, before it returns.
+  const pending = record(env.STATS, request, res.clone(), started);
+  if (ctx) ctx.waitUntil(pending); else await pending;
+  return res;
+}
+
+async function answer(request: Request, env: Env, deps: Deps): Promise<Response> {
   if (request.method !== "GET" && request.method !== "HEAD") return error(405, "method_not_allowed", "Only GET is served.");
   // The same rule as the rest of the API: say who you are.
   if (!(request.headers.get("user-agent") ?? "").trim()) {

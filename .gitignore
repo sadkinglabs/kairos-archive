@@ -7,3 +7,4 @@ dist/
 worker/dist/
 .wrangler/
 .dev.vars
+stats/dist

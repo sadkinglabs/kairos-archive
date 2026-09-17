@@ -14,7 +14,11 @@
     "worker:check": "tsc -p worker/tsconfig.json",
     "worker:bundle": "wrangler deploy --config worker/wrangler.toml --dry-run --outdir worker/dist",
     "worker:dev": "wrangler dev --config worker/wrangler.toml",
-    "worker:deploy": "wrangler deploy --config worker/wrangler.toml"
+    "worker:deploy": "wrangler deploy --config worker/wrangler.toml",
+    "stats:check": "tsc -p stats/tsconfig.json",
+    "stats:bundle": "wrangler deploy --config stats/wrangler.toml --dry-run --outdir stats/dist",
+    "stats:dev": "wrangler dev --config stats/wrangler.toml",
+    "stats:deploy": "wrangler deploy --config stats/wrangler.toml"
   },
   "dependencies": {
     "@astrojs/sitemap": "3.7.4",
