@@ -86,12 +86,10 @@ const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !
   .report :global(.report-head p) { margin: .2rem 0 0; }
   .report :global(.panels) { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
   .report :global(.panel) { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: .9rem 1rem; min-width: 0; }
-  .report :global(.panel.compare) { grid-column: 1 / -1; }
+  .report :global(.panel.compare) { margin: 1.5rem 0 2.5rem; }
   .report :global(.panel h3) { font: 600 .78rem/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 .6rem; }
-  .report :global(.bar-row) { display: grid; grid-template-columns: 6.5rem 1fr 3rem; gap: .5rem; align-items: center; font-size: .9rem; margin: .2rem 0; font-variant-numeric: tabular-nums; }
-  .report :global(.bar) { display: block; height: .8rem; background: var(--badge); border-radius: 3px; overflow: hidden; }
-  .report :global(.fill) { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
-  .report :global(.bar-value) { text-align: right; }
+  .report :global(table.stat) { width: 100%; border-collapse: collapse; font-size: .92rem; font-variant-numeric: tabular-nums; }
+  .report :global(table.stat th) { font-weight: 600; color: var(--muted); font-size: .78rem; }
   .report :global(.notable), .report :global(.facts) { list-style: none; padding: 0; margin: 0; font-size: .92rem; }
   .report :global(.notable li), .report :global(.facts li) { padding: .3rem 0; border-top: 1px solid var(--line); }
   .report :global(.notable li:first-child), .report :global(.facts li:first-child) { border-top: 0; }

@@ -6,21 +6,33 @@ import { rememberQueryAnswers } from "./remember.js";
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-/** Rows of label, bar and number, the bars scaled to the largest value. */
-function bars(rows, suffix = "") {
-  let max = 1;
-  for (const row of rows) if (row.value > max) max = row.value;
-  let html = "";
+/** A small table of label, count and share. */
+function statTable(rows) {
+  let html = '<table class="stat"><thead><tr><th></th><th>Cards</th><th>Share</th></tr></thead><tbody>';
   for (const row of rows) {
-    const width = Math.round((row.value / max) * 100);
-    html += `<div class="bar-row"><span class="bar-label">${esc(row.label)}</span><span class="bar"><span class="fill" style="width:${width}%"></span></span><span class="bar-value">${row.value}${suffix}</span></div>`;
+    html += `<tr><td>${esc(row.label)}</td><td>${row.count}</td><td>${row.share}%</td></tr>`;
   }
-  return html;
+  return html + "</tbody></table>";
 }
 
-function sortedRows(shares, order) {
-  const keys = order || Object.keys(shares).sort((a, b) => shares[b] - shares[a]);
-  return keys.filter((k) => shares[k] !== undefined).map((k) => ({ label: k === "None" ? "Elementless" : k, value: shares[k] }));
+/** Count cards by a key, or by each of a card's keys when the key is a list. */
+function countBy(cards, keyOf) {
+  const counts = {};
+  for (const card of cards) {
+    const keys = [].concat(keyOf(card));
+    for (const key of keys) counts[key] = (counts[key] || 0) + 1;
+  }
+  return counts;
+}
+
+function curveRows(report) {
+  const costed = report.cards.filter((card) => typeof card.cost === "number").length;
+  return Object.keys(report.curve).map((k) => ({ label: k, count: report.curve[k], share: Math.round((report.curve[k] / costed) * 100) || 0 }));
+}
+
+function shareRows(report, counts, shares, order) {
+  const keys = order || Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  return keys.map((k) => ({ label: k === "None" ? "Elementless" : k, count: counts[k], share: shares[k] }));
 }
 
 function notableList(notable) {
@@ -35,13 +47,14 @@ function notableList(notable) {
 }
 
 export function renderReport(report, name) {
-  const curveRows = Object.keys(report.curve).map((k) => ({ label: k, value: report.curve[k] }));
+  const elements = countBy(report.cards, (card) => card.elements);
+  const types = countBy(report.cards, (card) => card.type);
   return `
     <header class="report-head"><h2>${esc(name)}</h2><p class="muted">${report.cards.length} cards · average mana cost ${report.numbers.averageCost}</p></header>
     <div class="panels">
-      <section class="panel"><h3>Mana curve</h3>${bars(curveRows)}</section>
-      <section class="panel"><h3>Elements</h3>${bars(sortedRows(report.elements), "%")}</section>
-      <section class="panel"><h3>Card types</h3>${bars(sortedRows(report.types), "%")}</section>
+      <section class="panel"><h3>Mana curve</h3>${statTable(curveRows(report))}</section>
+      <section class="panel"><h3>Elements</h3>${statTable(shareRows(report, elements, report.elements))}</section>
+      <section class="panel"><h3>Card types</h3>${statTable(shareRows(report, types, report.types))}</section>
       <section class="panel"><h3>Notable cards</h3><ul class="notable">${notableList(report.notable)}</ul></section>
       <section class="panel"><h3>Facts</h3><ul class="facts">${report.facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul></section>
     </div>`;

@@ -55,7 +55,9 @@ describe("the report", () => {
     const html = renderReport(report, "Alpha");
     expect(html).toContain("<h2>Alpha</h2>");
     expect(html).toContain("7 cards · average mana cost 3.4");
-    expect(html).toContain('style="width:100%"');
+    expect(html).toContain("<td>Fire</td><td>4</td><td>57%</td>");
+    expect(html).toContain("<td>Minion</td><td>3</td><td>43%</td>");
+    expect(html).toContain("<td>2</td><td>1</td><td>20%</td>");   // one card at cost 2, of five with a cost
     expect(html).toContain(">Dragon</a>");
     expect(html).toContain("Elementless");
     const compare = renderComparison(report, "Alpha", report, "Beta");
