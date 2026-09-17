@@ -77,4 +77,20 @@ jobs:
           # per-address limit then never sees sixty from any one of them.
           hits=$(curl -sS -o /dev/null -w '%{http_code}\n' -A "$UA" "$BASE/cards?q=t:minion&page_size=1&burst=[1-80]" | grep -c '^429' || true)
           echo "burst of 80 on one connection: $hits answered 429"
+          # The edge rules on the API host: every real path family still answers,
+          # a probe outside them is refused before the bucket, no User-Agent too.
+          API=https://api.kairosarchive.net
+          for p in /versions.json /v3/cards/C000230.json /v3/index.json /v3.3.3/index.json /v3.3.3/changes.json /v3.3.3/types.d.ts; do
+            c=$(curl -sS -o /dev/null -w '%{http_code}' -L -A "$UA" "$API$p"); [ "$c" = "200" ] || { echo "::error::$API$p -> $c, expected 200"; exit 1; }
+            echo "ok  200  $API$p"
+          done
+          img=$(get "$BASE/cards?q=C000230" | head -n 1 | jq -r '.data[0].image_urls.small')
+          c=$(curl -sS -o /dev/null -w '%{http_code}' -A "$UA" "$img"); [ "$c" = "200" ] || { echo "::error::$img -> $c, expected 200"; exit 1; }
+          echo "ok  200  $img"
+          for p in /auth /debug /.env /wp-admin/ /cards; do
+            c=$(curl -sS -o /dev/null -w '%{http_code}' -A "$UA" "$API$p"); [ "$c" = "403" ] || { echo "::error::probe $API$p -> $c, expected 403 from the edge"; exit 1; }
+            echo "ok  403  $API$p (edge)"
+          done
+          c=$(curl -sS -o /dev/null -w '%{http_code}' -H "User-Agent:" "$API/versions.json"); [ "$c" = "403" ] || { echo "::error::no User-Agent on the API host -> $c, expected 403"; exit 1; }
+          echo "ok  403  $API/versions.json without a User-Agent"
           [ "$hits" -gt 0 ] || { echo "::error::no 429 in a burst of 80; the rate limit is not in effect"; exit 1; }
