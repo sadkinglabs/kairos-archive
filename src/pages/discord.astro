@@ -11,7 +11,7 @@ const install = `https://discord.com/oauth2/authorize?client_id=${APP_ID}`;
 const commands: [string, string][] = [
   ["/card name", "A card, with its default printing's art. Start typing and pick from the suggestions; pressing enter on free text takes the best match."],
   ["/id C000230", "A card by its codex id, or one physical printing by its printing id (/id P000937): that printing's own art, set, product, finish, artist and flavour text."],
-  ["/random", "A random card. The embed says which printing it is showing."],
+  ["/random", "A random card, or with a query a random card from its matches: /random t:site, /random e:fire cost<=2, /random s:gothic is:foil. The embed says which printing it is showing."],
   ["/search query", "The first five matches for a query in the search syntax, each with its art, the total, and a button to all results on this site."],
   ["/syntax", "The search syntax on one screen, shown to you alone."],
   ["/history name", "Every face the card has had, oldest first, each change against the one before: mana, stats, thresholds, the rules text with the removed words struck through and the added words in bold, and any earlier names."],
