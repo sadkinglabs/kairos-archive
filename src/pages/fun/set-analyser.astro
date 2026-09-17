@@ -96,7 +96,7 @@ const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !
   .report :global(.report-head p) { margin: .2rem 0 0; }
   .report :global(.panels) { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
   .report :global(.panel) { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: .9rem 1rem; min-width: 0; }
-  .report :global(.panel.compare) { margin: 1.5rem 0 2.5rem; }
+  .report :global(.panel.compare) { margin: 1.5rem 0 0; }
   .report :global(.panel h3) { font: 600 .78rem/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 .6rem; }
   .report :global(table.stat) { width: 100%; border-collapse: collapse; font-size: .92rem; font-variant-numeric: tabular-nums; }
   .report :global(table.stat th) { font-weight: 600; color: var(--muted); font-size: .78rem; }
