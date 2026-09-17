@@ -77,7 +77,7 @@ const footerGroups: [string, [string, string][]][] = [
     <footer class="site">
       <div class="inner">
         <nav class="footer-groups" aria-label="Site map">{footerGroups.map(([group, links]) => <div><h2>{group}</h2>{links.map(([href, label]) => <a href={href}>{label}</a>)}</div>)}</nav>
-        <p class="credit">Card names, text and images © <a href="https://sorcerytcg.com">Erik's Curiosa</a>, shown with credit for archive, identification and site function.
+        <p class="credit">Kairos Archive is a fan-made, unofficial project, not affiliated with or endorsed by Erik's Curiosa. Card names, text and images © <a href="https://sorcerytcg.com">Erik's Curiosa</a>, shown with credit for archive, identification and site function.
         Identifiers, structure and history: Kairos Archive, free for any use (<a href="/usage">usage</a>).
         Data: <a href="https://api.kairosarchive.net/versions.json">Sorcery Card Registry</a> release <code>{source.tag}</code> · <a href="https://github.com/sadkinglabs/sorcery-registry">registry source</a> · <a href="https://github.com/sadkinglabs/kairos-archive">site source</a></p>
       </div>
