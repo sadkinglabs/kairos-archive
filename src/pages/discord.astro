@@ -1,0 +1,45 @@
+---
+/** The Discord bot: how to add it, what each command does, what an
+ * answer shows, and what it does not do. The bot is its own repository;
+ * this page is the front door. */
+import Base from "../layouts/Base.astro";
+const APP_ID = "1549899039384797244";
+/** Discord's own install link for the app: it reads the installation
+ * contexts set on the app, so one link offers both a server and an
+ * account install. */
+const install = `https://discord.com/oauth2/authorize?client_id=${APP_ID}`;
+const commands: [string, string][] = [
+  ["/card name", "A card, with its default printing's art. Start typing and pick from the suggestions; pressing enter on free text takes the best match."],
+  ["/id C000230", "A card by its codex id, or one physical printing by its printing id (/id P000937): that printing's own art, set, product, finish, artist and flavour text."],
+  ["/random", "A random card. The embed says which printing it is showing."],
+  ["/search query", "The first five matches for a query in the search syntax, each with its art, the total, and a button to all results on this site."],
+  ["/syntax", "The search syntax on one screen, shown to you alone."],
+];
+---
+<Base title="Discord bot" canonical="/discord" description="Kairos Archive's Discord bot: card lookups and searches in any server, with the same data and syntax as this site.">
+  <h1>Discord bot</h1>
+  <p>Kairos Archive's bot answers card questions inside Discord with the same data and the same search syntax as this site. Slash commands only: it never reads messages, never posts unprompted, and stores nothing.</p>
+
+  <h2>Add it</h2>
+  <p><a class="btn" href={install}>Add to Discord</a></p>
+  <p>Discord asks where to add it. <strong>A server</strong> needs the Manage Server permission there and makes the commands available to everyone in it. <strong>Your account</strong> lets you use the commands in any server or direct message, whether or not that server has the bot. The bot asks for no permission beyond registering its commands.</p>
+
+  <h2>Commands</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+    <tbody>{commands.map(([cmd, what]) => <tr><td><code>{cmd}</code></td><td>{what}</td></tr>)}</tbody>
+  </table></div>
+
+  <h2>What an answer shows</h2>
+  <p>A card embed carries the type line as printed (<em>Minion — Ordinary Giant</em>), mana, threshold drawn with the game's element symbols, power (attack and defense when they differ), life, the sets it appears in, which printing is pictured (<em>Shown: Gothic · Booster · Standard, art by Dan Seagrave</em>), the card's ids (<code>C000927 · P002719</code>), the rules text, and buttons to the card's page here and its JSON record. A double-faced card gets a second embed for its back face. A card with recorded errata says so.</p>
+  <p>A search shows up to five matches as small embeds with their art, the total above them, and how many more cards mention the words only in their rules text. The <strong>All results</strong> button opens the same query on this site.</p>
+
+  <h2>Searching from Discord</h2>
+  <p><code>/search</code> takes the full <a href="/syntax">search syntax</a>: <code>t:minion e:fire cost&lt;=2</code>, <code>a:"Drew Tucker" unique:prints</code>, <code>is:errata sort:cost</code>. <code>/syntax</code> shows the short version without leaving Discord. A query the parser cannot read comes back to you alone with the reason.</p>
+
+  <h2>Where the answers come from</h2>
+  <p>Cards come from the newest verified <a href="/docs/releases">registry release</a>, read directly from <a href="/docs/endpoints">the API</a>; searches run through the <a href="/docs/query">query API</a>. A new release reaches the bot within minutes with no update on your side. The bot is open source: <a href="https://github.com/sadkinglabs/kairos-bot">sadkinglabs/kairos-bot</a>, a Cloudflare Worker you can also run yourself.</p>
+
+  <h2>Credit</h2>
+  <p>Card names, text and images are © <a href="https://sorcerytcg.com">Erik's Curiosa</a>, shown with credit for archive, identification and site function. Identifiers, structure and the bot's code are Kairos Archive's, free for any use; see <a href="/usage">usage</a>.</p>
+</Base>
