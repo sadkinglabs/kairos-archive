@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { analyseSet, elementShares, facts, getSetCards, manaCurve, topSubtypes, mostExpensive, strongestMinion, typeShares } from "./set-analyser.js";
 import { renderComparison, renderReport } from "./analyser-page.js";
 
-const card = (name: string, over: Record<string, unknown> = {}) => ({ name, type: "Minion", rarity: "Ordinary", cost: 2, power: 2, elements: ["Fire"], subtypes: ["Beast"], thr_air: 0, thr_earth: 0, thr_fire: 1, thr_water: 0, kairos_url: `https://site.test/cards/${name}`, ...over });
+const card = (name: string, over: Record<string, unknown> = {}) => ({ name, type: "Minion", rarity: "Ordinary", cost: 2, power: 2, elements: ["Fire"], subtypes: ["Beast"], thr_air: 0, thr_earth: 0, thr_fire: 1, thr_water: 0, codex_id: "C000001", kairos_url: "javascript:alert(1)", ...over });
 const set = [
   card("Imp", { cost: 1, power: 1 }),
   card("Ogre", { cost: 4, power: 5, thr_fire: 3 }),
@@ -59,7 +59,10 @@ describe("the report", () => {
     expect(html).toContain("<td>Fire</td><td>4</td><td>57%</td>");
     expect(html).toContain("<td>Minion</td><td>3</td><td>43%</td>");
     expect(html).toContain("<td>2</td><td>1</td><td>20%</td>");   // one card at cost 2, of five with a cost
-    expect(html).toContain(">Dragon</a>");
+    expect(html).toContain('<a href="/cards/C000001">Dragon</a>');
+    expect(html).not.toContain("javascript:");
+    const unlinked = renderReport({ ...report, notable: { "Most expensive card": { ...report.notable["Most expensive card"], codex_id: "<b>" } } }, "Alpha");
+    expect(unlinked).toContain('<span class="muted">Most expensive card</span> Dragon <span');
     expect(html).toContain('href="/search?q=sub%3Abeast%20s%3A001">Beast</a> <span class="muted">6</span> · <a href="/search?q=sub%3Adragon%20s%3A001">Dragon</a> <span class="muted">1</span>');
     expect(html).toContain("Elementless");
     const compare = renderComparison(report, "Alpha", report, "Beta");

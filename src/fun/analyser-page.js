@@ -59,7 +59,9 @@ function notableList(notable, set) {
       continue;
     }
     const detail = label === "Highest-power Minion" ? `power ${item.power}` : `cost ${item.cost}`;
-    html += `<li><span class="muted">${esc(label)}</span> <a href="${esc(item.kairos_url)}">${esc(item.name)}</a> <span class="muted">${esc(detail)}</span></li>`;
+    // The link is built from the card's id, never taken from the record as an address.
+    const link = /^C\d{6}$/.test(item.codex_id) ? `<a href="/cards/${item.codex_id}">${esc(item.name)}</a>` : esc(item.name);
+    html += `<li><span class="muted">${esc(label)}</span> ${link} <span class="muted">${esc(detail)}</span></li>`;
   }
   return html;
 }
