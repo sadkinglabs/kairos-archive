@@ -63,6 +63,11 @@ function sources(failing: string[] = [], opts: Opts = {}) {
       }
       const g = (count: number, dimensions: Record<string, string | number>, extra: Record<string, unknown> = {}) => ({ count, avg: { sampleInterval: 2 }, ...extra, dimensions });
       const zone = {
+        externalRequests: [g(600, {}, { sum: { edgeResponseBytes: 2950 } })],
+        externalDownloads: [g(4, {})], externalImages: [g(12348, {})], externalHead: [g(5, {})],
+        internalRequests: [g(20, {})], internalDownloads: [g(1, {})], internalImages: [g(19, {})], internalHead: [g(19, {})],
+        internal: [g(19, { userAgent: "sorcery-registry-release/schema11", clientRequestHTTPMethodName: "HEAD" })],
+        imageCache: [g(90, { cacheStatus: "hit" }), g(10, { cacheStatus: "miss" })],
         hosts: [g(500, { clientRequestHTTPHost: "api.test", cacheStatus: "hit" }, { sum: { edgeResponseBytes: 2500 } }), g(100, { clientRequestHTTPHost: "api.test", cacheStatus: "miss" }, { sum: { edgeResponseBytes: 450 } }), g(50, { clientRequestHTTPHost: "site.test", cacheStatus: "hit" }, { sum: { edgeResponseBytes: 100 } })],
         paths: [g(300, { clientRequestPath: "/images/P000937.ab12cd34ef56.normal.webp" }), g(20, { clientRequestPath: "/v3.4.1/cards/C000230.json" }), g(5, { clientRequestPath: "/v3.4.1/registry.json" }), g(2, { clientRequestPath: "/v3/cards/C000230.json" }), g(1, { clientRequestPath: "/versions.json" }), g(1, { clientRequestPath: "/<x>" })],
         downloads: [g(4, { clientRequestPath: "/v3.4.1/registry.json", edgeResponseStatus: 200, userAgent: "sorcery-registry-mcp (+https://kairosarchive.net)" }), g(1, { clientRequestPath: "/v3.4.1/registry.json", edgeResponseStatus: 304, userAgent: "curl/8.6.0" })],
@@ -149,10 +154,10 @@ describe("GET /", () => {
     const order = ["Data and images", "<h2>Search</h2>", "<h2>Site</h2>", "Discord bot"].map((s) => html.indexOf(s));
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(order.every((i) => i > 0)).toBe(true);
-    // Zone numbers are scaled by the sample interval (2 here).
-    expect(html).toContain('<td class="text">api.test</td><td class="n bar" style="--w:100%">1,200</td><td class="n">1,000</td><td class="n">5.8 KB</td>');
+    // GraphQL aggregates already account for sampling.
+    expect(html).toContain('<td class="text">api.test</td><td class="n bar" style="--w:100%">600</td><td class="n">500</td><td class="n">2.9 KB</td>');
     expect(html).toContain("whole-dataset downloads");
-    expect(html).toMatch(/<div class="value">8<\/div><div class="label">whole-dataset downloads<\/div>/);   // 4 samples × 2, the 304 not counted
+    expect(html).toMatch(/<div class="value">4<\/div><div class="label">whole-dataset downloads<\/div>/);   // Four GET 200s, the 304 not counted
     expect(html).toContain("sorcery-registry-mcp");
     expect(html).toContain('<span class="status s3">304</span>');
     expect(html).toContain("<td class=\"text\">images</td>");
@@ -187,7 +192,7 @@ describe("GET /", () => {
     const src = sources([], { zoneMaxDays: 1 });
     const html = await page(src, "/?days=7");
     expect(html).toContain("The whole window, in 7 requests of 1 day: the zone&#39;s plan allows no wider query.");
-    expect(html).toContain('<td class="text">api.test</td><td class="n bar" style="--w:100%">8,400</td>');   // 7 × 1,200
+    expect(html).toContain('<td class="text">api.test</td><td class="n bar" style="--w:100%">4,200</td>');   // 7 × 600
     expect(html).not.toContain("wider than");
     expect(src.asked.filter((u) => u.endsWith("/graphql")).length).toBe(8);   // the whole window once, then 7 slices
     const narrow = sources([], { zoneMaxDays: 1 });
@@ -196,8 +201,8 @@ describe("GET /", () => {
     expect(narrow.asked.filter((u) => u.endsWith("/graphql")).length).toBe(1);
     const long = sources([], { zoneMaxDays: 1 });
     const html90 = await page(long, "/?days=90");
-    expect(html90).toContain("Last 30 days only, in 30 requests of 1 day");
-    expect(long.asked.filter((u) => u.endsWith("/graphql")).length).toBe(31);
+    expect(html90).toContain("15 days covered; gaps may be present, in 15 requests of 1 day");
+    expect(long.asked.filter((u) => u.endsWith("/graphql")).length).toBe(16);
   });
   it("reports Discord's answers honestly: no guild list, no user count, no timed answers", async () => {
     const html = await page(sources([], { guilds: 401, discord: { name: "Kairos" }, untimed: true }));
@@ -218,11 +223,30 @@ describe("GET /", () => {
     expect(site.length).toBe(4);
     for (const q of site) expect(q).toContain("blob1 != 'deploy-check.invalid'");
   });
-  it("counts downloads on no paths when versions.json cannot be read, rather than guessing", async () => {
+  it("reports unavailable totals when the release index fails", async () => {
     const src = sources([], { noVersions: true });
-    await page(src);
-    const bulk = (JSON.parse(src.bodies.find((b) => b.startsWith("{"))!) as { variables: { bulk: string[] } }).variables.bulk;
-    expect(bulk).toEqual([]);
+    const html = await page(src);
+    expect(html).toContain("Release index unavailable");
+    expect(html).toContain('<div class="value">–</div><div class="label">external API requests</div>');
+    expect(src.asked.some((u) => u.endsWith("/graphql"))).toBe(false);
+  });
+  it("uses independent totals and separates verification methods from public usage", async () => {
+    const src = sources();
+    const html = await page(src);
+    // The top-path fixture has only 300 image requests, while the aggregate
+    // includes all 12,348. Neither may be multiplied by sampleInterval=2.
+    expect(html).toContain('<div class="value">12,348</div><div class="label">external image requests</div>');
+    expect(html).toContain('<div class="value">90%</div><div class="label">image GET cache hits</div>');
+    expect(html).toContain("Internal API clients");
+    expect(html).toContain("HEAD");
+    const query = JSON.parse(src.bodies.find((b) => b.startsWith("{"))!).query as string;
+    expect(query).not.toContain("sampleInterval");
+    expect(query).toContain('userAgent_notlike: "sorcery-registry-release%"');
+    expect(query).not.toContain('userAgent_notlike: "kairos-bot');
+    expect(query).not.toContain('userAgent_notlike: "sorcery-registry-mcp');
+    expect(query).toContain('clientRequestHTTPMethodName: "GET", edgeResponseStatus: 200');
+    expect(query).toContain("datetime_lt: $until");
+    expect(query).not.toContain("datetime_leq");
   });
   it("honours the window and refuses an unconfigured dashboard", async () => {
     const src = sources();

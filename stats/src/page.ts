@@ -86,12 +86,13 @@ export function render(report: Report, who: string): string {
   const api = report.api; const s = report.search; const site = report.site; const bot = report.bot;
 
   // Data and images.
-  const apiHost = api.hosts.ok ? api.hosts.value.find((r) => String(r.host).startsWith("api.")) : undefined;
-  const apiRequests = Number(apiHost?.n ?? 0);
-  const apiHits = Number(apiHost?.hits ?? 0);
-  const downloads = api.downloads.ok ? api.downloads.value.filter((r) => r.status === 200).reduce((sum, r) => sum + Number(r.n), 0) : 0;
-  const images = api.kinds.ok ? Number(api.kinds.value.find((r) => r.kind === "images")?.n ?? 0) : 0;
-  const coverage = api.covered && api.covered < api.asked ? `last ${days(api.covered)}` : `last ${days(d)}`;
+  const external = api.totals.ok ? api.totals.value.find((r) => r.scope === "external") : undefined;
+  const apiRequests = Number(external?.requests ?? 0);
+  const downloads = Number(external?.downloads ?? 0);
+  const images = Number(external?.images ?? 0);
+  const cacheRequests = total(api.imageCache);
+  const apiHits = api.imageCache.ok ? api.imageCache.value.filter((r) => r.status === "hit").reduce((n, r) => n + Number(r.n), 0) : 0;
+  const coverage = api.covered && api.covered < api.asked ? `${days(api.covered)} covered; see coverage note` : `last ${days(d)}`;
   const zoneNote = api.hosts.ok ? api.hosts.note : undefined;
 
   // Search.
@@ -148,12 +149,12 @@ code{font:.88em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bad
 .err{color:var(--bad);font-size:.9rem;margin:0}.muted{color:var(--muted);margin:0}a{color:var(--accent)}
 </style></head><body><main>
 <div class="top"><h1>Kairos Archive · usage</h1><div class="who"><span class="windows">${windows}</span>${esc(who)}</div></div>
-<p class="lede">Last ${days(d)}. Counts from Analytics Engine are exact and weighted for sampling; the API host's numbers are the zone's sampled request analytics, scaled back to estimates.</p>
+<p class="lede">Last ${days(d)}. Analytics Engine counts are weighted for sampling. API traffic is estimated by Cloudflare; separate queries may differ. These are request counts, not people or billable R2 operations.</p>
 
 <div class="tiles">
-${tile(fmt(downloads), "whole-dataset downloads", coverage)}
-${tile(fmt(apiRequests), "API requests", coverage)}
-${tile(fmt(images), "image requests", coverage)}
+${tile(api.totals.ok ? fmt(downloads) : "–", "whole-dataset downloads", coverage)}
+${tile(api.totals.ok ? fmt(apiRequests) : "–", "external API requests", coverage)}
+${tile(api.totals.ok ? fmt(images) : "–", "external image requests", coverage)}
 ${tile(fmt(siteSearches + apiLists), "searches", "site and query API")}
 ${tile(fmt(interactions), "bot interactions")}
 ${tile(fmt(clicks), "outbound clicks")}
@@ -162,18 +163,23 @@ ${tile(fmt(clicks), "outbound clicks")}
 <section class="part">
 <div class="eyebrow">1 · api.kairosarchive.net</div>
 <h2>Data and images</h2>
+<p class="muted">External traffic excludes known build, release, audit and dashboard agents. It still includes crawlers and scanners; a browser label does not prove a human visitor. Internal traffic is counted separately below.</p>
 ${zoneNote ? `<p class="muted">${esc(zoneNote)}</p>` : ""}
 <div class="tiles">
-${tile(fmt(downloads), "whole-dataset downloads", "registry.json served with 200")}
-${tile(pct(apiHits, apiRequests), "served from cache", `${fmt(apiHits)} of ${fmt(apiRequests)} requests`)}
-${tile(bytes(apiHost?.bytes ?? 0), "bytes served", "from the API host")}
+${tile(api.totals.ok ? fmt(downloads) : "–", "whole-dataset downloads", "external GET requests returning 200")}
+${tile(api.imageCache.ok ? pct(apiHits, cacheRequests) : "–", "image GET cache hits", `${fmt(apiHits)} of ${fmt(cacheRequests)} external image GETs returning 200; HIT only`)}
+${tile(api.totals.ok ? bytes(external?.bytes ?? 0) : "–", "external bytes served", "estimated edge response bytes")}
 </div>
 <div class="grid">
-${table("Whole-dataset downloads", api.downloads, [["path", "File", "text"], ["status", "Status", "status"], ["agent", "Client", "text"], ["n", "Requests"]], "A 200 is a full download; 304 is a client checking its copy is current; 206 a partial range.")}
-${table("What the API serves", api.kinds, [["kind", "Kind", "text"], ["n", "Requests"]])}
+${table("Whole-dataset downloads", api.downloads, [["path", "File", "text"], ["status", "Status", "status"], ["agent", "Client", "text"], ["n", "Requests"]], "Top external GET groups only. 200 responses are counted in the independent download total; 304 is revalidation and 206 is a partial range. Completion by the client is not measured.")}
+${table("Popular API paths by kind", api.kinds, [["kind", "Kind", "text"], ["n", "Requests"]], "Partial breakdown from up to 1,000 paths per query window. Never used for headline totals.")}
 ${table("Who fetches the data", api.agents, [["agent", "Client", "text"], ["n", "Requests"]])}
-${table("Who fetches images", api.imageAgents, [["agent", "Client", "text"], ["n", "Requests"]], "Discordbot is a card shown in Discord; a browser is the site or a hotlink.")}
-${table("Requests by host", api.hosts, [["host", "Host", "text"], ["n", "Requests"], ["hits", "Cache hits"], ["bytes", "Bytes", "bytes"]])}
+${table("Who fetches images", api.imageAgents, [["agent", "Client", "text"], ["n", "Requests"]], "Top external client groups, including GET and HEAD. User-Agent labels are self-reported.")}
+${table("Requests by host · all traffic", api.hosts, [["host", "Host", "text"], ["n", "Requests"], ["hits", "Cache hits"], ["bytes", "Bytes", "bytes"]])}
+${table("External and internal API traffic", api.totals, [["scope", "Traffic", "text"], ["requests", "Requests"], ["head", "HEAD"], ["bytes", "Bytes", "bytes"]], "Independent aggregates covering all matching paths. Internal requests remain part of total infrastructure load.")}
+${table("External and internal downloads", api.totals, [["scope", "Traffic", "text"], ["images", "Image requests"], ["downloads", "Dataset GET 200s"]], "Image requests include all methods. Dataset counts exclude HEAD checks.")}
+${table("Internal API clients", api.internal, [["agent", "Client", "text"], ["method", "Method", "text"], ["n", "Requests"]])}
+${table("Image GET cache status", api.imageCache, [["status", "Cache status", "text"], ["n", "Requests"]], "External image GETs returning 200 only. A check may hit an existing cache; HEAD checks and errors are excluded.")}
 ${table("Countries", api.countries, [["country", "Country", "text"], ["n", "Requests"]])}
 ${table("Status", api.statuses, [["status", "Status", "status"], ["n", "Requests"]])}
 ${table("Top paths", api.paths, [["path", "Path", "text"], ["n", "Requests"]])}

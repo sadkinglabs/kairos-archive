@@ -154,6 +154,7 @@ export interface ZoneReport {
   /** Days the numbers cover, and the days asked for. */
   covered: number; asked: number;
   hosts: Result<Row[]>;
+  totals: Result<Row[]>; internal: Result<Row[]>; imageCache: Result<Row[]>;
   /** The API host's traffic by what was asked for: the whole dataset,
    * indexes, single objects, images, the alias, metadata. */
   kinds: Result<Row[]>;
@@ -162,31 +163,45 @@ export interface ZoneReport {
   paths: Result<Row[]>; agents: Result<Row[]>; imageAgents: Result<Row[]>; countries: Result<Row[]>; statuses: Result<Row[]>;
 }
 
-/** Every zone table for one window, in one GraphQL request. Adaptive
- * datasets are sampled: `count` is the number of samples and each
- * group's average sample interval scales it back to an estimate.
- *
- * Only dimensions this zone's plan allows: one field it refuses is
- * refused for the whole request, so every table goes with it. The
- * referer (who embeds our images) is one of those — the zone answers
- * "does not have access to the field 'clientrequestreferer'" — so it
- * is not asked for here. */
+/** Only known maintenance agents are excluded. kairos-bot and registry-mcp
+ * serve real users and remain external. User-Agent attribution is a label,
+ * not authentication or a reliable human/bot distinction. */
+export const INTERNAL_AGENTS = ["sorcery-registry-release", "sorcery-registry-images", "sorcery-registry-audit", "sorcery-registry-check", "kairos-archive-build", "kairos-stats"];
+const internalFilter = `OR: [${INTERNAL_AGENTS.map((ua) => `{userAgent_like: "${ua}%"}`).join(", ")}]`;
+const externalFilter = `AND: [${INTERNAL_AGENTS.map((ua) => `{userAgent_notlike: "${ua}%"}`).join(", ")}]`;
+const apiFilter = "datetime_geq: $since, datetime_lt: $until, clientRequestHTTPHost: $api";
+
+/** Adaptive GraphQL aggregates are already estimates. Never multiply count
+ * or sum by sampleInterval again. Analytics Engine SQL is a different API
+ * and still requires SUM(_sample_interval).
+ * https://developers.cloudflare.com/analytics/graphql-api/sampling/
+ * Aggregate headline queries have no path/agent dimensions or top-N loss. */
 const ZONE_QUERY = `query($zone: String!, $since: Time!, $until: Time!, $hosts: [String!], $api: String!, $bulk: [String!]) {
   viewer { zones(filter: { zoneTag: $zone }) {
-    hosts: httpRequestsAdaptiveGroups(limit: 100, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost_in: $hosts }) {
-      count avg { sampleInterval } sum { edgeResponseBytes } dimensions { clientRequestHTTPHost cacheStatus } }
-    paths: httpRequestsAdaptiveGroups(limit: 1000, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
-      count avg { sampleInterval } dimensions { clientRequestPath } }
-    downloads: httpRequestsAdaptiveGroups(limit: 200, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api, clientRequestPath_in: $bulk }) {
-      count avg { sampleInterval } dimensions { clientRequestPath edgeResponseStatus userAgent } }
-    agents: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
-      count avg { sampleInterval } dimensions { userAgent } }
-    images: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api, clientRequestPath_like: "/images/%" }) {
-      count avg { sampleInterval } dimensions { userAgent } }
-    countries: httpRequestsAdaptiveGroups(limit: 50, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
-      count avg { sampleInterval } dimensions { clientCountryName } }
-    statuses: httpRequestsAdaptiveGroups(limit: 30, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
-      count avg { sampleInterval } dimensions { edgeResponseStatus } }
+    hosts: httpRequestsAdaptiveGroups(limit: 100, filter: { datetime_geq: $since, datetime_lt: $until, clientRequestHTTPHost_in: $hosts }) {
+      count sum { edgeResponseBytes } dimensions { clientRequestHTTPHost cacheStatus } }
+    paths: httpRequestsAdaptiveGroups(limit: 1000, orderBy: [count_DESC], filter: { ${apiFilter}, ${externalFilter} }) {
+      count dimensions { clientRequestPath } }
+    downloads: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { ${apiFilter}, ${externalFilter}, clientRequestHTTPMethodName: "GET", clientRequestPath_in: $bulk }) {
+      count dimensions { clientRequestPath edgeResponseStatus userAgent } }
+    agents: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { ${apiFilter}, ${externalFilter} }) {
+      count dimensions { userAgent } }
+    images: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { ${apiFilter}, ${externalFilter}, clientRequestPath_like: "/images/%" }) {
+      count dimensions { userAgent } }
+    internal: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { ${apiFilter}, ${internalFilter} }) {
+      count dimensions { userAgent clientRequestHTTPMethodName } }
+    countries: httpRequestsAdaptiveGroups(limit: 50, orderBy: [count_DESC], filter: { ${apiFilter}, ${externalFilter} }) {
+      count dimensions { clientCountryName } }
+    statuses: httpRequestsAdaptiveGroups(limit: 100, filter: { ${apiFilter}, ${externalFilter} }) {
+      count dimensions { edgeResponseStatus } }
+    imageCache: httpRequestsAdaptiveGroups(limit: 30, filter: { ${apiFilter}, ${externalFilter}, clientRequestPath_like: "/images/%", clientRequestHTTPMethodName: "GET", edgeResponseStatus: 200 }) {
+      count dimensions { cacheStatus } }
+    ${["external", "internal"].flatMap((scope) => [
+      ["Requests", ""],
+      ["Images", ', clientRequestPath_like: "/images/%"'],
+      ["Downloads", ', clientRequestHTTPMethodName: "GET", edgeResponseStatus: 200, clientRequestPath_in: $bulk'],
+      ["Head", ', clientRequestHTTPMethodName: "HEAD"'],
+    ].map(([metric, filter]) => `${scope}${metric}: httpRequestsAdaptiveGroups(limit: 1, filter: { ${apiFilter}, ${scope === "internal" ? internalFilter : externalFilter}${filter} }) { count sum { edgeResponseBytes } }`)).join("\n")}
   } } }`;
 
 type Group = { count: number; avg?: { sampleInterval?: number }; sum?: { edgeResponseBytes?: number }; dimensions: Record<string, string | number> };
@@ -202,8 +217,9 @@ export function allowedDays(error: string): number | undefined {
 }
 
 /** At most this many slices per page view, so a 90-day window on a
- * plan limited to one day asks for 30 requests, not 90. */
-export const MAX_SLICES = 30;
+ * plan limited to one day stays below the 300-query analytics budget
+ * even with 17 aggregate nodes per slice and an initial refused query. */
+export const MAX_SLICES = 15;
 
 /** [since, until] pairs walking back from now in steps of `width` days. */
 export function slices(days: number, width: number, now = Date.now()): { since: string; until: string }[] {
@@ -220,9 +236,14 @@ export function slices(days: number, width: number, now = Date.now()): { since: 
 async function zoneRequest(s: Sources, variables: Record<string, unknown>): Promise<Result<ZoneSlice>> {
   try {
     const res = await s.fetchImpl(`${CF}/graphql`, { method: "POST", headers: { authorization: `Bearer ${s.token}`, "content-type": "application/json" }, body: JSON.stringify({ query: ZONE_QUERY, variables: { zone: s.zone, ...variables } }) });
+    if (!res.ok) return { ok: false, error: `Zone analytics: HTTP ${res.status}` };
     const body = (await res.json()) as { data?: { viewer?: { zones?: ZoneSlice[] } }; errors?: { message: string }[] };
     if (body.errors?.length) return { ok: false, error: body.errors.map((e) => e.message).join("; ").slice(0, 300) };
-    return { ok: true, value: body.data?.viewer?.zones?.[0] ?? {} };
+    const value = body.data?.viewer?.zones?.[0];
+    if (!value) return { ok: false, error: "Zone analytics returned no zone data." };
+    const required = ["hosts", "paths", "downloads", "agents", "images", "internal", "countries", "statuses", "imageCache", ...["external", "internal"].flatMap((scope) => ["Requests", "Images", "Downloads", "Head"].map((metric) => `${scope}${metric}`))];
+    if (required.some((field) => !Array.isArray(value[field]))) return { ok: false, error: "Zone analytics returned incomplete data." };
+    return { ok: true, value };
   } catch (err) {
     return { ok: false, error: String(err) };
   }
@@ -244,7 +265,7 @@ export async function bulkPaths(s: Sources): Promise<string[]> {
   }
 }
 
-const estimate = (g: Group) => g.count * (g.avg?.sampleInterval ?? 1);
+const estimate = (g: Group) => g.count;
 
 /** "/v3.4.1/registry.json" → "whole dataset"; "/images/…" → "images". */
 export function kindOf(path: string): string {
@@ -285,10 +306,11 @@ function merge(slicesDone: ZoneSlice[], field: string, key: (g: Group) => string
 export async function zone(s: Sources, days: number, hosts: { api: string; query: string; bot: string; site: string; stats?: string }): Promise<ZoneReport> {
   const fail = (error: string): ZoneReport => {
     const r: Result<Row[]> = { ok: false, error };
-    return { covered: 0, asked: days, hosts: r, kinds: r, downloads: r, paths: r, agents: r, imageAgents: r, countries: r, statuses: r };
+    return { covered: 0, asked: days, hosts: r, totals: r, internal: r, imageCache: r, kinds: r, downloads: r, paths: r, agents: r, imageAgents: r, countries: r, statuses: r };
   };
   if (!s.zone) return fail("CF_ZONE_ID is not set.");
   const bulk = await bulkPaths(s);
+  if (!bulk.length) return fail("Release index unavailable: download totals cannot be determined.");
   const vars = { hosts: [hosts.site, hosts.api, hosts.query, hosts.bot, ...(hosts.stats ? [hosts.stats] : [])], api: hosts.api, bulk };
 
   // The whole window first; when the plan refuses it, as many slices of
@@ -296,25 +318,26 @@ export async function zone(s: Sources, days: number, hosts: { api: string; query
   let done: ZoneSlice[] = [];
   let covered = days;
   let note: string | undefined;
-  const whole = await zoneRequest(s, { ...slices(days, days)[0], ...vars });
+  const now = Date.now();
+  const whole = await zoneRequest(s, { ...slices(days, days, now)[0], ...vars });
   if (whole.ok) {
     done = [whole.value];
   } else {
     const width = allowedDays(whole.error);
-    if (width === undefined || width >= days) return fail(whole.error);
-    const wanted = slices(days, width);
+    if (width === undefined || width <= 0 || width >= days) return fail(whole.error);
+    const wanted = slices(days, width, now);
     const answers = await Promise.all(wanted.map((sl) => zoneRequest(s, { ...sl, ...vars })));
     done = answers.filter((a): a is { ok: true; value: ZoneSlice } => a.ok).map((a) => a.value);
     if (!done.length) return fail(answers.find((a) => !a.ok)?.error ?? "no zone data");
-    covered = Math.min(days, done.length * width);
+    covered = wanted.reduce((sum, sl, i) => sum + (answers[i]!.ok ? (Date.parse(sl.until) - Date.parse(sl.since)) / 86400000 : 0), 0);
     const failed = answers.length - done.length;
-    note = `${covered === days ? "The whole window" : `Last ${covered} day${covered === 1 ? "" : "s"} only`}, in ${answers.length} request${answers.length === 1 ? "" : "s"} of ${width} day${width === 1 ? "" : "s"}${failed ? ` (${failed} answered with an error)` : ""}: the zone's plan allows no wider query.`;
+    note = `${covered === days ? "The whole window" : `${covered} day${covered === 1 ? "" : "s"} covered; gaps may be present`}, in ${answers.length} request${answers.length === 1 ? "" : "s"} of ${width} day${width === 1 ? "" : "s"}${failed ? ` (${failed} answered with an error)` : ""}: the zone's plan allows no wider query.`;
   }
 
   const ok = (value: Row[]): Result<Row[]> => ({ ok: true, value, note });
   const hostRows = merge(done, "hosts", (g) => String(g.dimensions.clientRequestHTTPHost), (row, g) => {
     row.host = String(g.dimensions.clientRequestHTTPHost);
-    row.bytes = ((row.bytes as number) ?? 0) + (g.sum?.edgeResponseBytes ?? 0) * (g.avg?.sampleInterval ?? 1);
+    row.bytes = ((row.bytes as number) ?? 0) + (g.sum?.edgeResponseBytes ?? 0);
     if (g.dimensions.cacheStatus === "hit") row.hits = ((row.hits as number) ?? 0) + estimate(g);
   }).map((r) => ({ ...r, hits: Math.round((r.hits as number) ?? 0), bytes: Math.round((r.bytes as number) ?? 0) }));
   const pathRows = merge(done, "paths", (g) => String(g.dimensions.clientRequestPath), (row, g) => { row.path = String(g.dimensions.clientRequestPath); });
@@ -326,9 +349,21 @@ export async function zone(s: Sources, days: number, hosts: { api: string; query
   const imageAgentRows = merge(done, "images", (g) => agentFamily(String(g.dimensions.userAgent)), (row, g) => { row.agent = agentFamily(String(g.dimensions.userAgent)); });
   const countryRows = merge(done, "countries", (g) => String(g.dimensions.clientCountryName), (row, g) => { row.country = String(g.dimensions.clientCountryName); });
   const statusRows = merge(done, "statuses", (g) => String(g.dimensions.edgeResponseStatus), (row, g) => { row.status = Number(g.dimensions.edgeResponseStatus); });
+  const totals = ["external", "internal"].map((scope) => {
+    const row: Row = { scope };
+    for (const metric of ["Requests", "Images", "Downloads", "Head"]) {
+      row[metric.toLowerCase()] = Math.round(done.reduce((sum, slice) => sum + (slice[`${scope}${metric}`] ?? []).reduce((n, g) => n + g.count, 0), 0));
+    }
+    row.bytes = Math.round(done.reduce((sum, slice) => sum + (slice[`${scope}Requests`] ?? []).reduce((n, g) => n + (g.sum?.edgeResponseBytes ?? 0), 0), 0));
+    return row;
+  });
+  const internalRows = merge(done, "internal", (g) => `${agentFamily(String(g.dimensions.userAgent))}\t${g.dimensions.clientRequestHTTPMethodName}`, (row, g) => {
+    row.agent = agentFamily(String(g.dimensions.userAgent)); row.method = String(g.dimensions.clientRequestHTTPMethodName);
+  });
+  const imageCacheRows = merge(done, "imageCache", (g) => String(g.dimensions.cacheStatus), (row, g) => { row.status = String(g.dimensions.cacheStatus); });
   return {
     covered, asked: days,
-    hosts: ok(hostRows), kinds: ok(kindRows), downloads: ok(downloadRows), paths: ok(pathRows.slice(0, 25)),
+    hosts: ok(hostRows), totals: ok(totals), internal: ok(internalRows), imageCache: ok(imageCacheRows), kinds: ok(kindRows), downloads: ok(downloadRows), paths: ok(pathRows.slice(0, 25)),
     agents: ok(agentRows.slice(0, 15)), imageAgents: ok(imageAgentRows.slice(0, 10)), countries: ok(countryRows.slice(0, 12)), statuses: ok(statusRows),
   };
 }
