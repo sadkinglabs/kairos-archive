@@ -32,6 +32,16 @@ jobs:
       - run: npm ci
       - run: npm run stats:check
       - run: npx vitest run stats
+      - name: Prove the zone still answers the dashboard's query
+        # Every zone table shares one GraphQL request, so a field this
+        # plan refuses fails all of them. Catch that here, with the same
+        # credentials the Worker uses, rather than on the live page.
+        # Without the secrets the test skips and the deploy carries on.
+        env:
+          CF_API_TOKEN: ${{ secrets.STATS_CF_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx vitest run stats/test/zone-live.test.ts
       - name: Deploy the Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

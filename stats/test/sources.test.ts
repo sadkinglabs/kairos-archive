@@ -10,7 +10,7 @@ describe("zone helpers", () => {
     expect(allowedDays("wider than 6h")).toBe(0.25);
     expect(allowedDays("something else")).toBeUndefined();
   });
-  it("slices a window walking back from now, never past the window, at most 30", () => {
+  it("slices a window walking back from now, never past the window, at most 15", () => {
     const now = Date.parse("2026-09-17T12:00:00Z");
     const s = slices(3, 1, now);
     expect(s).toEqual([
@@ -20,7 +20,7 @@ describe("zone helpers", () => {
     ]);
     expect(slices(7, 7, now)).toEqual([{ since: "2026-09-10T12:00:00.000Z", until: "2026-09-17T12:00:00.000Z" }]);
     expect(slices(5, 2, now).at(-1)).toEqual({ since: "2026-09-12T12:00:00.000Z", until: "2026-09-13T12:00:00.000Z" });
-    expect(slices(90, 1, now)).toHaveLength(30);
+    expect(slices(90, 1, now)).toHaveLength(15);
   });
   it("names what a path on the API host asks for", () => {
     expect(kindOf("/v3.4.1/registry.json")).toBe("whole dataset");

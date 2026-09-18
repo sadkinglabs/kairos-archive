@@ -7,6 +7,7 @@
  * the build at a local export instead (development, tests, a sandbox
  * without network); the source is then reported as "local". */
 
+import { registryBytes } from "./registryCache";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { readFile } from "node:fs/promises";
@@ -111,8 +112,10 @@ async function load(): Promise<Loaded> {
   const release = versions.releases.find((r) => r.tag === tag);
   if (!release) throw new Error(`versions.json does not list ${tag}`);
   const root = `${versions.base_url.replace(/\/$/, "")}/${tag}`;
-  const response = await fetchWithRetry(`${root}/registry.json`, { "User-Agent": USER_AGENT });
-  const bytes = Buffer.from(await response.arrayBuffer());
+  const bytes = await registryBytes(process.env.KAIROS_REGISTRY_CACHE_DIR ?? resolve("node_modules/.cache/kairos-registry"), release.sha256, async () => {
+    const response = await fetchWithRetry(`${root}/registry.json`, { "User-Agent": USER_AGENT });
+    return Buffer.from(await response.arrayBuffer());
+  });
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   if (sha256 !== release.sha256) throw new Error(`${root}/registry.json digest ${sha256} does not match versions.json (${release.sha256})`);
   const schema = await fetchJson<JsonSchema>(`${root}/schema.json`);
