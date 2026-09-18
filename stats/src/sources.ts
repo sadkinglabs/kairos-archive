@@ -159,12 +159,18 @@ export interface ZoneReport {
   kinds: Result<Row[]>;
   /** Whole-dataset downloads by file, status and client software. */
   downloads: Result<Row[]>;
-  paths: Result<Row[]>; agents: Result<Row[]>; imageAgents: Result<Row[]>; referers: Result<Row[]>; countries: Result<Row[]>; statuses: Result<Row[]>;
+  paths: Result<Row[]>; agents: Result<Row[]>; imageAgents: Result<Row[]>; countries: Result<Row[]>; statuses: Result<Row[]>;
 }
 
 /** Every zone table for one window, in one GraphQL request. Adaptive
  * datasets are sampled: `count` is the number of samples and each
- * group's average sample interval scales it back to an estimate. */
+ * group's average sample interval scales it back to an estimate.
+ *
+ * Only dimensions this zone's plan allows: one field it refuses is
+ * refused for the whole request, so every table goes with it. The
+ * referer (who embeds our images) is one of those — the zone answers
+ * "does not have access to the field 'clientrequestreferer'" — so it
+ * is not asked for here. */
 const ZONE_QUERY = `query($zone: String!, $since: Time!, $until: Time!, $hosts: [String!], $api: String!, $bulk: [String!]) {
   viewer { zones(filter: { zoneTag: $zone }) {
     hosts: httpRequestsAdaptiveGroups(limit: 100, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost_in: $hosts }) {
@@ -177,8 +183,6 @@ const ZONE_QUERY = `query($zone: String!, $since: Time!, $until: Time!, $hosts: 
       count avg { sampleInterval } dimensions { userAgent } }
     images: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api, clientRequestPath_like: "/images/%" }) {
       count avg { sampleInterval } dimensions { userAgent } }
-    referers: httpRequestsAdaptiveGroups(limit: 200, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
-      count avg { sampleInterval } dimensions { clientRequestReferer } }
     countries: httpRequestsAdaptiveGroups(limit: 50, orderBy: [count_DESC], filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
       count avg { sampleInterval } dimensions { clientCountryName } }
     statuses: httpRequestsAdaptiveGroups(limit: 30, filter: { datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $api }) {
@@ -263,12 +267,6 @@ export function agentFamily(userAgent: string | null | undefined): string {
   return ua.split(/[/\s(]/)[0]!.toLowerCase().slice(0, 32);
 }
 
-function refererHost(ref: string | number | undefined): string {
-  const s = String(ref ?? "");
-  if (!s) return "(direct)";
-  try { return new URL(s).host; } catch { return s.slice(0, 60); }
-}
-
 /** Sum groups across slices by a key drawn from their dimensions. */
 function merge(slicesDone: ZoneSlice[], field: string, key: (g: Group) => string, extra?: (row: Row, g: Group) => void): Row[] {
   const rows = new Map<string, Row>();
@@ -287,7 +285,7 @@ function merge(slicesDone: ZoneSlice[], field: string, key: (g: Group) => string
 export async function zone(s: Sources, days: number, hosts: { api: string; query: string; bot: string; site: string; stats?: string }): Promise<ZoneReport> {
   const fail = (error: string): ZoneReport => {
     const r: Result<Row[]> = { ok: false, error };
-    return { covered: 0, asked: days, hosts: r, kinds: r, downloads: r, paths: r, agents: r, imageAgents: r, referers: r, countries: r, statuses: r };
+    return { covered: 0, asked: days, hosts: r, kinds: r, downloads: r, paths: r, agents: r, imageAgents: r, countries: r, statuses: r };
   };
   if (!s.zone) return fail("CF_ZONE_ID is not set.");
   const bulk = await bulkPaths(s);
@@ -326,12 +324,11 @@ export async function zone(s: Sources, days: number, hosts: { api: string; query
   });
   const agentRows = merge(done, "agents", (g) => agentFamily(String(g.dimensions.userAgent)), (row, g) => { row.agent = agentFamily(String(g.dimensions.userAgent)); });
   const imageAgentRows = merge(done, "images", (g) => agentFamily(String(g.dimensions.userAgent)), (row, g) => { row.agent = agentFamily(String(g.dimensions.userAgent)); });
-  const refererRows = merge(done, "referers", (g) => refererHost(g.dimensions.clientRequestReferer), (row, g) => { row.referer = refererHost(g.dimensions.clientRequestReferer); });
   const countryRows = merge(done, "countries", (g) => String(g.dimensions.clientCountryName), (row, g) => { row.country = String(g.dimensions.clientCountryName); });
   const statusRows = merge(done, "statuses", (g) => String(g.dimensions.edgeResponseStatus), (row, g) => { row.status = Number(g.dimensions.edgeResponseStatus); });
   return {
     covered, asked: days,
     hosts: ok(hostRows), kinds: ok(kindRows), downloads: ok(downloadRows), paths: ok(pathRows.slice(0, 25)),
-    agents: ok(agentRows.slice(0, 15)), imageAgents: ok(imageAgentRows.slice(0, 10)), referers: ok(refererRows.slice(0, 15)), countries: ok(countryRows.slice(0, 12)), statuses: ok(statusRows),
+    agents: ok(agentRows.slice(0, 15)), imageAgents: ok(imageAgentRows.slice(0, 10)), countries: ok(countryRows.slice(0, 12)), statuses: ok(statusRows),
   };
 }
