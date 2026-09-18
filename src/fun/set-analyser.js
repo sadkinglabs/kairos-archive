@@ -123,20 +123,26 @@ export function mostExpensive(cards) {
   return result;
 }
 
-export function cheapestUnique(cards) {
-  let result = null;
+// card.subtypes is a list, like ["Mortal", "Wizard"]. Count each one,
+// then keep the biggest group.
+export function largestSubtype(cards) {
+  const counts = {};
 
   for (const card of cards) {
-    if (card.rarity !== "Unique") {
-      continue;
-    }
+    for (const subtype of card.subtypes) {
+      if (!counts[subtype]) {
+        counts[subtype] = 0;
+      }
 
-    if (typeof card.cost !== "number") {
-      continue;
+      counts[subtype]++;
     }
+  }
 
-    if (!result || card.cost < result.cost) {
-      result = card;
+  let result = null;
+
+  for (const subtype in counts) {
+    if (!result || counts[subtype] > result.count) {
+      result = { subtype: subtype, count: counts[subtype] };
     }
   }
 
@@ -224,7 +230,7 @@ export async function analyseSet(set) {
     types: typeShares(cards),
 
     notable: {
-      "Cheapest Unique": cheapestUnique(cards),
+      "Largest subtype group": largestSubtype(cards),
       "Most expensive card": mostExpensive(cards),
       "Highest-power Minion": strongestMinion(cards)
     },
