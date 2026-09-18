@@ -173,7 +173,6 @@ ${table("Whole-dataset downloads", api.downloads, [["path", "File", "text"], ["s
 ${table("What the API serves", api.kinds, [["kind", "Kind", "text"], ["n", "Requests"]])}
 ${table("Who fetches the data", api.agents, [["agent", "Client", "text"], ["n", "Requests"]])}
 ${table("Who fetches images", api.imageAgents, [["agent", "Client", "text"], ["n", "Requests"]], "Discordbot is a card shown in Discord; a browser is the site or a hotlink.")}
-${table("Where images and data are embedded", api.referers, [["referer", "Referer", "text"], ["n", "Requests"]])}
 ${table("Requests by host", api.hosts, [["host", "Host", "text"], ["n", "Requests"], ["hits", "Cache hits"], ["bytes", "Bytes", "bytes"]])}
 ${table("Countries", api.countries, [["country", "Country", "text"], ["n", "Requests"]])}
 ${table("Status", api.statuses, [["status", "Status", "status"], ["n", "Requests"]])}

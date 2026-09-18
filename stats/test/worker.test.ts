@@ -68,7 +68,6 @@ function sources(failing: string[] = [], opts: Opts = {}) {
         downloads: [g(4, { clientRequestPath: "/v3.4.1/registry.json", edgeResponseStatus: 200, userAgent: "sorcery-registry-mcp (+https://kairosarchive.net)" }), g(1, { clientRequestPath: "/v3.4.1/registry.json", edgeResponseStatus: 304, userAgent: "curl/8.6.0" })],
         agents: [g(300, { userAgent: "Mozilla/5.0 (X11) Chrome/140.0" }), g(4, { userAgent: "sorcery-registry-mcp (+https://kairosarchive.net)" })],
         images: [g(200, { userAgent: "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)" }), g(100, { userAgent: "Mozilla/5.0 (X11) Chrome/140.0" })],
-        referers: [g(250, { clientRequestReferer: "https://kairosarchive.net/cards/C000230/polar-bears" }), g(50, { clientRequestReferer: "" })],
         countries: [g(200, { clientCountryName: "AU" }), g(100, { clientCountryName: "US" })],
         statuses: [g(290, { edgeResponseStatus: 200 }), g(10, { edgeResponseStatus: 404 })],
       };
@@ -160,8 +159,6 @@ describe("GET /", () => {
     expect(html).toContain("<td class=\"text\">whole dataset</td>");
     expect(html).toContain("<td class=\"text\">alias (/vN → release)</td>");
     expect(html).toContain("<td class=\"text\">discordbot</td>");
-    expect(html).toContain("<td class=\"text\">kairosarchive.net</td>");
-    expect(html).toContain("<td class=\"text\">(direct)</td>");
     expect(html).toContain("&lt;x&gt;");                                                // escaped path
     expect(html).toContain("<code>e t &lt;b&gt;</code>");                              // escaped keys
     expect(html).toContain("<code>(bare words only)</code>");                          // a search with no keys
