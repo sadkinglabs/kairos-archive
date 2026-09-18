@@ -1,14 +1,14 @@
 /** The set analyser tutorial against a small made-up set. */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { analyseSet, cheapestUnique, elementShares, facts, getSetCards, manaCurve, mostExpensive, strongestMinion, typeShares } from "./set-analyser.js";
+import { analyseSet, elementShares, facts, getSetCards, largestSubtype, manaCurve, mostExpensive, strongestMinion, typeShares } from "./set-analyser.js";
 import { renderComparison, renderReport } from "./analyser-page.js";
 
-const card = (name: string, over: Record<string, unknown> = {}) => ({ name, type: "Minion", rarity: "Ordinary", cost: 2, power: 2, elements: ["Fire"], thr_air: 0, thr_earth: 0, thr_fire: 1, thr_water: 0, kairos_url: `https://site.test/cards/${name}`, ...over });
+const card = (name: string, over: Record<string, unknown> = {}) => ({ name, type: "Minion", rarity: "Ordinary", cost: 2, power: 2, elements: ["Fire"], subtypes: ["Beast"], thr_air: 0, thr_earth: 0, thr_fire: 1, thr_water: 0, kairos_url: `https://site.test/cards/${name}`, ...over });
 const set = [
   card("Imp", { cost: 1, power: 1 }),
   card("Ogre", { cost: 4, power: 5, thr_fire: 3 }),
-  card("Dragon", { cost: 7, power: 7, rarity: "Unique", thr_fire: 2, thr_air: 2 }),
-  card("Bolt", { type: "Magic", cost: 2, power: null }),
+  card("Dragon", { cost: 7, power: 7, rarity: "Unique", subtypes: ["Beast", "Dragon"], thr_fire: 2, thr_air: 2 }),
+  card("Bolt", { type: "Magic", cost: 2, power: null, subtypes: [] }),
   card("Cave", { type: "Site", cost: null, power: null, elements: ["Earth", "Water"], thr_fire: 0 }),
   card("Relic", { type: "Artifact", cost: 3, power: null, elements: ["None"], rarity: "Unique", thr_fire: 0 }),
   card("Sorcerer", { type: "Avatar", cost: null, power: null, elements: ["None"], rarity: null, thr_fire: 0 }),
@@ -27,7 +27,8 @@ describe("the analysis", () => {
   });
   it("finds notable cards by comparing records", () => {
     expect(mostExpensive(set)?.name).toBe("Dragon");
-    expect(cheapestUnique(set)?.name).toBe("Relic");
+    expect(largestSubtype(set)).toEqual({ subtype: "Beast", count: 6 });
+    expect(largestSubtype([card("Bolt", { subtypes: [] })])).toBeNull();
     expect(strongestMinion(set)?.name).toBe("Dragon");
     expect(mostExpensive([card("Cave", { cost: null })])).toBeNull();
   });
@@ -59,6 +60,7 @@ describe("the report", () => {
     expect(html).toContain("<td>Minion</td><td>3</td><td>43%</td>");
     expect(html).toContain("<td>2</td><td>1</td><td>20%</td>");   // one card at cost 2, of five with a cost
     expect(html).toContain(">Dragon</a>");
+    expect(html).toContain('href="/search?q=sub%3Abeast%20s%3A001">Beast</a> <span class="muted">6 cards</span>');
     expect(html).toContain("Elementless");
     const compare = renderComparison(report, "Alpha", report, "Beta");
     expect(compare).toContain("<th>Alpha</th><th>Beta</th>");

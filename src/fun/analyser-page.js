@@ -47,13 +47,18 @@ function shareRows(report, counts, shares, order) {
   return keys.map((k) => ({ label: k === "None" ? "Elementless" : k, count: counts[k], share: shares[k] }));
 }
 
-function notableList(notable) {
+function notableList(notable, set) {
   let html = "";
   for (const label in notable) {
-    const card = notable[label];
-    if (!card) continue;
-    const detail = label === "Highest-power Minion" ? `power ${card.power}` : `cost ${card.cost}`;
-    html += `<li><span class="muted">${esc(label)}</span> <a href="${esc(card.kairos_url)}">${esc(card.name)}</a> <span class="muted">${esc(detail)}</span></li>`;
+    const item = notable[label];
+    if (!item) continue;
+    if (item.subtype) {
+      const search = `/search?q=${encodeURIComponent(`sub:${item.subtype.toLowerCase()} s:${set}`)}`;
+      html += `<li><span class="muted">${esc(label)}</span> <a href="${search}">${esc(item.subtype)}</a> <span class="muted">${item.count} cards</span></li>`;
+      continue;
+    }
+    const detail = label === "Highest-power Minion" ? `power ${item.power}` : `cost ${item.cost}`;
+    html += `<li><span class="muted">${esc(label)}</span> <a href="${esc(item.kairos_url)}">${esc(item.name)}</a> <span class="muted">${esc(detail)}</span></li>`;
   }
   return html;
 }
@@ -67,7 +72,7 @@ export function renderReport(report, name) {
       <section class="panel"><h3>Mana curve</h3>${statTable(curveRows(report))}</section>
       <section class="panel"><h3>Elements</h3>${statTable(shareRows(report, elements, report.elements))}</section>
       <section class="panel"><h3>Card types</h3>${statTable(shareRows(report, types, report.types))}</section>
-      <section class="panel"><h3>Notable cards</h3><ul class="notable">${notableList(report.notable)}</ul></section>
+      <section class="panel"><h3>Notable</h3><ul class="notable">${notableList(report.notable, report.set)}</ul></section>
       <section class="panel"><h3>Facts</h3><ul class="facts">${report.facts.map((f) => `<li>${esc(f)}</li>`).join("")}</ul></section>
     </div>`;
 }
