@@ -52,9 +52,10 @@ function notableList(notable, set) {
   for (const label in notable) {
     const item = notable[label];
     if (!item) continue;
-    if (item.subtype) {
-      const search = `/search?q=${encodeURIComponent(`sub:${item.subtype.toLowerCase()} s:${set}`)}`;
-      html += `<li><span class="muted">${esc(label)}</span> <a href="${search}">${esc(item.subtype)}</a> <span class="muted">${item.count} cards</span></li>`;
+    if (Array.isArray(item)) {
+      if (item.length === 0) continue;
+      const groups = item.map((g) => `<a href="/search?q=${encodeURIComponent(`sub:${g.subtype.toLowerCase()} s:${set}`)}">${esc(g.subtype)}</a> <span class="muted">${g.count}</span>`);
+      html += `<li><span class="muted">${esc(label)}</span> ${groups.join(" · ")}</li>`;
       continue;
     }
     const detail = label === "Highest-power Minion" ? `power ${item.power}` : `cost ${item.cost}`;
