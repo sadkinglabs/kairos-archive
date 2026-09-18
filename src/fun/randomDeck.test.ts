@@ -1,7 +1,7 @@
 /** The tutorial's deck builder against the deck-building rules, and the page's list. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ATLAS, COLLECTION, COPIES, drawCards, getCards, makeDeck, makeQuery, onlyChosenElements } from "./random-deck.js";
-import { formatDeck } from "./deck-page.js";
+import { SPELLBOOK, TYPES, formatDeck, spellCount } from "./deck-page.js";
 import { rememberQueryAnswers } from "./remember.js";
 
 type Card = { name: string; type: string; rarity: string | null; elements: string[] };
@@ -123,5 +123,13 @@ describe("the page's memory", () => {
     expect(calls).toBe(2);
     await fetchImpl("https://example.test/other");
     expect(calls).toBe(3);                                     // other hosts pass straight through
+  });
+});
+
+describe("the page's count", () => {
+  it("adds the four types and Toolbox, and knows the four types", () => {
+    expect(TYPES).toEqual(["Artifact", "Aura", "Magic", "Minion"]);
+    expect(spellCount({ toolbox: 0, split: { Artifact: 8, Aura: 6, Magic: 16, Minion: 30 } })).toBe(SPELLBOOK);
+    expect(spellCount({ toolbox: 3, split: { Artifact: 8, Aura: 6, Magic: 16, Minion: 30 } })).toBe(63);
   });
 });

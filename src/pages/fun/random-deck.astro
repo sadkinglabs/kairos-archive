@@ -107,6 +107,7 @@ const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !
   .deck-form button:disabled { opacity: .45; cursor: not-allowed; }
   .deck-form .total { display: block; margin-top: .4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
   .deck-form .total.over { color: var(--removed-fg); }
+  .deck-form .total.short { color: var(--warn); }
   .deck { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; line-height: 1.5; }
   .takeaway { font-family: var(--display); font-size: 1.3rem; line-height: 1.4; border-left: 3px solid var(--accent); padding-left: 1rem; margin: 2rem 0; }
   /* Room around each code box, and a step's heading well clear of the box before it. */

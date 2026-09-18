@@ -5,6 +5,14 @@ import { QUERY, makeDeck } from "./random-deck.js";
 import { rememberQueryAnswers } from "./remember.js";
 
 export const SPELLBOOK = 60;
+export const TYPES = ["Artifact", "Aura", "Magic", "Minion"];
+
+/** The spellbook count for a choice: the four types plus Toolbox. */
+export function spellCount(choice) {
+  let spells = choice.toolbox;
+  for (const type of TYPES) spells += choice.split[type];
+  return spells;
+}
 
 /** The deck as text: each part with its count, its query and how many
  * cards the query matched, then its cards by name, then the total. */
@@ -38,14 +46,14 @@ if (typeof document !== "undefined" && document.getElementById("deck-form")) {
     return choice;
   }
 
-  // The spellbook count as it is typed: red past sixty, and no deal until it is fixed.
+  // The spellbook count as it is typed: red past sixty, amber under it,
+  // and the button only works at exactly sixty.
   function count() {
-    const choice = readChoice();
-    let spells = choice.toolbox;
-    for (const type of TYPES) spells += choice.split[type];
+    const spells = spellCount(readChoice());
     totalLine.textContent = `${spells} / ${SPELLBOOK} spells`;
     totalLine.classList.toggle("over", spells > SPELLBOOK);
-    button.disabled = spells > SPELLBOOK;
+    totalLine.classList.toggle("short", spells < SPELLBOOK);
+    button.disabled = spells !== SPELLBOOK;
   }
   form.addEventListener("input", count);
   count();
