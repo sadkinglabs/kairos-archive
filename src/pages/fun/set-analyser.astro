@@ -58,8 +58,8 @@ const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !
   <CodeExample code={step(5)} lang="javascript" title="5 · typeShares" />
 
   <h3>6. Find notable cards</h3>
-  <p>The records are objects, so they can be compared, not just counted. Each of these walks the set once and keeps the best it has seen: the most expensive card, the largest subtype group from the <code>subtypes</code> list, and the strongest minion. <code>power</code> is worked out by Kairos from attack and defense, so that one needs no arithmetic here.</p>
-  <CodeExample code={step(6)} lang="javascript" title="6 · mostExpensive, largestSubtype, strongestMinion" />
+  <p>The records are objects, so they can be compared, not just counted. Each of these walks the set once and keeps the best it has seen: the most expensive card, the three largest subtype groups from the <code>subtypes</code> list, and the strongest minion. <code>power</code> is worked out by Kairos from attack and defense, so that one needs no arithmetic here.</p>
+  <CodeExample code={step(6)} lang="javascript" title="6 · mostExpensive, topSubtypes, strongestMinion" />
 
   <h3>7. Derive some useful facts</h3>
   <p>None of these numbers is an API field. One more pass over the records and they exist.</p>

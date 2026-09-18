@@ -1,6 +1,6 @@
 /** The set analyser tutorial against a small made-up set. */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { analyseSet, elementShares, facts, getSetCards, largestSubtype, manaCurve, mostExpensive, strongestMinion, typeShares } from "./set-analyser.js";
+import { analyseSet, elementShares, facts, getSetCards, manaCurve, topSubtypes, mostExpensive, strongestMinion, typeShares } from "./set-analyser.js";
 import { renderComparison, renderReport } from "./analyser-page.js";
 
 const card = (name: string, over: Record<string, unknown> = {}) => ({ name, type: "Minion", rarity: "Ordinary", cost: 2, power: 2, elements: ["Fire"], subtypes: ["Beast"], thr_air: 0, thr_earth: 0, thr_fire: 1, thr_water: 0, kairos_url: `https://site.test/cards/${name}`, ...over });
@@ -27,8 +27,8 @@ describe("the analysis", () => {
   });
   it("finds notable cards by comparing records", () => {
     expect(mostExpensive(set)?.name).toBe("Dragon");
-    expect(largestSubtype(set)).toEqual({ subtype: "Beast", count: 6 });
-    expect(largestSubtype([card("Bolt", { subtypes: [] })])).toBeNull();
+    expect(topSubtypes(set)).toEqual([{ subtype: "Beast", count: 6 }, { subtype: "Dragon", count: 1 }]);
+    expect(topSubtypes([card("Bolt", { subtypes: [] })])).toEqual([]);
     expect(strongestMinion(set)?.name).toBe("Dragon");
     expect(mostExpensive([card("Cave", { cost: null })])).toBeNull();
   });
@@ -60,7 +60,7 @@ describe("the report", () => {
     expect(html).toContain("<td>Minion</td><td>3</td><td>43%</td>");
     expect(html).toContain("<td>2</td><td>1</td><td>20%</td>");   // one card at cost 2, of five with a cost
     expect(html).toContain(">Dragon</a>");
-    expect(html).toContain('href="/search?q=sub%3Abeast%20s%3A001">Beast</a> <span class="muted">6 cards</span>');
+    expect(html).toContain('href="/search?q=sub%3Abeast%20s%3A001">Beast</a> <span class="muted">6</span> · <a href="/search?q=sub%3Adragon%20s%3A001">Dragon</a> <span class="muted">1</span>');
     expect(html).toContain("Elementless");
     const compare = renderComparison(report, "Alpha", report, "Beta");
     expect(compare).toContain("<th>Alpha</th><th>Beta</th>");
