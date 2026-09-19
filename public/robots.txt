@@ -1,5 +1,22 @@
-# Card pages, set pages, the docs and the tutorials are all worth
-# indexing, and the sitemap below lists every one of them.
+# Link unfurlers are not crawlers. One of them fetches one URL because a
+# person just pasted it into a chat, to draw the preview card underneath
+# it. Nothing they do costs us a crawl budget or an index full of junk,
+# so they get the whole site, /search and /random included: a shared
+# search link should unfurl like any other link to the archive.
+User-agent: Discordbot
+User-agent: Twitterbot
+User-agent: facebookexternalhit
+User-agent: Slackbot
+User-agent: Slackbot-LinkExpanding
+User-agent: WhatsApp
+User-agent: TelegramBot
+User-agent: LinkedInBot
+User-agent: redditbot
+Allow: /
+
+# Everyone else is here to index. Card pages, set pages, the docs and
+# the tutorials are all worth indexing, and the sitemap below lists
+# every one of them.
 #
 # Two things are not. /search is one page per query string, so a crawler
 # following the example links on the syntax page would walk an endless
