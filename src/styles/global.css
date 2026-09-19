@@ -83,39 +83,40 @@ footer.site .credit { max-width: 62ch; margin: 0 auto; }
 .footer-groups h2 { display: inline-block; margin: 0 0 .55rem; padding-bottom: .35rem; border-bottom: 1px solid var(--line); font: 600 .66rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .footer-groups a { display: block; padding: .28rem 0; font-size: .9rem; color: var(--fg); text-decoration: none; }
 .footer-groups a:hover { color: var(--accent); text-decoration: underline; }
-/* The home page's first screen: hero at the top, the card fan at the fold,
-   everything else below it. --header-h is the header's rendered height. */
+/* Reserve card geometry independently of image loading. On short screens
+   content grows naturally instead of shrinking the cards or covering search. */
 .home { max-width: 760px; margin: auto; }
-.fold { display: flex; flex-direction: column; min-height: calc(100svh - var(--header-h, 77px) - var(--main-pad, 2.5rem)); }
-/* The hero floats in the middle of the space above the fan: auto margins
-   on both sides split what the fold leaves over. */
-.fold .hero { margin: auto 0; padding-top: 0; }
-/* The fan runs edge to edge, wider than the page column, and is cropped at the sides as well as the bottom. */
-/* 270px tall with the cards bottomed at -100px leaves 21px of headroom above the middle card, so the 14px hover lift is never clipped. */
-.card-fan { position: relative; height: 270px; margin-top: 1rem; overflow: hidden; width: 100vw; left: 50%; transform: translateX(-50%); }
-.fan-card { position: absolute; bottom: -100px; left: 50%; width: 250px; transform: translateX(calc(-50% + var(--x))) translateY(var(--y)) rotate(var(--r)); transition: transform .2s ease; }
-.fan-card img { display: block; width: 100%; height: auto; border-radius: 4.75% / 3.5%; box-shadow: 0 6px 22px #0006; background: var(--badge); }
-/* The dealt hand (the images the script fills in) stays invisible until the
-   whole hand has decoded, then fades up and rises, middle card first and the
-   edges a beat behind. The no-script images inside <noscript> carry no
-   data-src and show at once. */
-/* Until the script gives it a src, the dealt image takes no room, so the no-script image is not pushed out of the crop. */
+.fold { display: flex; flex-direction: column; min-height: calc(100vh - var(--fold-top, calc(75px + 2.5rem))); }
+@supports (height: 100svh) { .fold { min-height: calc(100svh - var(--fold-top, calc(75px + 2.5rem))); } }
+.fold .hero { flex: 0 0 auto; margin: auto 0; padding-top: 0; }
+.card-fan {
+  --card-width: 250px; --fan-step: 160px;
+  position: relative; flex: 0 0 auto; height: 270px; margin-top: 1rem;
+  overflow: hidden; isolation: isolate; width: var(--fan-viewport, 100%);
+  left: 50%; transform: translateX(-50%);
+}
+.fan-card {
+  --slot: 0; --depth: 0;
+  --x: calc(var(--slot) * var(--fan-step));
+  --y: calc(var(--depth) * var(--depth) * 7px);
+  --r: calc(var(--slot) * 5deg);
+  position: absolute; bottom: -100px; left: 50%; width: var(--card-width);
+  aspect-ratio: 488 / 680; border-radius: 4.75% / 3.5%;
+  z-index: calc(10 - var(--depth));
+  transform: translateX(calc(-50% + var(--x))) translateY(var(--y)) rotate(var(--r));
+  transition: transform .2s ease;
+}
+.fan-face { position: absolute; inset: 0; border-radius: inherit; background: var(--badge); box-shadow: 0 6px 22px #0006; }
+.fan-face[data-dealt] { opacity: 0; transform: translateY(48px); transition: opacity .7s ease-out, transform .9s cubic-bezier(.2, .7, .2, 1); transition-delay: calc(var(--depth) * .08s); }
+.card-fan.ready .fan-face[data-dealt] { opacity: 1; transform: none; }
 .fan-card img[data-src]:not([src]) { display: none; }
-.fan-card img[data-src] { opacity: 0; transform: translateY(48px); transition: opacity .7s ease-out, transform .9s cubic-bezier(.2, .7, .2, 1); }
-.fan-card:nth-child(4) img[data-src] { transition-delay: 0s; }
-.fan-card:nth-child(3) img[data-src], .fan-card:nth-child(5) img[data-src] { transition-delay: .08s; }
-.fan-card:nth-child(2) img[data-src], .fan-card:nth-child(6) img[data-src] { transition-delay: .16s; }
-.fan-card:nth-child(1) img[data-src], .fan-card:nth-child(7) img[data-src] { transition-delay: .24s; }
-.card-fan.ready .fan-card img[data-src] { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: reduce) { .fan-card img[data-src] { transform: none; transition: opacity .4s ease-out; } }
-.fan-card:nth-child(1) { --x: -480px; --r: -15deg; --y: 64px; z-index: 1; }
-.fan-card:nth-child(2) { --x: -320px; --r: -10deg; --y: 30px; z-index: 2; }
-.fan-card:nth-child(3) { --x: -160px; --r: -5deg; --y: 9px; z-index: 3; }
-.fan-card:nth-child(4) { --x: 0px; --r: 0deg; --y: 0px; z-index: 4; }
-.fan-card:nth-child(5) { --x: 160px; --r: 5deg; --y: 9px; z-index: 3; }
-.fan-card:nth-child(6) { --x: 320px; --r: 10deg; --y: 30px; z-index: 2; }
-.fan-card:nth-child(7) { --x: 480px; --r: 15deg; --y: 64px; z-index: 1; }
-.fan-card:hover { transform: translateX(calc(-50% + var(--x))) translateY(calc(var(--y) - 14px)) rotate(var(--r)); z-index: 5; }
+.fan-card img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.fan-fallback { position: absolute; inset: 0; padding: 1rem; color: var(--muted); font-size: .8rem; overflow: hidden; border-radius: inherit; }
+@media (hover: hover) and (pointer: fine) {
+  .fan-card:hover { transform: translateX(calc(-50% + var(--x))) translateY(calc(var(--y) - 14px)) rotate(var(--r)); z-index: 11; }
+}
+.fan-card:focus-visible { transform: translateX(-50%) translateY(-14px); z-index: 12; outline-offset: -4px; }
+@media (prefers-reduced-motion: reduce) { .fan-card, .fan-face[data-dealt] { transition: none; } .fan-face[data-dealt] { transform: none; } }
 .hero { padding: 2.2rem 0 0; text-align: center; }
 .hero h1 { font-size: clamp(2.8rem, 7vw, 4.8rem); line-height: 1.05; letter-spacing: -.04em; margin: 1rem 0; }
 /* The line under the wordmark, set the wordmark's way: same face, same
@@ -365,15 +366,10 @@ table.fields td:first-child { white-space: nowrap; }
   .full-entry { grid-template-columns: 110px minmax(0, 1fr); gap: .9rem; padding: .8rem; }
   .full-entry h3 { font-size: 1.02rem; }
   header.site .inner { padding: .7rem 20px; flex-wrap: wrap; gap: .7rem; }
-  .fold { --header-h: 67px; --main-pad: 1.8rem; }
-  .card-fan { height: 190px; }
-  .fan-card { width: 175px; bottom: -80px; }
-  .fan-card:nth-child(1) { --x: -228px; --y: 48px; }
-  .fan-card:nth-child(2) { --x: -152px; --y: 22px; }
-  .fan-card:nth-child(3) { --x: -76px; --y: 7px; }
-  .fan-card:nth-child(5) { --x: 76px; --y: 7px; }
-  .fan-card:nth-child(6) { --x: 152px; --y: 22px; }
-  .fan-card:nth-child(7) { --x: 228px; --y: 48px; }
+  .fold { min-height: calc(100vh - var(--fold-top, calc(59.4px + 1.8rem))); }
+  @supports (height: 100svh) { .fold { min-height: calc(100svh - var(--fold-top, calc(59.4px + 1.8rem))); } }
+  .card-fan { --card-width: clamp(140px, 44vw, 175px); --fan-step: clamp(60px, 19vw, 76px); height: 190px; }
+  .fan-card { bottom: -80px; --y: calc(var(--depth) * var(--depth) * 5.3px); }
   .footer-groups { grid-template-columns: 1fr; text-align: center; }
   .brand span { font-size: 1.4rem; }
   .brand img { width: 36px; height: 36px; }
