@@ -1,7 +1,20 @@
 ---
 import Base from "../layouts/Base.astro";
 import CardBrowser from "../components/CardBrowser.astro";
+
+/** A search link pasted into a chat unfurls from this head. The page is
+ * one file for every query - the query is read and answered in the
+ * browser - so what a scraper sees cannot name the query or the cards it
+ * found. It can at least say what the link leads to, and look like the
+ * archive rather than a bare URL. */
+const embed = [
+  "Search every card by rules text, element, cost, keyword, set, artist and more.",
+  "",
+  "r=\"draw a spell\" · t:minion e:fire cost<=2 · a:\"Drew Tucker\" unique:prints",
+].join("\n");
 ---
-<Base title="Search" canonical="/search">
+<Base title="Search" canonical="/search"
+  description="Search every Sorcery: Contested Realm card by rules text, element, cost, keyword, set and artist."
+  embed={embed}>
   <CardBrowser heading="Search" />
 </Base>
