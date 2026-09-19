@@ -1,40 +1,80 @@
 ---
-/** A hand of cards peeking up at the fold: seven printings' art, fanned
- * and cropped so only their tops show, each a link to its card. The pool
- * is generated at build from printings with full-size art, so it grows
- * with the catalogue; a small script deals a fresh hand per visit, and
- * without JavaScript the build's own hand shows. */
+/** A new random hand per visit, revealed together after decoding. Card
+ * geometry is reserved independently of images and of the reveal gate. */
 export interface FanCard { href: string; src: string; alt: string }
 interface Props { pool: FanCard[] }
 const { pool } = Astro.props;
-const HAND = 7;
-const hand = pool.slice(0, HAND);
+const available = pool.filter(c => c.src && c.href);
+const hand = available.slice(0, 7);
 ---
-<div class="card-fan" data-pool={JSON.stringify(pool)} aria-label="A few cards from the archive">
-  {hand.map((c) => <a class="fan-card" href={c.href}>
-    <img data-src={c.src} width="488" height="680" alt={c.alt} decoding="async" />
-    <noscript><img src={c.src} width="488" height="680" alt={c.alt} loading="lazy" decoding="async" /></noscript>
+<div class="card-fan" hidden={hand.length === 0} data-pool={JSON.stringify(available)} aria-label="A few cards from the archive">
+  {hand.map((c, i) => <a class="fan-card" href={c.href} aria-label={c.alt}
+    style={`--slot: ${i - (hand.length - 1) / 2}; --depth: ${Math.abs(i - (hand.length - 1) / 2)}`}>
+    <span class="fan-face" data-dealt>
+      <span class="fan-fallback" aria-hidden="true">{c.alt}</span>
+      <img data-src={c.src} width="488" height="680" alt="" decoding="async" />
+    </span>
+    <noscript><img src={c.src} width="488" height="680" alt="" loading="eager" decoding="async" /></noscript>
   </a>)}
 </div>
 <script>
-  // Deal a fresh hand from the pool on every visit, before any image is
-  // asked for: the img elements carry data-src and no src until here.
-  // The hand is built out of sight and revealed together once every card
-  // has decoded, so the fan never assembles piece by piece; a slow card
-  // is waited on for a few seconds at most, then the fan rises anyway.
-  const fan = document.querySelector<HTMLElement>(".card-fan");
-  if (fan) {
-    const pool: { href: string; src: string; alt: string }[] = JSON.parse(fan.dataset.pool ?? "[]");
-    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-    const loading: Promise<void>[] = [];
-    fan.querySelectorAll<HTMLAnchorElement>("a.fan-card").forEach((a, i) => {
+  document.querySelectorAll<HTMLElement>(".card-fan").forEach(fan => {
+    // Measure before revealing; observe wrapping, font changes and resizing.
+    // Document coordinates remain stable when this runs after scrolling.
+    const fold = fan.closest<HTMLElement>(".fold");
+    const header = document.querySelector<HTMLElement>("header.site");
+    const main = fan.closest<HTMLElement>("main");
+    if (fold && header && main) {
+      const measure = () => {
+        fold.style.setProperty("--fold-top", `${main.getBoundingClientRect().top + window.scrollY + parseFloat(getComputedStyle(main).paddingTop)}px`);
+        fan.style.setProperty("--fan-viewport", `${document.documentElement.clientWidth}px`);
+      };
+      measure();
+      if (typeof ResizeObserver !== "undefined") {
+        const observer = new ResizeObserver(measure);
+        observer.observe(header);
+        observer.observe(main);
+      }
+      window.addEventListener("resize", measure, { passive: true });
+      window.addEventListener("pageshow", measure);
+    }
+
+    type Card = { href: string; src: string; alt: string };
+    const anchors = Array.from(fan.querySelectorAll<HTMLAnchorElement>("a.fan-card"));
+    // The server hand is also a fallback if pool parsing fails.
+    let pool: Card[] = anchors.map(a => ({ href: a.href, src: a.querySelector<HTMLImageElement>("img[data-src]")?.dataset.src ?? "", alt: a.getAttribute("aria-label") ?? "Card" }));
+    try {
+      const parsed: unknown = JSON.parse(fan.dataset.pool ?? "[]");
+      if (Array.isArray(parsed) && parsed.length >= anchors.length && parsed.every(c => c && typeof c.href === "string" && typeof c.src === "string" && typeof c.alt === "string")) pool = parsed;
+    } catch { /* Keep the build-time hand. */ }
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const decoded = new Set<HTMLImageElement>();
+    const images: HTMLImageElement[] = [];
+    const loading = anchors.map(async (a, i) => {
       const card = pool[i];
       const img = a.querySelector<HTMLImageElement>("img[data-src]");
       if (!card || !img) return;
-      a.href = card.href; img.alt = card.alt; img.src = card.src;
-      loading.push(img.decode().catch(() => undefined));
+      a.href = card.href;
+      a.setAttribute("aria-label", card.alt);
+      const fallback = a.querySelector(".fan-fallback");
+      if (fallback) fallback.textContent = card.alt;
+      images.push(img);
+      img.src = card.src;
+      try { await img.decode(); if (img.naturalWidth > 0) decoded.add(img); }
+      catch { /* The same-sized fallback joins the coordinated reveal. */ }
     });
-    const patience = new Promise<void>((resolve) => setTimeout(resolve, 4000));
-    Promise.race([Promise.all(loading), patience]).then(() => fan.classList.add("ready"));
-  }
+    let timer: ReturnType<typeof setTimeout>;
+    const patience = new Promise<void>(resolve => { timer = setTimeout(resolve, 4000); });
+    void Promise.race([Promise.all(loading), patience]).then(() => {
+      clearTimeout(timer);
+      // Freeze the chosen presentation for this reveal: late images must
+      // not pop into the hand halfway through its animation.
+      for (const img of images) img.hidden = !decoded.has(img);
+      // Ensure even a fully cached hand gets a painted starting state.
+      requestAnimationFrame(() => requestAnimationFrame(() => fan.classList.add("ready")));
+    });
+  });
 </script>
