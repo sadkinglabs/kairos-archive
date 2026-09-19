@@ -7,9 +7,17 @@
 
 export type Scope = "card" | "printing";
 export type KeyKind = "text" | "number" | "enum" | "element" | "list" | "set" | "product" | "finish" | "date" | "id" | "slug";
-/** ":" is "contains" on text and "equals" on everything else; "==" is
- * the complete word or phrase, and only text takes it. */
-export type Op = ":" | "=" | "==" | "<" | "<=" | ">" | ">=" | "!=";
+/** Two ways to match, whatever the kind of key.
+ *
+ * ":" ignores the boundaries of the value: on text it is the substring,
+ * so r:drag finds Dragon; on a number or a name from a fixed list there
+ * are no boundaries to ignore, so it is equality.
+ *
+ * "=" respects them. A number is one value, so m=3 is that value. The
+ * elements are a set, so e=water+fire is that set and no third. Text is
+ * a sequence of words, so r=drag is the complete word and r="draw a
+ * spell" the complete phrase. "!=" is its negation. */
+export type Op = ":" | "=" | "<" | "<=" | ">" | ">=" | "!=";
 
 export interface KeyDef {
   /** canonical name, e.g. "rules" */
@@ -87,11 +95,11 @@ export function vocabulary(key: KeyDef): { values: string[]; aliases: Record<str
 export const KEYS: KeyDef[] = [
   // ---- card keys
   { name: "name", aliases: ["n", "name"], scope: "card", kind: "text", field: "name",
-    doc: "Card name, substring: n:bear finds Bearded. n==bear asks for the complete word. Bare words search the name too; use n: when combining with other terms.",
-    examples: ["n:bear", "n==bear", "name:\"polar bears\" e:water"] },
+    doc: "Card name. n:bear is the substring, so it finds Bearded; n=bear is the complete word. Bare words search the name too; use n: when combining with other terms.",
+    examples: ["n:bear", "n=bear", "name:\"polar bears\" e:water"] },
   { name: "rules", aliases: ["r", "rules"], scope: "card", kind: "text", field: "rules_text",
-    doc: "Rules text, substring: r:drag finds Dragon. r==drag asks for the complete word, and r==\"draw a spell\" for the whole phrase. r: is rules in Sorcery (there is no oracle text); quote phrases.",
-    examples: ["r:\"draw a spell\"", "r==drag", "r==\"draw a spell\"", "r:genesis t:minion"] },
+    doc: "Rules text. r:drag is the substring, so it finds Dragon; r=drag is the complete word and r=\"draw a spell\" the complete phrase. r: is rules in Sorcery (there is no oracle text).",
+    examples: ["r:drag", "r=drag", "r=\"draw a spell\"", "r:genesis t:minion"] },
   { name: "rarity", aliases: ["rar", "rarity"], scope: "card", kind: "enum", field: "rarity", values: RARITIES,
     doc: "Ordinary, Exceptional, Elite or Unique; any unambiguous prefix works. Three letters, not one: r: is rules.",
     examples: ["rar:unique", "rar:ex"] },
@@ -152,11 +160,11 @@ export const KEYS: KeyDef[] = [
   { name: "finish", aliases: ["f", "finish"], scope: "printing", kind: "finish", field: "finish", values: FINISHES,
     doc: "Standard, Foil or Rainbow, or the slug code (f:rf).", examples: ["f:foil", "f:rf"] },
   { name: "artist", aliases: ["a", "artist"], scope: "printing", kind: "text", field: "artist",
-    doc: "Artist name or artist slug, substring; a==name for the complete word.", examples: ["a:menges", "a==ing"] },
+    doc: "Artist name or artist slug: a: is the substring, a= the complete word.", examples: ["a:menges", "a=menges"] },
   { name: "typeline", aliases: ["tl", "typeline"], scope: "printing", kind: "text", field: "typeline",
-    doc: "The flavour typeline printed under the name, substring; tl== for the complete word or phrase.", examples: ["tl:\"new to power\""] },
+    doc: "The flavour typeline printed under the name: tl: is the substring, tl= the complete word or phrase.", examples: ["tl:\"new to power\""] },
   { name: "flavor", aliases: ["ft", "flavor", "flavour"], scope: "printing", kind: "text", field: "flavour_text",
-    doc: "Flavour text, substring; ft== for the complete word or phrase. Empty upstream today; the key exists.", examples: ["ft:realm"] },
+    doc: "Flavour text: ft: is the substring, ft= the complete word or phrase. Empty upstream today; the key exists.", examples: ["ft:realm"] },
   { name: "date", aliases: ["date", "year", "released"], scope: "printing", kind: "date", field: "released_at",
     doc: "Release date of a printing: year:2023, year>=2024, date>=2025-08-01, date<2024. Accepts YYYY, YYYY-MM or YYYY-MM-DD.",
     examples: ["year:2023", "date>=2025-08-01"] },

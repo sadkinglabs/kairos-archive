@@ -32,23 +32,24 @@ describe("needsPrintings", () => {
 });
 
 describe("GET /cards", () => {
-  it("answers == with the same whole-word rule the site uses", async () => {
+  it("answers = with the same whole-word rule the site uses", async () => {
     const { deps } = app();
     // The API has no matcher of its own: it runs the site's parser and
     // evaluator, so this passes or fails with src/search/text.ts.
     const sub = await get("/cards?q=r:merge", deps);
-    const whole = await get("/cards?q=r==merge", deps);
+    const whole = await get("/cards?q=r=merge", deps);
     expect(sub.status).toBe(200);
     expect(whole.status).toBe(200);
     expect(sub.body.total).toBeGreaterThan(0);
     expect(whole.body.total).toBeLessThan(sub.body.total);
-    expect(whole.body.q).toBe("r==merge");
+    expect(whole.body.q).toBe("r=merge");
   });
-  it("reports == on a number as a query error rather than guessing", async () => {
+  it("reads == the same way, so a doubled operator is not a value", async () => {
     const { deps } = app();
-    const { status, body } = await get("/cards?q=m==3", deps);
-    expect(status).toBe(400);
-    expect(JSON.stringify(body)).toContain("complete word");
+    const one = await get("/cards?q=r=merge", deps);
+    const two = await get("/cards?q=r==merge", deps);
+    expect(two.status).toBe(200);
+    expect(two.body.total).toBe(one.body.total);
   });
 
   it("answers a card-only query from the card list alone, as a list envelope", async () => {

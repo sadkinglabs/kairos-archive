@@ -3,7 +3,7 @@
  * are not filters (unique:, sort:, order:) and a list of errors a user
  * can act on. Pure: no DOM, no data. */
 
-import { HAS_FLAGS, IS_FLAGS, KEY_BY_ALIAS, KEYS, SORT_FIELDS, UNITS, resolveValue, vocabulary, type KeyDef, type Op, type SortField, type Unit } from "./keys";
+import { HAS_FLAGS, IS_FLAGS, KEY_BY_ALIAS, SORT_FIELDS, UNITS, resolveValue, vocabulary, type KeyDef, type Op, type SortField, type Unit } from "./keys";
 
 export type Node =
   | { kind: "and"; items: Node[] }
@@ -37,9 +37,13 @@ interface Token {
   quoted?: boolean;
 }
 
-// Longest first: "==" has to be tried before "=", or r==drag tokenizes
-// as r= with the value "=drag".
-const OPS: Op[] = ["!=", "==", "<=", ">=", ":", "=", "<", ">"];
+const OPS: Op[] = ["!=", "<=", ">=", ":", "=", "<", ">"];
+
+/** "==" and "!==" are accepted as other ways to write "=" and "!=", so
+ * a habit from another language, or a doubled key, lands on the operator
+ * it meant rather than on a value beginning with "=". They are spellings,
+ * not operators: nothing downstream ever sees them. */
+const SPELLINGS: Record<string, Op> = { "==": "=", "!==": "!=" };
 
 export function tokenize(input: string): { tokens: Token[]; errors: string[] } {
   const tokens: Token[] = [];
@@ -75,14 +79,17 @@ export function tokenize(input: string): { tokens: Token[]; errors: string[] } {
     }
     // key<op>value ?
     const rest = input.slice(i);
-    const m = /^([A-Za-z][A-Za-z.-]*)(!=|==|<=|>=|:|=|<|>)/.exec(rest);
-    if (m && OPS.includes(m[2] as Op)) {
+    // Longest first, so !== is not read as != followed by a value that
+    // begins with =, and == is not read as = followed by one.
+    const m = /^([A-Za-z][A-Za-z.-]*)(!==|==|!=|<=|>=|:|=|<|>)/.exec(rest);
+    const op = m ? (SPELLINGS[m[2]!] ?? (m[2] as Op)) : undefined;
+    if (m && op && OPS.includes(op)) {
       i += m[0].length;
       let value: string;
       let quoted = false;
       if (input[i] === '"') { value = readQuoted(); quoted = true; }
       else value = readWord();
-      tokens.push({ kind: "term", negate, key: m[1].toLowerCase(), op: m[2] as Op, value, quoted });
+      tokens.push({ kind: "term", negate, key: m[1].toLowerCase(), op, value, quoted });
       continue;
     }
     const word = readWord();
@@ -197,16 +204,7 @@ function resolveTerm(token: Token, options: Options, errors: string[]): Node | n
   if (value === "") { errors.push(`${key}: needs a value`); return null; }
   const op = token.op ?? ":";
   const numeric = def.kind === "number" || def.kind === "date";
-  // == is the complete word or phrase, which only means anything where a
-  // value is free text. A number, a date or a value from a closed list is
-  // already matched whole by ":", so == there would be a second spelling
-  // of the same thing, or worse, a third reading of equality. Say so.
-  if (op === "==" && def.kind !== "text") {
-    const texts = KEYS.filter((k) => k.kind === "text").map((k) => `${k.aliases[0]}:`).join(", ");
-    errors.push(`${key}== - == asks for a complete word, so it is only for text (${texts}); ${key}:${value} already matches a whole value`);
-    return null;
-  }
-  if (!numeric && op !== ":" && op !== "=" && op !== "==" && op !== "!=") {
+  if (!numeric && op !== ":" && op !== "=" && op !== "!=") {
     errors.push(`${key}${op} - only numbers and dates take <, <=, > or >=`);
     return null;
   }

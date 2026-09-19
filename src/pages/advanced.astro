@@ -105,9 +105,9 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
         <summary><span class="group-title">Card</span><span class="badge"></span></summary>
         <div class="grid-fields">
           <label class="field">Name<input data-key={alias('name')} data-say="named %s" type="text" placeholder="polar bears" />
-            <span class="whole"><input type="checkbox" data-whole /> Complete words only</span></label>
+            <span class="whole"><input type="checkbox" data-whole /> Whole words only</span></label>
           <label class="field">Rules contain<input data-key={alias('rules')} data-say="rules mention %s" type="text" placeholder="draw a spell" />
-            <span class="whole"><input type="checkbox" data-whole /> Complete words only</span></label>
+            <span class="whole"><input type="checkbox" data-whole /> Whole words only</span></label>
           <label class="field">Type<select data-key={alias('type')}><option value="">Any type</option>{key('type').values?.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Rarity<select data-key={alias('rarity')}><option value="">Any rarity</option>{key('rarity').values?.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Group<select data-key={alias('umbrella')}><option value="">Any group</option>{umbrellas.map(v => <option value={v}>{v}</option>)}</select></label>
@@ -227,7 +227,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       const whole = control.closest('.field')?.querySelector<HTMLInputElement>('[data-whole]');
       return term({
         key: selected?.dataset.keyOverride ?? control.dataset.key ?? '',
-        op: chosen?.value ?? (whole?.checked ? '==' : undefined) ?? control.dataset.operator ?? ':',
+        op: chosen?.value ?? (whole?.checked ? '=' : undefined) ?? control.dataset.operator ?? ':',
         value: control.value,
         negate: selected?.dataset.negate !== undefined,
       });

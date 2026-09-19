@@ -5,9 +5,10 @@
 
 import type { Node } from "./query";
 import { collapse, findRanges, fold } from "./text";
+import { wholeWords } from "./evaluate";
 
 /** A phrase to mark, and whether it was asked for as a complete word.
- * r:drag marks the "drag" inside Dragon; r==drag marks only the word. */
+ * r:drag marks the "drag" inside Dragon; r=drag marks only the word. */
 export interface Phrase { text: string; whole: boolean }
 
 /** Longest snippet before it is cut to a window around the first match. */
@@ -22,7 +23,7 @@ export function rulesPhrases(ast: Node | null): Phrase[] {
     switch (node.kind) {
       case "and": case "or": node.items.forEach(walk); break;
       case "not": break;
-      case "term": if (node.key.name === "rules" && node.op !== "!=" && node.value.trim()) out.push({ text: node.value, whole: node.op === "==" }); break;
+      case "term": if (node.key.name === "rules" && node.op !== "!=" && node.value.trim()) out.push({ text: node.value, whole: wholeWords(node.op) }); break;
       default: break;
     }
   };
