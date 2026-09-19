@@ -1,4 +1,15 @@
+# Card pages, set pages, the docs and the tutorials are all worth
+# indexing, and the sitemap below lists every one of them.
+#
+# Two things are not. /search is one page per query string, so a crawler
+# following the example links on the syntax page would walk an endless
+# list of them and index none of the card pages any better for it.
+# /random is a Cloudflare Pages Function, linked from the footer of
+# every page on the site: a crawler that follows it 4,000 times spends
+# 4,000 invocations to be redirected to a card it already has.
 User-agent: *
+Disallow: /search
+Disallow: /random
 Allow: /
 
 Sitemap: https://kairosarchive.net/sitemap-index.xml
