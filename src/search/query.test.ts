@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { directLookup, parse, tokenize } from "./query";
-import { KEYS, IS_FLAGS, HAS_FLAGS } from "./keys";
+import { KEYS, IS_FLAGS, HAS_FLAGS, OPERATORS} from "./keys";
 
 describe("tokenize", () => {
   it("splits words, quoted phrases, keys with operators, negation and parentheses", () => {
@@ -282,5 +282,31 @@ describe("= asks for the whole thing, : for any part of it", () => {
   });
   it("still refuses an operator no key takes", () => {
     expect(parse("r>drag").errors[0]).toContain("only numbers and dates");
+  });
+});
+
+describe("the operator table /syntax is built from", () => {
+  it("gives an example that actually parses, for every operator", () => {
+    for (const op of OPERATORS) {
+      const { ast, errors } = parse(op.example);
+      expect(errors, `${op.symbol}: ${op.example}`).toEqual([]);
+      expect(ast, `${op.symbol}: ${op.example}`).not.toBeNull();
+    }
+  });
+  it("lists every comparison the language has, so the type cannot gain one in silence", () => {
+    const listed = new Set(OPERATORS.flatMap((o) => [o.symbol, o.also].filter(Boolean)));
+    for (const op of [":", "=", "!=", "<", "<=", ">", ">="]) expect(listed.has(op), op).toBe(true);
+  });
+  it("means what it says: the second spelling parses to the same thing as the first", () => {
+    for (const op of OPERATORS.filter((o) => o.also && /^[=!]/.test(o.symbol))) {
+      const one = parse(op.example);
+      const other = parse(op.example.replace(op.symbol, op.also!));
+      expect(other.errors, op.also).toEqual([]);
+      expect(JSON.stringify(other.ast), op.also).toEqual(JSON.stringify(one.ast));
+    }
+  });
+  it("has no duplicate rows", () => {
+    const symbols = OPERATORS.map((o) => o.symbol);
+    expect(new Set(symbols).size).toBe(symbols.length);
   });
 });

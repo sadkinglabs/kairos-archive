@@ -170,6 +170,39 @@ export const KEYS: KeyDef[] = [
     examples: ["year:2023", "date>=2025-08-01"] },
 ];
 
+/** Every operator the language reads, as a table, so /syntax can list
+ * them without a hand-written copy going stale. The comparisons belong
+ * to `Op` and a test holds this table to it: add one to the type and
+ * this row has to exist. The rest - negation, or, grouping, the value
+ * separators, quoting - are read by the tokenizer rather than carried
+ * on a term, so they are listed here but cannot be checked that way.
+ * Every example is a real query, and a test parses each one. */
+export interface OperatorDef {
+  /** as it is typed, with … where a value goes */
+  symbol: string;
+  /** the other spelling, where there is one */
+  also?: string;
+  doc: string;
+  example: string;
+}
+
+export const OPERATORS: OperatorDef[] = [
+  { symbol: ":", doc: "Contains. On text it is the substring, so r:drag finds Dragon; where a value has no inside - a number, a date, a name from a fixed list - it is plain equality.", example: "t:minion" },
+  { symbol: "=", also: "==", doc: "The whole thing. A number is one value, the elements are a set, text is a sequence of words: r=drag is the complete word and r=\"draw a spell\" the complete phrase.", example: "r=drag" },
+  { symbol: "!=", also: "!==", doc: "Not the whole thing: the negation of =. On text, -r:… is the other negation, for none of those letters at all.", example: "r!=drag" },
+  { symbol: "<", doc: "Less than. Numbers and dates only.", example: "m<3" },
+  { symbol: "<=", doc: "At most.", example: "m<=3" },
+  { symbol: ">", doc: "More than.", example: "pow>4" },
+  { symbol: ">=", doc: "At least.", example: "thr>=3" },
+  { symbol: "-", also: "not", doc: "Not this term. Put it in front of anything: a key, a flag, a bare word, a group.", example: "t:minion -e:fire" },
+  { symbol: "or", doc: "Either side. Terms sitting side by side are already combined with and, which is accepted but never needed.", example: "e:fire or e:air" },
+  { symbol: "( )", doc: "Grouping, so or applies to what you meant.", example: "t:minion (e:fire or e:air)" },
+  { symbol: "+", doc: "Every value in the list. For keys whose values are names, not free text.", example: "e:water+fire" },
+  { symbol: ",", doc: "Any value in the list.", example: "e:water,fire" },
+  { symbol: "\"…\"", doc: "A value with spaces in it, kept whole.", example: "r:\"draw a spell\"" },
+  { symbol: "!\"…\"", doc: "The entire card name and nothing else, which is a different question from finding a word inside a longer name.", example: "!\"Polar Bears\"" },
+];
+
 export interface FlagDef {
   name: string;
   /** Shorthands accepted in a query; the canonical name is what /syntax shows. */

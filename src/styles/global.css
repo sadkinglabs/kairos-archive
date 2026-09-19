@@ -362,7 +362,12 @@ table.fields td:first-child { white-space: nowrap; }
    row needs it; a phone still breaks them, where the room is scarcer. */
 @media (min-width: 741px) {
   .docs-content .reference-table td, .docs-content .reference-table td code { overflow-wrap: normal; }
-  .docs-content .reference-table td:first-child, .docs-content .reference-table td:nth-child(2) { white-space: nowrap; }
+  /* Only the key tables hold a key and its aliases in the first two
+     columns; elsewhere the second column is prose and has to wrap, or
+     it pushes the example off the side of the page. */
+  .docs-content .reference-table.keys td:first-child, .docs-content .reference-table.keys td:nth-child(2) { white-space: nowrap; }
+  .docs-content .reference-table td:first-child { white-space: nowrap; }
+  .docs-content .reference-table:not(.keys) td:last-child { white-space: nowrap; }
 }
 .code-block { margin: 0; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); font-size: .82rem; line-height: 1.55; overflow-x: auto; white-space: pre; }
 .code-block code { background: none; padding: 0; font-size: inherit; }
