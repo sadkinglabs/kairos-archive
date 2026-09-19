@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import { HAS_FLAGS, IS_FLAGS, KEYS, SORT_FIELDS, UNITS } from "../search/keys";
+import { HAS_FLAGS, IS_FLAGS, KEYS, OPERATORS, SORT_FIELDS, UNITS } from "../search/keys";
 const cardKeys = KEYS.filter((k) => k.scope === "card");
 const printingKeys = KEYS.filter((k) => k.scope === "printing");
 const numericKeys = KEYS.filter((k) => k.kind === "number").map((k) => k.aliases[0]);
@@ -11,6 +11,7 @@ const q = (s: string) => `/search?q=${encodeURIComponent(s)}`;
  * apart: the index is built from this, and each section takes its id
  * and heading from the same entry. A mistyped key fails the build. */
 const S = {
+  operators: { id: "operators", title: "Operators" },
   words: { id: "words", title: "Words" },
   wholeWords: { id: "whole-or-part", title: "The whole thing, or any part of it" },
   cardKeys: { id: "card-keys", title: "Card keys" },
@@ -32,6 +33,19 @@ const textKeys = KEYS.filter((k) => k.kind === "text");
   <h1>Search syntax</h1>
   <p>This page is generated from the same table the search engine is built from, so every key listed here works and no other does. Prefer clicking to typing? <a href="/advanced">Advanced search</a> builds these same queries from a form, and shows you the query it built.</p>
   <p class="muted">Each key has one short spelling — the one this page heads its row with — and longer, descriptive ones that mean exactly the same thing: <code>{alias('rarity')}:</code> is <code>rarity:</code>, <code>{alias('cost')}:</code> is <code>mana:</code> and <code>cost:</code>, <code>{alias('life')}:</code> is <code>life:</code>. Keys and values are case-insensitive.</p>
+
+  <details class="syntax-section" id={S.operators.id} open>
+    <summary><h2>{S.operators.title}</h2></summary>
+    <p>Every operator the language reads, with a worked example you can run. What each one does to a particular key is in that key's row further down.</p>
+    <div class="table-wrap"><table class="reference-table"><thead><tr><th>Operator</th><th>What it does</th><th>Example</th></tr></thead><tbody>
+      {OPERATORS.map((op) => <tr>
+        <td data-label="Operator"><code>{op.symbol}</code>{op.also && <span class="muted"> or <code>{op.also}</code></span>}</td>
+        <td data-label="What it does">{op.doc}</td>
+        <td data-label="Example"><a href={q(op.example)}><code>{op.example}</code></a></td>
+      </tr>)}
+    </tbody></table></div>
+    <p class="muted">Keys and values are case-insensitive, and so are <code>or</code>, <code>and</code> and <code>not</code>.</p>
+  </details>
 
   <details class="syntax-section" id={S.words.id} open>
     <summary><h2>{S.words.title}</h2></summary>
@@ -56,7 +70,7 @@ const textKeys = KEYS.filter((k) => k.kind === "text");
   <details class="syntax-section" id={S.cardKeys.id} open>
     <summary><h2>{S.cardKeys.title}</h2></summary>
     <p>These filter cards.</p>
-    <div class="table-wrap"><table class="reference-table"><thead><tr><th>Key</th><th>Aliases</th><th>Meaning</th><th>Examples</th></tr></thead><tbody>
+    <div class="table-wrap"><table class="reference-table keys"><thead><tr><th>Key</th><th>Aliases</th><th>Meaning</th><th>Examples</th></tr></thead><tbody>
       {cardKeys.map((k) => <tr><td data-label="Key"><code>{k.aliases[0]}:</code></td><td data-label="Aliases">{k.aliases.slice(1).map((a) => <code>{a}:</code>)}</td><td data-label="Meaning">{k.doc}{k.values && <span class="muted"> Values: {k.values.join(", ")}.</span>}</td><td data-label="Examples">{k.examples.map((e) => <div><a href={q(e)}><code>{e}</code></a></div>)}</td></tr>)}
     </tbody></table></div>
   </details>
@@ -64,7 +78,7 @@ const textKeys = KEYS.filter((k) => k.kind === "text");
   <details class="syntax-section" id={S.printingKeys.id} open>
     <summary><h2>{S.printingKeys.title}</h2></summary>
     <p><strong>All printing keys and printing flags in a query must be satisfied by one and the same printing of a card.</strong> <code>t:minion s:alpha f:foil</code> means minions with a printing that is both Alpha and foil; <code>or</code> between printing terms is judged printing by printing. Negating a printing term asks for a printing that lacks it: <code>-is:foil</code> is "has a non-foil printing".</p>
-    <div class="table-wrap"><table class="reference-table"><thead><tr><th>Key</th><th>Aliases</th><th>Meaning</th><th>Examples</th></tr></thead><tbody>
+    <div class="table-wrap"><table class="reference-table keys"><thead><tr><th>Key</th><th>Aliases</th><th>Meaning</th><th>Examples</th></tr></thead><tbody>
       {printingKeys.map((k) => <tr><td data-label="Key"><code>{k.aliases[0]}:</code></td><td data-label="Aliases">{k.aliases.slice(1).map((a) => <code>{a}:</code>)}</td><td data-label="Meaning">{k.doc}{k.values && <span class="muted"> Values: {k.values.join(", ")}.</span>}</td><td data-label="Examples">{k.examples.map((e) => <div><a href={q(e)}><code>{e}</code></a></div>)}</td></tr>)}
     </tbody></table></div>
   </details>
