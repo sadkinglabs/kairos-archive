@@ -32,6 +32,36 @@ describe("needsPrintings", () => {
 });
 
 describe("GET /cards", () => {
+  it("says why each card matched when the query asked about rules text", async () => {
+    const { deps } = app();
+    const { status, body } = await get("/cards?q=r=submerge", deps);
+    expect(status).toBe(200);
+    expect(body.total).toBeGreaterThan(0);
+    const first = body.data[0] as { rules_text: string; matched?: { text: string; ranges: [number, number][] } };
+    expect(first.matched, "a card matched on rules text carries its snippet").toBeDefined();
+    const { text, ranges } = first.matched!;
+    expect(ranges.length).toBeGreaterThan(0);
+    // The ranges must address the snippet it sent, not the whole text.
+    for (const [start, end] of ranges) {
+      expect(end).toBeLessThanOrEqual(text.length);
+      expect(text.slice(start, end).toLowerCase()).toBe("submerge");
+    }
+  });
+  it("marks the whole word only, the same way the search judged it", async () => {
+    const { deps } = app();
+    const loose = await get("/cards?q=r:merge", deps);
+    const strict = await get("/cards?q=r=submerge", deps);
+    const looseFirst = (loose.body.data[0] as { matched?: { text: string; ranges: [number, number][] } }).matched!;
+    const strictFirst = (strict.body.data[0] as { matched?: { text: string; ranges: [number, number][] } }).matched!;
+    expect(looseFirst.text.slice(...looseFirst.ranges[0]!).toLowerCase()).toBe("merge");
+    expect(strictFirst.text.slice(...strictFirst.ranges[0]!).toLowerCase()).toBe("submerge");
+  });
+  it("attaches nothing when the query never asked about rules text", async () => {
+    const { deps } = app();
+    const { body } = await get("/cards?q=t:minion", deps);
+    for (const card of body.data as { matched?: unknown }[]) expect(card.matched).toBeUndefined();
+  });
+
   it("answers = with the same whole-word rule the site uses", async () => {
     const { deps } = app();
     // The API has no matcher of its own: it runs the site's parser and

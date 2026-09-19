@@ -8,7 +8,7 @@
  * A query that never reads a printing is answered from the card list
  * alone; the printings load only when a term, flag, sort or unit needs
  * them. Answers are cacheable for five minutes and allow any origin. */
-import { directLookup, mentionsPrinting, paginate, parse, search, suggest } from "../../src/search";
+import { directLookup, mentionsPrinting, paginate, parse, rulesPhrases, search, snippetParts, suggest, type Phrase } from "../../src/search";
 import type { Card, Printing, SearchData } from "../../src/search";
 import { SORT_FIELDS, UNITS, type SortField, type Unit } from "../../src/search/keys";
 import { Data } from "./data";
@@ -165,6 +165,11 @@ async function list(url: URL, queryBase: string, deps: Deps): Promise<Response> 
     hits = result.hits;
     rulesText = result.rulesTextHits;
   }
+  // Why each card is here, when the query asked about rules text: the
+  // sentence that matched and where in it, worked out once here with the
+  // same matcher the search used. A client marks those ranges its own
+  // way rather than matching the text again and disagreeing.
+  const phrases = jump ? [] : rulesPhrases(parsed.ast);
   const page = Number(url.searchParams.get("page") ?? "1");
   const { items, info } = paginate(hits, page, size);
   const next = new URL(url);
@@ -184,8 +189,15 @@ async function list(url: URL, queryBase: string, deps: Deps): Promise<Response> 
     next_page: info.page < info.totalPages ? `${queryBase}/cards${next.search}` : null,
     rules_text_total: rulesText.length,
     rules_text_hits: rulesText.slice(0, 20).map((c) => ({ codex_id: c.codex_id, name: c.name, kairos_url: cardRecord(c, null).kairos_url })),
-    data: items.map((h) => cardRecord(h.card, h.printing)),
+    data: items.map((h) => withMatch(cardRecord(h.card, h.printing), phrases)),
   });
+}
+
+/** A record with its snippet attached, when there is one to attach. */
+function withMatch<T extends { rules_text: string }>(record: T, phrases: Phrase[]): T & { matched?: { text: string; ranges: [number, number][] } } {
+  const parts = snippetParts(record.rules_text, phrases);
+  if (!parts) return record;
+  return { ...record, matched: { text: parts.text, ranges: parts.ranges.map((r) => [r.start, r.end] as [number, number]) } };
 }
 
 function jumpHits(jump: NonNullable<ReturnType<typeof directLookup>>, data: SearchData): { card: Card; printing: Printing | null }[] {
