@@ -58,9 +58,9 @@ describe("describeChoice", () => {
   });
 });
 
-describe("complete words", () => {
+describe("whole words", () => {
   it("says so, because the tick changes what the filter means", () => {
-    expect(describeChoice({ value: "drag", say: "rules mention %s", wholeWords: true })).toBe("rules mention drag (complete words)");
+    expect(describeChoice({ value: "drag", say: "rules mention %s", wholeWords: true })).toBe("rules mention drag (whole words)");
     expect(describeChoice({ value: "drag", say: "rules mention %s" })).toBe("rules mention drag");
   });
   it("adds nothing to an empty field", () => {

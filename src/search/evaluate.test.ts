@@ -231,56 +231,68 @@ describe("logic, units and sorting", () => {
   });
 });
 
-describe("== over the data", () => {
+describe("= over the data: the whole word, and != its negation", () => {
   const names = (q: string) => search(q, DATA, SLUG_HISTORY).hits.map((h) => h.card.name).sort();
   it("tells the substring from the complete word in rules text", () => {
-    // Apprentice Wizard and Druid both read "Draw a spell"; Polar Bears
-    // reads "Submerge", which holds "merge" but not the word.
+    // Polar Bears reads "Submerge", which holds "merge" but not the word.
     expect(names("r:merge")).toEqual(["Polar Bears"]);
-    expect(names("r==merge")).toEqual([]);
-    expect(names("r==submerge")).toEqual(["Polar Bears"]);
+    expect(names("r=merge")).toEqual([]);
+    expect(names("r=submerge")).toEqual(["Polar Bears"]);
+  });
+  it("negates the same question it asks, which : and - do not", () => {
+    // != is the negation of =, so it keeps the card whose text holds
+    // merge only inside a longer word. -r: is the negation of r:, so it
+    // drops that card. Two different questions, each answered honestly.
+    const all = ["Apprentice Wizard", "Broken Site", "Druid", "Polar Bears", "Witch"];
+    expect(names("r!=merge")).toEqual(all);        // no card holds the word
+    expect(names("-r=merge")).toEqual(all);        // the same question, same answer
+    expect(names("-r:merge")).toEqual(["Apprentice Wizard", "Broken Site", "Druid", "Witch"]);
+  });
+  it("reads == and !== as = and !=, never as a value beginning with =", () => {
+    expect(names("r==merge")).toEqual(names("r=merge"));
+    expect(names("r!==merge")).toEqual(names("r!=merge"));
   });
   it("matches a phrase across the sentence, and not inside a longer word", () => {
-    expect(names('r=="draw a spell"')).toEqual(["Apprentice Wizard", "Druid"]);
-    expect(names('r=="raw a spell"')).toEqual([]);
+    expect(names('r="draw a spell"')).toEqual(["Apprentice Wizard", "Druid"]);
+    expect(names('r="raw a spell"')).toEqual([]);
     expect(names('r:"raw a spell"')).toEqual(["Apprentice Wizard", "Druid"]);
   });
   it("matches a word across the line break in the rules box", () => {
-    // "Spellcaster\nGenesis → Draw a spell."
-    expect(names('r=="spellcaster genesis"')).toEqual(["Apprentice Wizard"]);
+    expect(names('r="spellcaster genesis"')).toEqual(["Apprentice Wizard"]);
   });
   it("works on names, where bear is the word and Bears is not", () => {
     expect(names("n:bear")).toEqual(["Polar Bears"]);
-    expect(names("n==bear")).toEqual([]);
-    expect(names("n==bears")).toEqual(["Polar Bears"]);
-    expect(names('n=="polar bears"')).toEqual(["Polar Bears"]);
+    expect(names("n=bear")).toEqual([]);
+    expect(names("n=bears")).toEqual(["Polar Bears"]);
+    expect(names('n="polar bears"')).toEqual(["Polar Bears"]);
   });
   it("leaves the exact-name search meaning the whole name", () => {
     expect(names('!"Polar Bears"')).toEqual(["Polar Bears"]);
-    expect(names('!"Polar"')).toEqual([]);          // the entire name, not a word in it
-    expect(names("n==polar")).toEqual(["Polar Bears"]);  // a word inside the name
-  });
-  it("negates: the cards whose rules text lacks the word", () => {
-    expect(names("-r==spell")).toEqual(["Broken Site", "Polar Bears", "Witch"]);
-    expect(names("r==spell")).toEqual(["Apprentice Wizard", "Druid"]);
+    expect(names('!"Polar"')).toEqual([]);        // the entire name
+    expect(names("n=polar")).toEqual(["Polar Bears"]);  // a word inside it
   });
   it("works on printing text, and keeps the artist's two fields", () => {
     expect(names("a:menges")).toEqual(["Witch"]);
-    expect(names("a==menges")).toEqual(["Witch"]);
-    expect(names("a==menge")).toEqual([]);
-    expect(names("a==jeff")).toEqual(["Witch"]);      // the slug is jeff_a_menges
-    expect(names("tl==ordinary")).toEqual(["Apprentice Wizard", "Broken Site", "Druid", "Polar Bears", "Witch"]);
-    expect(names("tl==ordinar")).toEqual([]);
+    expect(names("a=menges")).toEqual(["Witch"]);
+    expect(names("a=menge")).toEqual([]);
+    expect(names("a=jeff")).toEqual(["Witch"]);   // the slug is jeff_a_menges
+    expect(names("tl=ordinary")).toEqual(["Apprentice Wizard", "Broken Site", "Druid", "Polar Bears", "Witch"]);
+    expect(names("tl=ordinar")).toEqual([]);
   });
   it("combines with everything else, printing scope included", () => {
-    expect(names("r==spell t:minion")).toEqual(["Apprentice Wizard"]);
-    expect(names("r==spell s:alpha")).toEqual(["Apprentice Wizard"]);
-    expect(names('(r==submerge or r=="draw a spell") e:water')).toEqual(["Polar Bears"]);
-    // merge is not a word of "Submerge", so this alternative finds nothing.
-    expect(names('(r==merge or r=="draw a spell") e:water')).toEqual([]);
+    expect(names("r=spell t:minion")).toEqual(["Apprentice Wizard"]);
+    expect(names("r=spell s:alpha")).toEqual(["Apprentice Wizard"]);
+    expect(names('(r=submerge or r="draw a spell") e:water')).toEqual(["Polar Bears"]);
+    expect(names('(r=merge or r="draw a spell") e:water')).toEqual([]);
+  });
+  it("still means equality on the kinds that had it, unchanged", () => {
+    expect(names("m=3")).toEqual(names("m:3"));
+    expect(names("t=minion")).toEqual(names("t:minion"));
+    expect(names("e=water")).toEqual(["Polar Bears"]);   // exactly Water
+    expect(names("e:water")).toEqual(["Polar Bears", "Witch"]);
   });
   it("searches for the value literally, never as a pattern", () => {
     expect(names("r:.*")).toEqual([]);
-    expect(names("r==.*")).toEqual([]);
+    expect(names("r=.*")).toEqual([]);
   });
 });

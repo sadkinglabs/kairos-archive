@@ -10,8 +10,10 @@ describe("rulesPhrases", () => {
   it("collects the values of r: terms", () => {
     expect(rulesPhrases(parse('r:"draw a spell" t:minion').ast)).toEqual(some("draw a spell"));
   });
-  it("accepts the rules alias and both including operators", () => {
-    expect(rulesPhrases(parse("rules:draw r=spell").ast)).toEqual(some("draw", "spell"));
+  it("accepts the rules alias, and carries each operator's own meaning", () => {
+    // r:draw marks any "draw"; r=spell marks only the whole word, so the
+    // two cannot be collapsed into one list of plain strings.
+    expect(rulesPhrases(parse("rules:draw r=spell").ast)).toEqual([{ text: "draw", whole: false }, { text: "spell", whole: true }]);
   });
   it("skips negated terms, whichever way they are written", () => {
     expect(rulesPhrases(parse("-r:draw not r:spell r!=curse r:genesis").ast)).toEqual(some("genesis"));
@@ -89,14 +91,15 @@ describe("markText", () => {
   });
 });
 
-describe("marking a complete-word match", () => {
+describe("marking a whole-word match", () => {
   const text = "Submerge. Dragons drag their prey.";
   it("carries the operator through from the query", () => {
+    expect(rulesPhrases(parse("r=drag").ast)).toEqual([word("drag")]);
     expect(rulesPhrases(parse("r==drag").ast)).toEqual([word("drag")]);
     expect(rulesPhrases(parse("r:drag").ast)).toEqual(some("drag"));
   });
   it("keeps the two apart when both are asked for", () => {
-    expect(rulesPhrases(parse("r:drag r==drag").ast)).toEqual([{ text: "drag", whole: false }, { text: "drag", whole: true }]);
+    expect(rulesPhrases(parse("r:drag r=drag").ast)).toEqual([{ text: "drag", whole: false }, { text: "drag", whole: true }]);
   });
   it("marks only the word when the query asked for the word", () => {
     expect(markText(text, [word("drag")])).toBe("Submerge. Dragons <mark>drag</mark> their prey.");

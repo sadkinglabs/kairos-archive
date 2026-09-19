@@ -40,9 +40,7 @@ export function resolveEnum(value: string, values: string[], aliases?: Record<st
 function compareNumbers(actual: number | null, op: Op, wanted: number): boolean {
   if (actual === null) return op === "!=";
   switch (op) {
-    // "==" is refused on numbers by the parser and never arrives here;
-    // reading it as equality keeps this total rather than throwing.
-    case ":": case "=": case "==": return actual === wanted;
+    case ":": case "=": return actual === wanted;
     case "!=": return actual !== wanted;
     case "<": return actual < wanted;
     case "<=": return actual <= wanted;
@@ -60,8 +58,7 @@ function compareDates(actual: string | null, op: Op, wanted: string): boolean {
   const lo = w.length === 4 ? `${w}-01-01` : w.length === 7 ? `${w}-01` : w;
   const hi = w.length === 4 ? `${w}-12-31` : w.length === 7 ? `${w}-31` : w;
   switch (op) {
-    // As above: the parser refuses "==" on a date.
-    case ":": case "=": case "==": return actual >= lo && actual <= hi;
+    case ":": case "=": return actual >= lo && actual <= hi;
     case "!=": return actual < lo || actual > hi;
     case "<": return actual < lo;
     case "<=": return actual <= hi;
@@ -154,6 +151,11 @@ interface Context {
   printingCounts: Map<string, number>;
 }
 
+/** Whether a text term is asking for complete words. "=" is, and "!="
+ * is its negation, so it asks the same question and inverts the answer;
+ * ":" ignores word boundaries and so does "-r:", its negation. */
+export const wholeWords = (op: Op): boolean => op === "=" || op === "!=";
+
 function evalTerm(node: Extract<Node, { kind: "term" }>, card: Card, printing: Printing | null, ctx: Context): boolean {
   const { key, op, value } = node;
   const negate = op === "!=";
@@ -167,13 +169,13 @@ function evalTerm(node: Extract<Node, { kind: "term" }>, card: Card, printing: P
       case "date": return compareDates(printing.released_at, op, value);
       case "text": {
         const fields = key.name === "artist" ? [printing.artist, printing.artist_slug] : [(printing as unknown as Record<string, string | null>)[key.field]];
-        return truth(fields.some((f) => textMatches(f, value, op === "==")));
+        return truth(fields.some((f) => textMatches(f, value, wholeWords(op))));
       }
       default: return false;
     }
   }
   switch (key.kind) {
-    case "text": return truth(textMatches((card as unknown as Record<string, string>)[key.field], value, op === "=="));
+    case "text": return truth(textMatches((card as unknown as Record<string, string>)[key.field], value, wholeWords(op)));
     case "number": return numberValue(card, key, op, value);
     case "enum": {
       const wanted = resolveEnum(value, key.values ?? []);
