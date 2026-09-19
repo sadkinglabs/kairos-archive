@@ -55,7 +55,10 @@ export default defineConfig({
       // The 404 page and bare /cards/{id} links (superseded by the
       // _redirects rules above) aren't destinations worth indexing.
       // /random needs no exclusion: it is a Pages Function, not a page.
+      // /search is left out because public/robots.txt refuses it, and a
+      // sitemap that lists a refused URL contradicts itself.
       filter: (page) => !page.endsWith("/404")
+        && new URL(page).pathname !== "/search"
         && !/\/cards\/[^/]+$/.test(new URL(page).pathname),
     }),
   ],

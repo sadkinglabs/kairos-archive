@@ -31,6 +31,38 @@ describe("needsPrintings", () => {
   });
 });
 
+describe("GET /robots.txt", () => {
+  it("refuses crawlers, and points them at the data instead", async () => {
+    const { deps } = app();
+    const res = await handle(new Request("https://query.test/robots.txt", { headers: { "user-agent": "crawler/1" } }), env, deps);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/plain");
+    const body = await res.text();
+    expect(body).toContain("User-agent: *");
+    expect(body).toContain("Disallow: /");
+    expect(body).toContain("kairosarchive.net/docs/data");
+  });
+  it("answers a crawler that sends no User-Agent, which the rest of the API refuses", async () => {
+    // A crawler told 403 for its robots.txt reads the silence as
+    // permission, so this one request is answered whoever is asking.
+    const { deps } = app();
+    const res = await handle(new Request("https://query.test/robots.txt"), env, deps);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("Disallow: /");
+  });
+  it("answers it past the rate limit too, for the same reason", async () => {
+    const { deps } = app();
+    const spent = { ...env, LIMITER: { limit: async () => ({ success: false }) } } as typeof env;
+    const res = await handle(new Request("https://query.test/robots.txt", { headers: { "user-agent": "crawler/1", "cf-connecting-ip": "203.0.113.1" } }), spent, deps);
+    expect(res.status).toBe(200);
+  });
+  it("is still a 404 for any other unserved path", async () => {
+    const { deps } = app();
+    const res = await handle(new Request("https://query.test/robots", { headers: { "user-agent": "t/1" } }), env, deps);
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("GET /cards", () => {
   it("says why each card matched when the query asked about rules text", async () => {
     const { deps } = app();

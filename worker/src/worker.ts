@@ -54,8 +54,24 @@ export async function handle(request: Request, env: Env, deps: Deps = { data: da
   return res;
 }
 
+/** What a crawler is told at the door. Served before the User-Agent
+ * check and before the rate limit, both deliberately: a crawler that is
+ * refused its robots.txt, or rate-limited out of reading one, takes the
+ * silence for permission and crawls anyway. This is the one request on
+ * the API that has to be answered no matter who is asking. */
+const ROBOTS = `# The Kairos Archive query API answers searches; it computes rather
+# than serving files, so it is not something to crawl. The card pages
+# are at https://kairosarchive.net and the whole dataset is one file:
+# https://kairosarchive.net/docs/data
+User-agent: *
+Disallow: /
+`;
+
 async function answer(request: Request, env: Env, deps: Deps): Promise<Response> {
   if (request.method !== "GET" && request.method !== "HEAD") return error(405, "method_not_allowed", "Only GET is served.");
+  if (new URL(request.url).pathname.replace(/\/+$/, "") === "/robots.txt") {
+    return new Response(ROBOTS, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" } });
+  }
   // The same rule as the rest of the API: say who you are.
   if (!(request.headers.get("user-agent") ?? "").trim()) {
     return error(403, "user_agent_required", "Send a User-Agent naming your project and a way to reach you. https://kairosarchive.net/docs");
