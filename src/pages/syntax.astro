@@ -24,17 +24,12 @@ const S = {
 const sections = Object.values(S);
 ---
 <Base title="Search syntax" canonical="/syntax">
+  <div class="docs-layout">
+    <aside class="docs-nav"><details class="docs-menu" open><summary><span class="eyebrow">On this page</span><span class="current">Sections</span><span class="chevron" aria-hidden="true"></span></summary><nav aria-label="On this page"><div class="group">{sections.map((s) => <a href={`#${s.id}`}>{s.title}</a>)}</div></nav></details></aside>
+    <article class="docs-content">
   <h1>Search syntax</h1>
   <p>This page is generated from the same table the search engine is built from, so every key listed here works and no other does. Prefer clicking to typing? <a href="/advanced">Advanced search</a> builds these same queries from a form, and shows you the query it built.</p>
   <p class="muted">Each key has one short spelling — the one this page heads its row with — and longer, descriptive ones that mean exactly the same thing: <code>{alias('rarity')}:</code> is <code>rarity:</code>, <code>{alias('cost')}:</code> is <code>mana:</code> and <code>cost:</code>, <code>{alias('life')}:</code> is <code>life:</code>. Keys and values are case-insensitive.</p>
-
-  <nav class="syntax-index" aria-label="On this page">
-    <div class="index-head">
-      <h2>On this page</h2>
-      <button type="button" id="fold-all" data-collapse="Collapse all" data-expand="Expand all" hidden>Collapse all</button>
-    </div>
-    <ol>{sections.map((s) => <li><a href={`#${s.id}`}>{s.title}</a></li>)}</ol>
-  </nav>
 
   <details class="syntax-section" id={S.words.id} open>
     <summary><h2>{S.words.title}</h2></summary>
@@ -92,27 +87,25 @@ const sections = Object.values(S);
     <summary><h2>{S.results.title}</h2></summary>
     <p><code>unique:</code> {UNITS.map((u) => <code>{u}</code>)} — one row per card (the default, shown with the printing that matched or the default printing), every matching printing, or one per distinct artwork. <code>sort:</code> {SORT_FIELDS.map((s) => <code>{s}</code>)} and <code>order:asc|desc</code> (name ascending by default; dates newest first). Everything lives in the URL, so a search is shareable. A query that is exactly an id (<code>C000230</code>, <code>P000937</code>) or an official slug jumps straight to its page.</p>
   </details>
+    </article>
+  </div>
 </Base>
 
 <script>
-  // Sections are open in the markup, so the page reads and prints whole
-  // and find-in-page reaches every key without JavaScript. The control
-  // below is the one thing that needs it, so it stays hidden until it
-  // works. A visitor who folds the page up keeps it folded.
-  const KEPT = "kairos:syntax-folded";
-  const sections = Array.from(document.querySelectorAll<HTMLDetailsElement>("details.syntax-section"));
-  const button = document.querySelector<HTMLButtonElement>("#fold-all");
+  // The section index behaves like the API docs sidebar: on a phone it is
+  // a bar that opens on tap, on a wide screen it is the sidebar, always
+  // open. The markup ships open, so without JavaScript every screen sees
+  // the whole list.
+  const menu = document.querySelector<HTMLDetailsElement>("details.docs-menu");
+  const narrow = window.matchMedia("(max-width: 740px)");
+  const apply = () => { if (menu) menu.open = !narrow.matches; };
+  apply();
+  narrow.addEventListener("change", apply);
 
-  const remember = (folded: boolean) => { try { localStorage.setItem(KEPT, folded ? "1" : "0"); } catch { /* A browser that keeps nothing still folds. */ } };
-  const label = () => {
-    if (!button) return;
-    const anyOpen = sections.some((s) => s.open);
-    button.textContent = anyOpen ? button.dataset.collapse! : button.dataset.expand!;
-    button.setAttribute("aria-expanded", String(anyOpen));
-  };
-
-  // A link into a folded section must still arrive: open the section the
-  // hash names, or the one holding the element it names, then scroll.
+  // Sections fold, and they ship open, so the page still reads whole,
+  // prints whole and answers find-in-page without JavaScript. A link into
+  // a folded one must still arrive: open the section the hash names, or
+  // the one holding the element it names, then scroll to it.
   const reveal = (hash: string) => {
     const id = decodeURIComponent(hash.replace(/^#/, ""));
     if (!id) return;
@@ -120,25 +113,9 @@ const sections = Object.values(S);
     const section = target?.closest<HTMLDetailsElement>("details.syntax-section");
     if (!section) return;
     section.open = true;
-    label();
     target!.scrollIntoView();
+    if (narrow.matches && menu) menu.open = false;   // Close the drop box behind you.
   };
-
-  if (button && sections.length) {
-    button.hidden = false;
-    let folded = false;
-    try { folded = localStorage.getItem(KEPT) === "1"; } catch { /* Default to the markup's open sections. */ }
-    if (folded) for (const s of sections) s.open = false;
-    button.addEventListener("click", () => {
-      const open = sections.some((s) => s.open);
-      for (const s of sections) s.open = !open;
-      remember(open);
-      label();
-      if (!open) button.scrollIntoView({ block: "nearest" });
-    });
-    for (const s of sections) s.addEventListener("toggle", label);
-    label();
-    reveal(location.hash);
-    window.addEventListener("hashchange", () => reveal(location.hash));
-  }
+  reveal(location.hash);
+  window.addEventListener("hashchange", () => reveal(location.hash));
 </script>

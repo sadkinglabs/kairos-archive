@@ -289,20 +289,10 @@ table { border-collapse: collapse; width: 100%; font-size: .88rem; }
 th, td { text-align: left; padding: .75rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; }
 .table-wrap { overflow-x: auto; }
-/* The search syntax reference is long by nature, so it carries its own
-   index and folds section by section. The sections are open in the
-   markup: nothing is hidden from find-in-page, or from a printer, until
-   a reader chooses to fold them. */
-.syntax-index { margin: 1.6rem 0 2rem; padding: 1rem 1.2rem 1.1rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
-.syntax-index .index-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.syntax-index h2 { font: 600 .72rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0; }
-.syntax-index #fold-all { min-height: 36px; padding: .3rem .7rem; font-size: .82rem; background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; }
-.syntax-index #fold-all:hover { color: var(--accent); border-color: var(--accent); }
-.syntax-index ol { list-style: none; margin: .7rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .1rem .9rem; counter-reset: syntax-index; }
-.syntax-index li { counter-increment: syntax-index; }
-.syntax-index a { display: block; padding: .3rem 0; color: var(--fg); text-decoration: none; font-size: .93rem; }
-.syntax-index a::before { content: counter(syntax-index) '. '; color: var(--muted); }
-.syntax-index a:hover { color: var(--accent); text-decoration: underline; }
+/* The search syntax reference is long by nature, so it carries the
+   docs pages' own section index: a sidebar on a wide screen, a drop box
+   on a phone. Its sections fold too. They are open in the markup, so
+   nothing is hidden from find-in-page or a printer by default. */
 .syntax-section { border-top: 1px solid var(--line); }
 .syntax-section > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: .6rem; }
 .syntax-section > summary::-webkit-details-marker { display: none; }
@@ -313,7 +303,7 @@ th { color: var(--muted); font-weight: 600; }
 .syntax-section > summary h2 { margin: 1.4rem 0 1.1rem; }
 .syntax-section > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
 .syntax-section > :last-child { margin-bottom: 1.6rem; }
-@media print { .syntax-index #fold-all { display: none; } .syntax-section > summary::before { display: none; } }
+@media print { .syntax-section > summary::before { display: none; } }
 table.files td:nth-child(3), table.files td:nth-child(4) { white-space: nowrap; }
 code.digest { overflow-wrap: anywhere; }
 table.fields td.type { color: var(--muted); font-size: .84rem; min-width: 9rem; }
@@ -343,10 +333,20 @@ table.fields td:first-child { white-space: nowrap; }
 .docs-menu > summary .current, .docs-menu > summary .chevron { display: none; }
 .docs-menu > summary .eyebrow { display: block; margin-bottom: .6rem; }
 .docs-nav nav { display: grid; gap: 1rem; position: sticky; top: 1.5rem; }
+/* The index has to stay on screen down a long page, and a details
+   element contains its own content, which pins a sticky descendant
+   inside it. So on a wide screen the disclosure itself is the sticky
+   box, travelling the column its aside gives it. On a phone it is a
+   drop box in the flow and stays where it is. */
+@media (min-width: 741px) {
+  .docs-nav > .docs-menu { position: sticky; top: 1.5rem; max-height: calc(100vh - 3rem); overflow-y: auto; }
+  .docs-nav nav { position: static; }
+}
 .docs-nav .group { display: grid; gap: .15rem; }
 .docs-nav .group-name { margin: 0 0 .3rem .7rem; font: 600 .66rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .docs-nav a { padding: .5rem .7rem; text-decoration: none; font-size: .87rem; border-radius: 5px; }
 .docs-nav a[aria-current] { background: var(--badge); color: var(--fg); }
+.docs-nav .nav-title { margin: 0 0 .6rem; font-size: .95rem; font-weight: 600; }
 .docs-content { min-width: 0; }
 .docs-content p, .docs-content li { max-width: 75ch; }
 .docs-content h1 { font-size: 2.7rem; }
@@ -355,6 +355,15 @@ table.fields td:first-child { white-space: nowrap; }
 .docs-content pre code { background: transparent; padding: 0; }
 .docs-content .endpoint { overflow-wrap: anywhere; }
 .docs-content .table-wrap td { overflow-wrap: anywhere; }
+/* Breaking anywhere suits the long addresses in the API docs, and code
+   carries it site-wide, but the syntax reference's key cells hold short
+   keys: split across lines, pro: and date: stop reading as keys. On a
+   wide screen they keep to one line and the table scrolls sideways if a
+   row needs it; a phone still breaks them, where the room is scarcer. */
+@media (min-width: 741px) {
+  .docs-content .reference-table td, .docs-content .reference-table td code { overflow-wrap: normal; }
+  .docs-content .reference-table td:first-child, .docs-content .reference-table td:nth-child(2) { white-space: nowrap; }
+}
 .code-block { margin: 0; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--card); font-size: .82rem; line-height: 1.55; overflow-x: auto; white-space: pre; }
 .code-block code { background: none; padding: 0; font-size: inherit; }
 /* Shiki (CodeExample.astro) puts both themes' colours on every token as
