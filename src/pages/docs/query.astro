@@ -61,6 +61,14 @@ for (const card of page.data) console.log(card.name, card.printing.set_name, car
   <CodeExample code={list} lang="json" title="Response · a list" />
   <p>A record is the compact card the search page uses, plus its addresses, its image addresses, and <code>printing</code>: the printing the match was judged on when the query read one (a set, finish, product, artist or date term, a printing flag, or <code>unique:prints</code>), with that printing's facts and addresses; otherwise the card's default printing by id. With <code>unique:prints</code> or <code>unique:art</code> the same card appears once per matching printing.</p>
   <p><code>rules_text_hits</code> is the second group the search page shows: cards whose rules text, not their name, contains the bare words of a query, so a plain word never silently mixes the two. <code>release</code> names the registry release the answer came from. An id or a slug as the whole query answers with that one card.</p>
+  <h2 id="why-a-card-matched">Why a card matched</h2>
+  <p>When a query asks about rules text, every record in <code>data</code> carries a <code>matched</code> object saying why it is there: the sentence that matched, and where inside that sentence. It is left out entirely when the query never read rules text, and on the routes that answer with a single card.</p>
+  <pre><code>{`"matched": {
+  "text": "Submerge (This may attack targets that are submerged.)",
+  "ranges": [[0, 8]]
+}`}</code></pre>
+  <p>A range is a pair of offsets into <code>matched.text</code>, half-open, so <code>text.slice(0, 8)</code> is the matched word. There can be several, and they never overlap. Offsets address the snippet, not the card's whole <code>rules_text</code>, which the sentence may have been cut from and marked with an ellipsis.</p>
+  <p>The ranges are worked out by the same matcher that judged the search, so <code>r:merge</code> marks the <em>merge</em> inside Submerge while <code>r=merge</code> matches no card at all. Mark them however suits you: the search page wraps them in <code>&lt;mark&gt;</code>, the Discord bot in bold. Matching the text again yourself is the one way to disagree with the result you were given.</p>
 
   <h2>From page JavaScript</h2>
   <p>Answers carry <code>Access-Control-Allow-Origin: *</code> and a five-minute <code>Cache-Control</code>, so a browser or a Worker can call the API directly.</p>

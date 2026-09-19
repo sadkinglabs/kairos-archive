@@ -132,6 +132,15 @@ export function markText(rulesText: string | null | undefined, phrases: Phrase[]
  * as HTML with the phrases marked; null when nothing matches or there is
  * nothing to look for. */
 export function snippet(rulesText: string | null | undefined, phrases: Phrase[]): string | null {
+  const parts = snippetParts(rulesText, phrases);
+  return parts && mark(parts.text, parts.ranges);
+}
+
+/** The same snippet before anything is done to it: the text to show and
+ * where inside it the query matched. The site wraps those in <mark>; the
+ * Discord bot wraps them in bold; the query API hands them to whoever
+ * asked. One reading of "why this card", rendered three ways. */
+export function snippetParts(rulesText: string | null | undefined, phrases: Phrase[]): { text: string; ranges: { start: number; end: number }[] } | null {
   if (phrases.length === 0 || !rulesText) return null;
   for (const sentence of sentences(rulesText)) {
     const found = ranges(sentence, phrases);
@@ -140,7 +149,7 @@ export function snippet(rulesText: string | null | undefined, phrases: Phrase[])
     const cut = window(sentence, first.start, first.end);
     // The window may have trimmed and prefixed the sentence, so the
     // offsets are found again on the text actually shown.
-    return mark(cut, ranges(cut, phrases));
+    return { text: cut, ranges: ranges(cut, phrases) };
   }
   return null;
 }
