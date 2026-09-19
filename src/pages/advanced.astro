@@ -104,8 +104,10 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       <details class="group">
         <summary><span class="group-title">Card</span><span class="badge"></span></summary>
         <div class="grid-fields">
-          <label class="field">Name<input data-key={alias('name')} data-say="named %s" type="text" placeholder="polar bears" /></label>
-          <label class="field">Rules contain<input data-key={alias('rules')} data-say="rules mention %s" type="text" placeholder="draw a spell" /></label>
+          <label class="field">Name<input data-key={alias('name')} data-say="named %s" type="text" placeholder="polar bears" />
+            <span class="whole"><input type="checkbox" data-whole /> Complete words only</span></label>
+          <label class="field">Rules contain<input data-key={alias('rules')} data-say="rules mention %s" type="text" placeholder="draw a spell" />
+            <span class="whole"><input type="checkbox" data-whole /> Complete words only</span></label>
           <label class="field">Type<select data-key={alias('type')}><option value="">Any type</option>{key('type').values?.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Rarity<select data-key={alias('rarity')}><option value="">Any rarity</option>{key('rarity').values?.map(v => <option value={v}>{v}</option>)}</select></label>
           <label class="field">Group<select data-key={alias('umbrella')}><option value="">Any group</option>{umbrellas.map(v => <option value={v}>{v}</option>)}</select></label>
@@ -197,6 +199,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     let lastGenerated = '';
     const controls = Array.from(fields.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-key]'));
     const ops = Array.from(fields.querySelectorAll<HTMLSelectElement>('[data-op]'));
+    const wholes = Array.from(fields.querySelectorAll<HTMLInputElement>('[data-whole]'));
     const reset = document.querySelector<HTMLButtonElement>('#reset-fields')!;
     // Every group is folded by default, so each one reports the terms it
     // contributes in its own summary: a closed group can never hide a filter.
@@ -217,11 +220,14 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       // An option can emit a different key ("None at all" is e:none, not a
       // flag) or negate itself (is:errata becomes -is:errata).
       const selected = control instanceof HTMLSelectElement ? control.selectedOptions[0] : null;
-      // A numeric row carries its operator in the select beside it.
+      // A numeric row carries its operator in the select beside it; a text
+      // field carries one in the tick beside it, which asks for complete
+      // words rather than any run of letters.
       const chosen = control.closest('.numeric')?.querySelector<HTMLSelectElement>('[data-op]');
+      const whole = control.closest('.field')?.querySelector<HTMLInputElement>('[data-whole]');
       return term({
         key: selected?.dataset.keyOverride ?? control.dataset.key ?? '',
-        op: chosen?.value ?? control.dataset.operator ?? ':',
+        op: chosen?.value ?? (whole?.checked ? '==' : undefined) ?? control.dataset.operator ?? ':',
         value: control.value,
         negate: selected?.dataset.negate !== undefined,
       });
@@ -233,8 +239,10 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
       // A numeric row reads as "mana cost at most 3": its label, the word on
       // the operator select beside it, then the number.
       const operator = control.closest('.numeric')?.querySelector<HTMLSelectElement>('[data-op]');
+      const whole = control.closest('.field')?.querySelector<HTMLInputElement>('[data-whole]');
       return describeChoice({
         value: control.value,
+        wholeWords: whole?.checked === true,
         optionText: control instanceof HTMLSelectElement ? (control.selectedOptions[0].textContent ?? undefined) : undefined,
         operatorWord: operator?.selectedOptions[0].textContent ?? undefined,
         label: control.dataset.label,
@@ -276,6 +284,7 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
 
     function clearFields() {
       controls.forEach(c => { c.value = ''; });
+      wholes.forEach(w => { w.checked = false; });
       ops.forEach(s => { s.selectedIndex = 0; });
       groups.forEach(group => {
         group.boxes.forEach(b => { b.checked = false; });
@@ -293,6 +302,10 @@ const SORT_LABELS: Record<string, string> = { name: 'Name', cost: 'Mana cost', t
     });
     controls.forEach(control => control.addEventListener('input', update));
     ops.forEach(op => op.addEventListener('input', update));
+    // The complete-words tick carries no data-key of its own - it changes
+    // the operator of the field beside it - so it needs its own listener
+    // or the query would not follow it.
+    wholes.forEach(box => box.addEventListener('change', update));
     groups.forEach(group => {
       group.boxes.forEach(box => box.addEventListener('change', update));
       group.mode?.addEventListener('input', update);

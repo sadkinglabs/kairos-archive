@@ -54,13 +54,20 @@ export interface Choice {
   label?: string;
   /** a phrase with %s for the value: "named %s" */
   say?: string;
+  /** the text field asked for complete words (==) rather than any run
+   * of letters, which changes what the filter means and so has to be
+   * said, not left to the query box. */
+  wholeWords?: boolean;
 }
 
 export function describeChoice(choice: Choice): string {
   const value = choice.value.trim();
   if (value === "") return "";
   const text = choice.optionText ?? value;
-  if (choice.operatorWord && choice.label) return `${choice.label} ${choice.operatorWord} ${text}`;
-  if (choice.say) return choice.say.replace("%s", text);
-  return choice.label ? `${choice.label} ${text}` : text;
+  const said = (): string => {
+    if (choice.operatorWord && choice.label) return `${choice.label} ${choice.operatorWord} ${text}`;
+    if (choice.say) return choice.say.replace("%s", text);
+    return choice.label ? `${choice.label} ${text}` : text;
+  };
+  return choice.wholeWords ? `${said()} (complete words)` : said();
 }

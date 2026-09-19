@@ -391,6 +391,10 @@ table.fields td:first-child { white-space: nowrap; }
 .advanced-form p.hint { margin: .9rem 0 0; font-size: .8rem; }
 .advanced-form .boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: .45rem .9rem; margin: .7rem 0 .9rem; }
 .advanced-form details.group.picker .grid-fields { margin-top: .2rem; }
+/* The tick that turns a text field into a complete-word search sits
+   under its input, quiet until someone looks for it. */
+.advanced-form .field .whole { display: flex; align-items: center; gap: .4rem; margin-top: .4rem; font-size: .78rem; color: var(--muted); }
+.advanced-form .field .whole input { min-height: 0; margin: 0; }
 .advanced-form label.box { display: flex; align-items: center; gap: .4rem; min-height: 44px; cursor: pointer; font-size: .9rem; overflow-wrap: anywhere; }
 .advanced-form label.box input { width: auto; min-height: 0; }
 .advanced-form .reset-row { margin: 0; }

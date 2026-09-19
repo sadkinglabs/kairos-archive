@@ -12,6 +12,7 @@ const q = (s: string) => `/search?q=${encodeURIComponent(s)}`;
  * and heading from the same entry. A mistyped key fails the build. */
 const S = {
   words: { id: "words", title: "Words" },
+  wholeWords: { id: "complete-words", title: "Complete words" },
   cardKeys: { id: "card-keys", title: "Card keys" },
   printingKeys: { id: "printing-keys", title: "Printing keys" },
   numbers: { id: "numbers", title: "Numbers and dates" },
@@ -22,6 +23,7 @@ const S = {
   results: { id: "results", title: "Results, sorting, ids" },
 };
 const sections = Object.values(S);
+const textKeys = KEYS.filter((k) => k.kind === "text");
 ---
 <Base title="Search syntax" canonical="/syntax">
   <div class="docs-layout">
@@ -34,6 +36,19 @@ const sections = Object.values(S);
   <details class="syntax-section" id={S.words.id} open>
     <summary><h2>{S.words.title}</h2></summary>
     <p>Bare words match the card <strong>name</strong> (each word, anywhere, case-insensitive): <a href={q("polar")}>polar</a>. <code>!"Polar Bears"</code> is the exact name. Cards whose <em>rules text</em> contains your words appear in a separate group below the name matches, so a bare word never silently mixes the two; use <code>r:</code> to search rules text on purpose.</p>
+  </details>
+
+  <details class="syntax-section" id={S.wholeWords.id} open>
+    <summary><h2>{S.wholeWords.title}</h2></summary>
+    <p><code>:</code> looks for the letters anywhere, so <a href={q("r:drag")}><code>r:drag</code></a> finds Dragon. <code>==</code> asks for the complete word instead.</p>
+    <div class="table-wrap"><table class="reference-table"><thead><tr><th>Syntax</th><th>Meaning</th></tr></thead><tbody>
+      <tr><td data-label="Syntax"><a href={q("r:drag")}><code>r:drag</code></a></td><td data-label="Meaning">Contains those letters anywhere, Dragon included.</td></tr>
+      <tr><td data-label="Syntax"><a href={q("r==drag")}><code>r==drag</code></a></td><td data-label="Meaning">Contains the complete word <em>drag</em>, and so not Dragon.</td></tr>
+      <tr><td data-label="Syntax"><a href={q('r=="draw a spell"')}><code>r=="draw a spell"</code></a></td><td data-label="Meaning">Contains that phrase, with a word boundary at each end.</td></tr>
+      <tr><td data-label="Syntax"><a href={q("-r==drag")}><code>-r==drag</code></a></td><td data-label="Meaning">Does not contain the complete word <em>drag</em>.</td></tr>
+    </tbody></table></div>
+    <p>It works on every key whose value is free text - {textKeys.map((k, i) => <>{i > 0 && ", "}<code>{k.aliases[0]}</code></>)} - and on every spelling of those keys, so <code>rules==draw</code> is <code>r==draw</code>. A word ends wherever a character is not a letter or a number, which means punctuation and line breaks divide words: <a href={q("r==step")}><code>r==step</code></a> finds “step,” at the end of a sentence, and <a href={q("r==force")}><code>r==force</code></a> finds “force-move”. A quoted phrase does not mind how much space is between its words, so it still matches across the line break a rules box prints.</p>
+    <p class="muted">Only text takes <code>==</code>. A number, a date or a value from a fixed list is already matched whole by <code>:</code>, so <code>m==3</code> or <code>t==minion</code> is reported as a mistake rather than quietly meaning a third thing. And <code>==</code> finds a word <em>inside</em> a name, which is not what <code>!"Polar Bears"</code> does: that is still the entire name and nothing else.</p>
   </details>
 
   <details class="syntax-section" id={S.cardKeys.id} open>

@@ -237,3 +237,51 @@ describe("a symbol that is not an operator", () => {
     }
   });
 });
+
+describe("== asks for a complete word", () => {
+  const term = (q: string) => {
+    const { ast, errors } = parse(q);
+    return { ast, errors };
+  };
+  it("is read as one operator, not = followed by a stray =", () => {
+    const { ast, errors } = term("r==drag");
+    expect(errors).toEqual([]);
+    expect(ast).toEqual({ kind: "term", key: expect.objectContaining({ name: "rules" }), op: "==", value: "drag" });
+  });
+  it("keeps a quoted phrase whole", () => {
+    const { ast, errors } = term('r=="draw a spell"');
+    expect(errors).toEqual([]);
+    expect(ast).toMatchObject({ op: "==", value: "draw a spell" });
+  });
+  it("negates the usual way", () => {
+    const { ast, errors } = term("-r==drag");
+    expect(errors).toEqual([]);
+    expect(ast).toEqual({ kind: "not", item: { kind: "term", key: expect.objectContaining({ name: "rules" }), op: "==", value: "drag" } });
+  });
+  it("works on every free-text key, by any of its spellings", () => {
+    for (const q of ["n==bear", "name==bear", "r==draw", "rules==draw", "a==menges", "artist==menges", "tl==power", "typeline==power", "ft==realm", "flavour==realm"]) {
+      expect(parse(q).errors, q).toEqual([]);
+      expect(parse(q).ast, q).toMatchObject({ op: "==" });
+    }
+  });
+  it("leaves : and = meaning what they meant", () => {
+    expect(parse("r:drag").ast).toMatchObject({ op: ":", value: "drag" });
+    expect(parse("r=drag").ast).toMatchObject({ op: "=", value: "drag" });
+  });
+  it("is refused on a number, a date and a closed list, and says why", () => {
+    for (const q of ["m==3", "date==2024", "t==minion", "e==water", "rar==elite", "s==alpha", "id==C000230"]) {
+      const { ast, errors } = parse(q);
+      expect(ast, q).toBeNull();
+      expect(errors.length, q).toBe(1);
+      expect(errors[0], q).toContain("complete word");
+      expect(errors[0], q).toContain("only for text");
+    }
+  });
+  it("names the text keys in that refusal, so the reader knows where it works", () => {
+    expect(parse("m==3").errors[0]).toContain("r:");
+    expect(parse("m==3").errors[0]).toContain("n:");
+  });
+  it("does not split a value list, since a comma belongs to a phrase", () => {
+    expect(parse('r=="draw, then discard"').ast).toMatchObject({ op: "==", value: "draw, then discard" });
+  });
+});
