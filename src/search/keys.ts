@@ -7,7 +7,9 @@
 
 export type Scope = "card" | "printing";
 export type KeyKind = "text" | "number" | "enum" | "element" | "list" | "set" | "product" | "finish" | "date" | "id" | "slug";
-export type Op = ":" | "=" | "<" | "<=" | ">" | ">=" | "!=";
+/** ":" is "contains" on text and "equals" on everything else; "==" is
+ * the complete word or phrase, and only text takes it. */
+export type Op = ":" | "=" | "==" | "<" | "<=" | ">" | ">=" | "!=";
 
 export interface KeyDef {
   /** canonical name, e.g. "rules" */
@@ -85,11 +87,11 @@ export function vocabulary(key: KeyDef): { values: string[]; aliases: Record<str
 export const KEYS: KeyDef[] = [
   // ---- card keys
   { name: "name", aliases: ["n", "name"], scope: "card", kind: "text", field: "name",
-    doc: "Card name, substring. Bare words search the name too; use n: when combining with other terms.",
-    examples: ["n:bear", "name:\"polar bears\" e:water"] },
+    doc: "Card name, substring: n:bear finds Bearded. n==bear asks for the complete word. Bare words search the name too; use n: when combining with other terms.",
+    examples: ["n:bear", "n==bear", "name:\"polar bears\" e:water"] },
   { name: "rules", aliases: ["r", "rules"], scope: "card", kind: "text", field: "rules_text",
-    doc: "Rules text, substring. r: is rules in Sorcery (there is no oracle text); quote phrases.",
-    examples: ["r:\"draw a spell\"", "r:genesis t:minion"] },
+    doc: "Rules text, substring: r:drag finds Dragon. r==drag asks for the complete word, and r==\"draw a spell\" for the whole phrase. r: is rules in Sorcery (there is no oracle text); quote phrases.",
+    examples: ["r:\"draw a spell\"", "r==drag", "r==\"draw a spell\"", "r:genesis t:minion"] },
   { name: "rarity", aliases: ["rar", "rarity"], scope: "card", kind: "enum", field: "rarity", values: RARITIES,
     doc: "Ordinary, Exceptional, Elite or Unique; any unambiguous prefix works. Three letters, not one: r: is rules.",
     examples: ["rar:unique", "rar:ex"] },
@@ -150,11 +152,11 @@ export const KEYS: KeyDef[] = [
   { name: "finish", aliases: ["f", "finish"], scope: "printing", kind: "finish", field: "finish", values: FINISHES,
     doc: "Standard, Foil or Rainbow, or the slug code (f:rf).", examples: ["f:foil", "f:rf"] },
   { name: "artist", aliases: ["a", "artist"], scope: "printing", kind: "text", field: "artist",
-    doc: "Artist name or artist slug, substring.", examples: ["a:menges"] },
+    doc: "Artist name or artist slug, substring; a==name for the complete word.", examples: ["a:menges", "a==ing"] },
   { name: "typeline", aliases: ["tl", "typeline"], scope: "printing", kind: "text", field: "typeline",
-    doc: "The flavour typeline printed under the name, substring.", examples: ["tl:\"new to power\""] },
+    doc: "The flavour typeline printed under the name, substring; tl== for the complete word or phrase.", examples: ["tl:\"new to power\""] },
   { name: "flavor", aliases: ["ft", "flavor", "flavour"], scope: "printing", kind: "text", field: "flavour_text",
-    doc: "Flavour text, substring (empty upstream today; the key exists).", examples: ["ft:realm"] },
+    doc: "Flavour text, substring; ft== for the complete word or phrase. Empty upstream today; the key exists.", examples: ["ft:realm"] },
   { name: "date", aliases: ["date", "year", "released"], scope: "printing", kind: "date", field: "released_at",
     doc: "Release date of a printing: year:2023, year>=2024, date>=2025-08-01, date<2024. Accepts YYYY, YYYY-MM or YYYY-MM-DD.",
     examples: ["year:2023", "date>=2025-08-01"] },

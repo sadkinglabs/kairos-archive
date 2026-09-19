@@ -41,7 +41,7 @@ const VIEW_LABELS: Record<View, string> = { images: "images", text: "text", full
     <div id="rules-results" class="grid"></div>
   </section>
   <script>
-    import { search, directLookup, paginate, parse, rulesPhrases, snippet, markText, type PageInfo } from "../search";
+    import { search, directLookup, paginate, parse, rulesPhrases, snippet, markText, type PageInfo, type Phrase } from "../search";
     import type { Card, Printing, SearchData } from "../search";
     import type { Unit } from "../search/keys";
     import { browserHeading, refinementUrl, resultHref, resultNoun, viewFrom, viewUrl, type View } from "../search/browserState";
@@ -60,7 +60,7 @@ const VIEW_LABELS: Record<View, string> = { images: "images", text: "text", full
 
     /** One result, whichever group it came from: the card, the printing
      * that stands for it here, and the phrases to mark in its rules text. */
-    interface Row { card: Card; printing: Printing | null; phrases: string[]; unit: Unit }
+    interface Row { card: Card; printing: Printing | null; phrases: Phrase[]; unit: Unit }
     const CLASS_BY_VIEW: Record<View, string> = { images: "grid", text: "results-table", full: "full-list" };
 
     function art(row: Row) {
@@ -176,7 +176,9 @@ const VIEW_LABELS: Record<View, string> = { images: "images", text: "text", full
       // words in its rules text, so those are marked there as well.
       const parsed = parse(q);
       const phrases = rulesPhrases(parsed.ast);
-      const groupPhrases = [...phrases, ...parsed.bare.map((b) => b.text)];
+      // Bare words found this group by substring, so they are marked that
+      // way whatever operator the r: terms used.
+      const groupPhrases: Phrase[] = [...phrases, ...parsed.bare.map((b) => ({ text: b.text, whole: false }))];
       render($("results"), pageHits.map((h) => ({ card: h.card, printing: h.printing, phrases, unit: result.options.unique })), view);
       renderPager(info, params);
       const group = $("rules-group");

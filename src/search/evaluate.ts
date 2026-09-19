@@ -10,6 +10,7 @@
 
 import { ELEMENT_ALIASES, ELEMENTS, FINISH_CODES, FINISHES, KEY_BY_ALIAS, PRODUCT_CODES, PRODUCTS, resolveValue, squash, type KeyDef, type Op } from "./keys";
 import { parse, type Node, type Options, type Parsed } from "./query";
+import { textMatches } from "./text";
 import type { Card, Printing, SearchData } from "./types";
 
 export interface Hit { card: Card; printing: Printing | null }
@@ -39,7 +40,9 @@ export function resolveEnum(value: string, values: string[], aliases?: Record<st
 function compareNumbers(actual: number | null, op: Op, wanted: number): boolean {
   if (actual === null) return op === "!=";
   switch (op) {
-    case ":": case "=": return actual === wanted;
+    // "==" is refused on numbers by the parser and never arrives here;
+    // reading it as equality keeps this total rather than throwing.
+    case ":": case "=": case "==": return actual === wanted;
     case "!=": return actual !== wanted;
     case "<": return actual < wanted;
     case "<=": return actual <= wanted;
@@ -57,7 +60,8 @@ function compareDates(actual: string | null, op: Op, wanted: string): boolean {
   const lo = w.length === 4 ? `${w}-01-01` : w.length === 7 ? `${w}-01` : w;
   const hi = w.length === 4 ? `${w}-12-31` : w.length === 7 ? `${w}-31` : w;
   switch (op) {
-    case ":": case "=": return actual >= lo && actual <= hi;
+    // As above: the parser refuses "==" on a date.
+    case ":": case "=": case "==": return actual >= lo && actual <= hi;
     case "!=": return actual < lo || actual > hi;
     case "<": return actual < lo;
     case "<=": return actual <= hi;
@@ -162,15 +166,14 @@ function evalTerm(node: Extract<Node, { kind: "term" }>, card: Card, printing: P
       case "finish": return truth(finishMatch(printing, value));
       case "date": return compareDates(printing.released_at, op, value);
       case "text": {
-        const v = fold(value);
         const fields = key.name === "artist" ? [printing.artist, printing.artist_slug] : [(printing as unknown as Record<string, string | null>)[key.field]];
-        return truth(fields.some((f) => fold(f).includes(v)));
+        return truth(fields.some((f) => textMatches(f, value, op === "==")));
       }
       default: return false;
     }
   }
   switch (key.kind) {
-    case "text": return truth(fold((card as unknown as Record<string, string>)[key.field]).includes(fold(value)));
+    case "text": return truth(textMatches((card as unknown as Record<string, string>)[key.field], value, op === "=="));
     case "number": return numberValue(card, key, op, value);
     case "enum": {
       const wanted = resolveEnum(value, key.values ?? []);
