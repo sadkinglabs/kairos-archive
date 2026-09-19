@@ -289,6 +289,31 @@ table { border-collapse: collapse; width: 100%; font-size: .88rem; }
 th, td { text-align: left; padding: .75rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; }
 .table-wrap { overflow-x: auto; }
+/* The search syntax reference is long by nature, so it carries its own
+   index and folds section by section. The sections are open in the
+   markup: nothing is hidden from find-in-page, or from a printer, until
+   a reader chooses to fold them. */
+.syntax-index { margin: 1.6rem 0 2rem; padding: 1rem 1.2rem 1.1rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.syntax-index .index-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.syntax-index h2 { font: 600 .72rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.syntax-index #fold-all { min-height: 36px; padding: .3rem .7rem; font-size: .82rem; background: none; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); cursor: pointer; }
+.syntax-index #fold-all:hover { color: var(--accent); border-color: var(--accent); }
+.syntax-index ol { list-style: none; margin: .7rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .1rem .9rem; counter-reset: syntax-index; }
+.syntax-index li { counter-increment: syntax-index; }
+.syntax-index a { display: block; padding: .3rem 0; color: var(--fg); text-decoration: none; font-size: .93rem; }
+.syntax-index a::before { content: counter(syntax-index) '. '; color: var(--muted); }
+.syntax-index a:hover { color: var(--accent); text-decoration: underline; }
+.syntax-section { border-top: 1px solid var(--line); }
+.syntax-section > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: .6rem; }
+.syntax-section > summary::-webkit-details-marker { display: none; }
+.syntax-section > summary::before { content: ''; flex: 0 0 auto; width: .5rem; height: .5rem; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg); transition: transform .15s ease; align-self: center; }
+.syntax-section[open] > summary::before { transform: rotate(45deg); }
+.syntax-section > summary:hover h2 { color: var(--accent); }
+.syntax-section > summary h2 { margin: 1.4rem 0 1.1rem; }
+.syntax-section > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.syntax-section > :last-child { margin-bottom: 1.6rem; }
+@media print { .syntax-index #fold-all { display: none; } .syntax-section > summary::before { display: none; } }
 table.files td:nth-child(3), table.files td:nth-child(4) { white-space: nowrap; }
 code.digest { overflow-wrap: anywhere; }
 table.fields td.type { color: var(--muted); font-size: .84rem; min-width: 9rem; }

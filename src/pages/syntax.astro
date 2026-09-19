@@ -7,39 +7,138 @@ const numericKeys = KEYS.filter((k) => k.kind === "number").map((k) => k.aliases
 const dateKey = KEYS.find((k) => k.kind === "date")!.aliases[0];
 const alias = (name: string) => KEYS.find((k) => k.name === name)!.aliases[0];
 const q = (s: string) => `/search?q=${encodeURIComponent(s)}`;
+/** One list of sections, so the index and the headings cannot drift
+ * apart: the index is built from this, and each section takes its id
+ * and heading from the same entry. A mistyped key fails the build. */
+const S = {
+  words: { id: "words", title: "Words" },
+  cardKeys: { id: "card-keys", title: "Card keys" },
+  printingKeys: { id: "printing-keys", title: "Printing keys" },
+  numbers: { id: "numbers", title: "Numbers and dates" },
+  flags: { id: "flags", title: "Flags" },
+  lists: { id: "value-lists", title: "Value lists" },
+  mistakes: { id: "mistakes", title: "When a query has a mistake" },
+  logic: { id: "logic", title: "Logic" },
+  results: { id: "results", title: "Results, sorting, ids" },
+};
+const sections = Object.values(S);
 ---
 <Base title="Search syntax" canonical="/syntax">
   <h1>Search syntax</h1>
   <p>This page is generated from the same table the search engine is built from, so every key listed here works and no other does. Prefer clicking to typing? <a href="/advanced">Advanced search</a> builds these same queries from a form, and shows you the query it built.</p>
   <p class="muted">Each key has one short spelling — the one this page heads its row with — and longer, descriptive ones that mean exactly the same thing: <code>{alias('rarity')}:</code> is <code>rarity:</code>, <code>{alias('cost')}:</code> is <code>mana:</code> and <code>cost:</code>, <code>{alias('life')}:</code> is <code>life:</code>. Keys and values are case-insensitive.</p>
-  <h2>Words</h2>
-  <p>Bare words match the card <strong>name</strong> (each word, anywhere, case-insensitive): <a href={q("polar")}>polar</a>. <code>!"Polar Bears"</code> is the exact name. Cards whose <em>rules text</em> contains your words appear in a separate group below the name matches, so a bare word never silently mixes the two; use <code>r:</code> to search rules text on purpose.</p>
-  <h2>Card keys</h2>
-  <p>These filter cards.</p>
-  <div class="table-wrap"><table class="reference-table"><thead><tr><th>Key</th><th>Aliases</th><th>Meaning</th><th>Examples</th></tr></thead><tbody>
-    {cardKeys.map((k) => <tr><td data-label="Key"><code>{k.aliases[0]}:</code></td><td data-label="Aliases">{k.aliases.slice(1).map((a) => <code>{a}:</code>)}</td><td data-label="Meaning">{k.doc}{k.values && <span class="muted"> Values: {k.values.join(", ")}.</span>}</td><td data-label="Examples">{k.examples.map((e) => <div><a href={q(e)}><code>{e}</code></a></div>)}</td></tr>)}
-  </tbody></table></div>
-  <h2>Printing keys</h2>
-  <p><strong>All printing keys and printing flags in a query must be satisfied by one and the same printing of a card.</strong> <code>t:minion s:alpha f:foil</code> means minions with a printing that is both Alpha and foil; <code>or</code> between printing terms is judged printing by printing. Negating a printing term asks for a printing that lacks it: <code>-is:foil</code> is "has a non-foil printing".</p>
-  <div class="table-wrap"><table class="reference-table"><thead><tr><th>Key</th><th>Aliases</th><th>Meaning</th><th>Examples</th></tr></thead><tbody>
-    {printingKeys.map((k) => <tr><td data-label="Key"><code>{k.aliases[0]}:</code></td><td data-label="Aliases">{k.aliases.slice(1).map((a) => <code>{a}:</code>)}</td><td data-label="Meaning">{k.doc}{k.values && <span class="muted"> Values: {k.values.join(", ")}.</span>}</td><td data-label="Examples">{k.examples.map((e) => <div><a href={q(e)}><code>{e}</code></a></div>)}</td></tr>)}
-  </tbody></table></div>
-  <h2>Numbers and dates</h2>
-  <p>Every numeric key — {numericKeys.map((k, i) => <>{i > 0 && ", "}<code>{k}</code></>)} — and the date key <code>{dateKey}</code> take <code>:</code> or <code>=</code> (equals), <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>!=</code>. A numeric key can compare to another: <a href={q("atk>def")}><code>atk&gt;def</code></a>, <a href={q("m>=thr")}><code>m&gt;=thr</code></a>. <code>{alias('threshold')}</code> is the four element thresholds added up, the total a deck has to reach; the element keys ask for one element each, so <a href={q("water>=2 fire:1")}><code>water&gt;=2 fire:1</code></a> is two Water and one Fire. Dates accept YYYY, YYYY-MM or YYYY-MM-DD and compare as ranges: <code>{dateKey}&lt;2024</code> is before 2024, <code>{dateKey}:2024-05</code> is within that month.</p>
-  <h2>Flags</h2>
-  <div class="table-wrap"><table class="reference-table"><thead><tr><th>Flag</th><th>Scope</th><th>Meaning</th></tr></thead><tbody>
-    {IS_FLAGS.map((f) => <tr><td data-label="Flag"><a href={q(`is:${f.name}`)}><code>is:{f.name}</code></a>{f.aliases && <span class="muted"> · {f.aliases.map((a) => <code>is:{a}</code>)}</span>}</td><td data-label="Scope">{f.scope}</td><td data-label="Meaning">{f.doc}</td></tr>)}
-    {HAS_FLAGS.map((f) => <tr><td data-label="Flag"><a href={q(`has:${f.name}`)}><code>has:{f.name}</code></a></td><td data-label="Scope">{f.scope}</td><td data-label="Meaning">{f.doc}</td></tr>)}
-  </tbody></table></div>
-  <h2>Value lists</h2>
-  <p>Any key whose values are names, rather than free text, accepts several at once: <a href={q("e:water+fire")}><code>e:water+fire</code></a> needs both, <a href={q("e:water,fire")}><code>e:water,fire</code></a> takes either. It works the same for the rest, so <a href={q("t:minion,site")}><code>t:minion,site</code></a> and <a href={q("sub:beast+spirit")}><code>sub:beast+spirit</code></a> read as you would expect. No spaces around the separator, and don't mix <code>+</code> with <code>,</code> in one value: put the alternatives in parentheses instead. A printing key still has to be satisfied by a single printing, so <a href={q("f:foil,rainbow")}><code>f:foil,rainbow</code></a> finds cards printed either way while <code>f:foil+rainbow</code> asks one printing to be both and finds nothing. <code>!=</code> negates the whole list: <a href={q("e!=water,fire")}><code>e!=water,fire</code></a> is neither of them. Elements also take <code>=</code> for the exact set: <a href={q("e=water+fire")}><code>e=water+fire</code></a> is the cards that are those two and nothing more.</p>
-  <h2>When a query has a mistake</h2>
-  <p>Nothing is guessed. An unknown key, a value that is not one of the ones a key accepts (<code>e:wateer</code>, <code>{alias('cost')}:banana</code>), a prefix too short to tell two values apart (<code>{alias('rarity')}:e</code> — Exceptional or Elite?), an unusable operator or a half-finished value list is reported above the results, and the terms that were understood still run — so <code>e:w + f</code> tells you a value list takes no spaces rather than quietly searching for a card named “+”. Mixing <code>+</code> and <code>,</code> in one value is refused for the same reason: <a href={q("(e:water+fire or e:air)")}><code>(e:water+fire or e:air)</code></a> says which grouping you meant.</p>
-  <h2>Logic</h2>
-  <p>Terms are ANDed; <code>or</code> alternates; parentheses group: <a href={q("t:minion (e:water or e:air) -k:genesis")}><code>t:minion (e:water or e:air) -k:genesis</code></a>. <code>and</code> is accepted and never required. Quote values with spaces: <code>r:"draw a spell"</code>.</p>
-  <h3 id="negation">Saying not</h3>
-  <p>Three spellings, one meaning — use whichever reads best to you. <code>-</code> in front of a term is the short one and the easiest to type: <a href={q("is:multi-element -t:site -e:air")}><code>is:multi-element -t:site -e:air</code></a> is the multi-element cards that are neither Sites nor Air. <code>not</code> is the same thing in words: <code>not t:site</code>. <code>!=</code> is the same thing on the key, and reads best beside the other comparisons: <a href={q("t!=site")}><code>t!=site</code></a>, <a href={q("m!=3")}><code>m&#33;=3</code></a>. They give identical results — <code>-</code> negates the whole term, which is exactly what <code>!=</code> means.</p>
-  <p class="muted">A phone keyboard may offer <code>&#8800;</code> where you want <code>!=</code>; the search does not read it, and will say so rather than looking for a card of that name.</p>
-  <h2>Results, sorting, ids</h2>
-  <p><code>unique:</code> {UNITS.map((u) => <code>{u}</code>)} — one row per card (the default, shown with the printing that matched or the default printing), every matching printing, or one per distinct artwork. <code>sort:</code> {SORT_FIELDS.map((s) => <code>{s}</code>)} and <code>order:asc|desc</code> (name ascending by default; dates newest first). Everything lives in the URL, so a search is shareable. A query that is exactly an id (<code>C000230</code>, <code>P000937</code>) or an official slug jumps straight to its page.</p>
+
+  <nav class="syntax-index" aria-label="On this page">
+    <div class="index-head">
+      <h2>On this page</h2>
+      <button type="button" id="fold-all" data-collapse="Collapse all" data-expand="Expand all" hidden>Collapse all</button>
+    </div>
+    <ol>{sections.map((s) => <li><a href={`#${s.id}`}>{s.title}</a></li>)}</ol>
+  </nav>
+
+  <details class="syntax-section" id={S.words.id} open>
+    <summary><h2>{S.words.title}</h2></summary>
+    <p>Bare words match the card <strong>name</strong> (each word, anywhere, case-insensitive): <a href={q("polar")}>polar</a>. <code>!"Polar Bears"</code> is the exact name. Cards whose <em>rules text</em> contains your words appear in a separate group below the name matches, so a bare word never silently mixes the two; use <code>r:</code> to search rules text on purpose.</p>
+  </details>
+
+  <details class="syntax-section" id={S.cardKeys.id} open>
+    <summary><h2>{S.cardKeys.title}</h2></summary>
+    <p>These filter cards.</p>
+    <div class="table-wrap"><table class="reference-table"><thead><tr><th>Key</th><th>Aliases</th><th>Meaning</th><th>Examples</th></tr></thead><tbody>
+      {cardKeys.map((k) => <tr><td data-label="Key"><code>{k.aliases[0]}:</code></td><td data-label="Aliases">{k.aliases.slice(1).map((a) => <code>{a}:</code>)}</td><td data-label="Meaning">{k.doc}{k.values && <span class="muted"> Values: {k.values.join(", ")}.</span>}</td><td data-label="Examples">{k.examples.map((e) => <div><a href={q(e)}><code>{e}</code></a></div>)}</td></tr>)}
+    </tbody></table></div>
+  </details>
+
+  <details class="syntax-section" id={S.printingKeys.id} open>
+    <summary><h2>{S.printingKeys.title}</h2></summary>
+    <p><strong>All printing keys and printing flags in a query must be satisfied by one and the same printing of a card.</strong> <code>t:minion s:alpha f:foil</code> means minions with a printing that is both Alpha and foil; <code>or</code> between printing terms is judged printing by printing. Negating a printing term asks for a printing that lacks it: <code>-is:foil</code> is "has a non-foil printing".</p>
+    <div class="table-wrap"><table class="reference-table"><thead><tr><th>Key</th><th>Aliases</th><th>Meaning</th><th>Examples</th></tr></thead><tbody>
+      {printingKeys.map((k) => <tr><td data-label="Key"><code>{k.aliases[0]}:</code></td><td data-label="Aliases">{k.aliases.slice(1).map((a) => <code>{a}:</code>)}</td><td data-label="Meaning">{k.doc}{k.values && <span class="muted"> Values: {k.values.join(", ")}.</span>}</td><td data-label="Examples">{k.examples.map((e) => <div><a href={q(e)}><code>{e}</code></a></div>)}</td></tr>)}
+    </tbody></table></div>
+  </details>
+
+  <details class="syntax-section" id={S.numbers.id} open>
+    <summary><h2>{S.numbers.title}</h2></summary>
+    <p>Every numeric key — {numericKeys.map((k, i) => <>{i > 0 && ", "}<code>{k}</code></>)} — and the date key <code>{dateKey}</code> take <code>:</code> or <code>=</code> (equals), <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>!=</code>. A numeric key can compare to another: <a href={q("atk>def")}><code>atk&gt;def</code></a>, <a href={q("m>=thr")}><code>m&gt;=thr</code></a>. <code>{alias('threshold')}</code> is the four element thresholds added up, the total a deck has to reach; the element keys ask for one element each, so <a href={q("water>=2 fire:1")}><code>water&gt;=2 fire:1</code></a> is two Water and one Fire. Dates accept YYYY, YYYY-MM or YYYY-MM-DD and compare as ranges: <code>{dateKey}&lt;2024</code> is before 2024, <code>{dateKey}:2024-05</code> is within that month.</p>
+  </details>
+
+  <details class="syntax-section" id={S.flags.id} open>
+    <summary><h2>{S.flags.title}</h2></summary>
+    <div class="table-wrap"><table class="reference-table"><thead><tr><th>Flag</th><th>Scope</th><th>Meaning</th></tr></thead><tbody>
+      {IS_FLAGS.map((f) => <tr><td data-label="Flag"><a href={q(`is:${f.name}`)}><code>is:{f.name}</code></a>{f.aliases && <span class="muted"> · {f.aliases.map((a) => <code>is:{a}</code>)}</span>}</td><td data-label="Scope">{f.scope}</td><td data-label="Meaning">{f.doc}</td></tr>)}
+      {HAS_FLAGS.map((f) => <tr><td data-label="Flag"><a href={q(`has:${f.name}`)}><code>has:{f.name}</code></a></td><td data-label="Scope">{f.scope}</td><td data-label="Meaning">{f.doc}</td></tr>)}
+    </tbody></table></div>
+  </details>
+
+  <details class="syntax-section" id={S.lists.id} open>
+    <summary><h2>{S.lists.title}</h2></summary>
+    <p>Any key whose values are names, rather than free text, accepts several at once: <a href={q("e:water+fire")}><code>e:water+fire</code></a> needs both, <a href={q("e:water,fire")}><code>e:water,fire</code></a> takes either. It works the same for the rest, so <a href={q("t:minion,site")}><code>t:minion,site</code></a> and <a href={q("sub:beast+spirit")}><code>sub:beast+spirit</code></a> read as you would expect. No spaces around the separator, and don't mix <code>+</code> with <code>,</code> in one value: put the alternatives in parentheses instead. A printing key still has to be satisfied by a single printing, so <a href={q("f:foil,rainbow")}><code>f:foil,rainbow</code></a> finds cards printed either way while <code>f:foil+rainbow</code> asks one printing to be both and finds nothing. <code>!=</code> negates the whole list: <a href={q("e!=water,fire")}><code>e!=water,fire</code></a> is neither of them. Elements also take <code>=</code> for the exact set: <a href={q("e=water+fire")}><code>e=water+fire</code></a> is the cards that are those two and nothing more.</p>
+  </details>
+
+  <details class="syntax-section" id={S.mistakes.id} open>
+    <summary><h2>{S.mistakes.title}</h2></summary>
+    <p>Nothing is guessed. An unknown key, a value that is not one of the ones a key accepts (<code>e:wateer</code>, <code>{alias('cost')}:banana</code>), a prefix too short to tell two values apart (<code>{alias('rarity')}:e</code> — Exceptional or Elite?), an unusable operator or a half-finished value list is reported above the results, and the terms that were understood still run — so <code>e:w + f</code> tells you a value list takes no spaces rather than quietly searching for a card named “+”. Mixing <code>+</code> and <code>,</code> in one value is refused for the same reason: <a href={q("(e:water+fire or e:air)")}><code>(e:water+fire or e:air)</code></a> says which grouping you meant.</p>
+  </details>
+
+  <details class="syntax-section" id={S.logic.id} open>
+    <summary><h2>{S.logic.title}</h2></summary>
+    <p>Terms are ANDed; <code>or</code> alternates; parentheses group: <a href={q("t:minion (e:water or e:air) -k:genesis")}><code>t:minion (e:water or e:air) -k:genesis</code></a>. <code>and</code> is accepted and never required. Quote values with spaces: <code>r:"draw a spell"</code>.</p>
+    <h3 id="negation">Saying not</h3>
+    <p>Three spellings, one meaning — use whichever reads best to you. <code>-</code> in front of a term is the short one and the easiest to type: <a href={q("is:multi-element -t:site -e:air")}><code>is:multi-element -t:site -e:air</code></a> is the multi-element cards that are neither Sites nor Air. <code>not</code> is the same thing in words: <code>not t:site</code>. <code>!=</code> is the same thing on the key, and reads best beside the other comparisons: <a href={q("t!=site")}><code>t!=site</code></a>, <a href={q("m!=3")}><code>m&#33;=3</code></a>. They give identical results — <code>-</code> negates the whole term, which is exactly what <code>!=</code> means.</p>
+    <p class="muted">A phone keyboard may offer <code>&#8800;</code> where you want <code>!=</code>; the search does not read it, and will say so rather than looking for a card of that name.</p>
+  </details>
+
+  <details class="syntax-section" id={S.results.id} open>
+    <summary><h2>{S.results.title}</h2></summary>
+    <p><code>unique:</code> {UNITS.map((u) => <code>{u}</code>)} — one row per card (the default, shown with the printing that matched or the default printing), every matching printing, or one per distinct artwork. <code>sort:</code> {SORT_FIELDS.map((s) => <code>{s}</code>)} and <code>order:asc|desc</code> (name ascending by default; dates newest first). Everything lives in the URL, so a search is shareable. A query that is exactly an id (<code>C000230</code>, <code>P000937</code>) or an official slug jumps straight to its page.</p>
+  </details>
 </Base>
+
+<script>
+  // Sections are open in the markup, so the page reads and prints whole
+  // and find-in-page reaches every key without JavaScript. The control
+  // below is the one thing that needs it, so it stays hidden until it
+  // works. A visitor who folds the page up keeps it folded.
+  const KEPT = "kairos:syntax-folded";
+  const sections = Array.from(document.querySelectorAll<HTMLDetailsElement>("details.syntax-section"));
+  const button = document.querySelector<HTMLButtonElement>("#fold-all");
+
+  const remember = (folded: boolean) => { try { localStorage.setItem(KEPT, folded ? "1" : "0"); } catch { /* A browser that keeps nothing still folds. */ } };
+  const label = () => {
+    if (!button) return;
+    const anyOpen = sections.some((s) => s.open);
+    button.textContent = anyOpen ? button.dataset.collapse! : button.dataset.expand!;
+    button.setAttribute("aria-expanded", String(anyOpen));
+  };
+
+  // A link into a folded section must still arrive: open the section the
+  // hash names, or the one holding the element it names, then scroll.
+  const reveal = (hash: string) => {
+    const id = decodeURIComponent(hash.replace(/^#/, ""));
+    if (!id) return;
+    const target = document.getElementById(id);
+    const section = target?.closest<HTMLDetailsElement>("details.syntax-section");
+    if (!section) return;
+    section.open = true;
+    label();
+    target!.scrollIntoView();
+  };
+
+  if (button && sections.length) {
+    button.hidden = false;
+    let folded = false;
+    try { folded = localStorage.getItem(KEPT) === "1"; } catch { /* Default to the markup's open sections. */ }
+    if (folded) for (const s of sections) s.open = false;
+    button.addEventListener("click", () => {
+      const open = sections.some((s) => s.open);
+      for (const s of sections) s.open = !open;
+      remember(open);
+      label();
+      if (!open) button.scrollIntoView({ block: "nearest" });
+    });
+    for (const s of sections) s.addEventListener("toggle", label);
+    label();
+    reveal(location.hash);
+    window.addEventListener("hashchange", () => reveal(location.hash));
+  }
+</script>
