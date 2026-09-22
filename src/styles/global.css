@@ -3,6 +3,9 @@
   --accent: #88481f; --accent-fg: #fffaf4; --badge: #eee7dc; --ok: #286139; --warn: #815512;
   --removed-bg: #fae6e2; --removed-fg: #8b3430; --added-bg: #e3efe4; --added-fg: #286139; --ring: #88481f2e; --mark-bg: #f3d9a4;
   --display: Georgia, 'Times New Roman', serif;
+  /* Boxed panels (notices, notes, the record block): one inner padding and
+     one gap between boxes, so every box on a page sits the same way. */
+  --box-pad: 1rem; --box-gap: 1.6rem;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -204,7 +207,7 @@ pre.rules { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; backg
 .badge.ok { color: var(--ok); border: 1px solid currentColor; background: transparent; }
 a.badge { text-decoration: none; }
 a.badge.older:hover, a.badge.ok:hover { text-decoration: underline; }
-.record-block { margin: 1.6rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: 9px; background: var(--card); text-align: center; }
+.record-block { margin: var(--box-gap) 0; padding: var(--box-pad); border: 1px solid var(--line); border-radius: 9px; background: var(--card); text-align: center; }
 .record-block.bare { border: 0; background: none; padding: 0; margin: .8rem 0; }
 .record-id { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .45rem; margin: 0; font-size: .83rem; }
 .record-block:not(.bare) .record-id { margin-bottom: .85rem; }
@@ -243,7 +246,7 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; }
 .when { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; font-size: .85rem; }
 .source-note { font-size: .78rem; color: var(--muted); margin: .3rem 0 1rem; }
 .comparison { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 7px; background: var(--card); overflow: hidden; }
-.comparison > div { min-width: 0; padding: 1rem; }
+.comparison > div { min-width: 0; padding: var(--box-pad); }
 .comparison > div + div { border-left: 1px solid var(--line); }
 .comparison .eyebrow { color: var(--muted); font-size: .64rem; }
 .comparison pre { font: inherit; font-size: .92rem; white-space: pre-wrap; overflow-wrap: anywhere; margin: .6rem 0 0; }
@@ -267,7 +270,7 @@ mark { background: var(--mark-bg); color: inherit; border-radius: 2px; padding: 
 .results-table .type { min-width: 10rem; }
 .results-table .nowrap { white-space: nowrap; }
 .full-list { display: grid; gap: 1.2rem; }
-.full-entry { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 1.2rem; align-items: start; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 1rem; }
+.full-entry { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 1.2rem; align-items: start; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: var(--box-pad); }
 .full-entry .art { display: block; }
 .full-entry h3 { margin: 0; font-size: 1.15rem; line-height: 1.3; }
 .full-entry h3 a { color: var(--fg); text-decoration: none; }
@@ -278,8 +281,12 @@ mark { background: var(--mark-bg); color: inherit; border-radius: 2px; padding: 
 .chips label { display: flex; align-items: center; gap: .4rem; }
 .pager { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin: 1.5rem 0; font-size: .85rem; }
 .pager .disabled { opacity: .5; pointer-events: none; border-color: var(--line); background: var(--badge); color: var(--muted); }
-.notice { border: 1px solid var(--line); background: var(--card); border-radius: 7px; padding: 1rem; margin: 1rem 0; }
-.notes { margin: 1.4rem 0; padding: .9rem 1.1rem; }
+.notice { border: 1px solid var(--line); background: var(--card); border-radius: 7px; padding: var(--box-pad); margin: var(--box-gap) 0; }
+/* The box's padding is its only inner spacing: the first and last thing in
+   it bring no margin of their own, whatever rule would give them one (a
+   heading inside .card-content, a paragraph). */
+.notice > :first-child { margin-top: 0; }
+.notice > :last-child { margin-bottom: 0; }
 .notes h2 { margin: 0 0 .6rem; font: 600 .72rem/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .14em; }
 .notes ul { list-style: none; margin: 0; padding: 0; }
 .notes li + li { margin-top: .8rem; padding-top: .8rem; border-top: 1px solid var(--line); }
