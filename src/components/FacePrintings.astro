@@ -14,7 +14,7 @@ const last = faces.length - 1;
   <h3 id="face-printings-title">Which printings carry which values</h3>
   <ol>
     {faces.map((g, i) => <li>
-      <p class="face-when"><strong>{i === last ? 'Current values' : i === 0 ? 'Original values' : 'Earlier values'}</strong>
+      <p class="face-when"><strong>{i === last ? 'Current values' : 'Historical values'}</strong>
         <span class="muted"> · {g.row.valid_to ? `in force ${g.row.valid_from} to ${g.row.valid_to}` : `since ${g.row.valid_from}`}</span>
         {g.changed.length > 0 && <span class="muted"> · changed {listWords(g.changed.map(fieldLabel))}</span>}</p>
       {g.printings.length > 0
