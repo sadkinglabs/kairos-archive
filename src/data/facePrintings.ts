@@ -3,7 +3,14 @@
  * rule is the one the printing entries already use, pivoted: a printing
  * carries the face in force on its release date. A face nobody has
  * printed yet says so, which is the sentence a player at a table needs
- * once a card has been changed after printing. Pure, so it is tested. */
+ * once a card has been changed after printing. Pure, so it is tested.
+ *
+ * The faces are labelled by time alone - historical, then current - and
+ * never by where their values came from. "As printed" and "original"
+ * both make a claim this data cannot keep: a corrected reprint is also
+ * printed, and the first row stands for everything before recording
+ * began, so it need not be the card's original face. Provenance is the
+ * timeline's job, where each row names its source. */
 import { changedFields, rowInForce, type Face, type HistoryRow, type RegistryPrinting } from "./registry";
 
 export interface FaceGroup {
