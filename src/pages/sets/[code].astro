@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import CardTile from '../../components/CardTile.astro';
 import RecordActions from '../../components/RecordActions.astro';
-import { loadRegistry, setPath, views } from '../../data/registry';
+import { isReleaseSet, loadRegistry, releasedWith, setPath, views } from '../../data/registry';
 import { KEYS, UNITS } from '../../search/keys';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
@@ -19,14 +19,27 @@ const cards = [...members.keys()].map(id => v.cardById.get(id)!).sort((a, b) => 
 // tokens of a set among its cards, where nobody goes looking for them.
 const groupOf = (c: typeof cards[number]) => c.category === 'Token' ? 'Token' : (c.type ?? 'Other');
 const groups = [...new Set(cards.map(groupOf))].sort().map((type, index) => ({ type, id: `type-${index}`, cards: cards.filter(c => groupOf(c) === type) }));
+// Promos and curios filed outside this set that came out with it: the
+// store-kit prizes, pledge cards and curios of this release.
+const alongside = isReleaseSet(set.set_code)
+  ? registry.printings.filter(p => p.set_code !== set.set_code && releasedWith(p) === set.set_code && !p.manual?.withdrawn)
+      .map(p => ({ printing: p, card: v.cardById.get(p.codex_id)! }))
+      .sort((a, b) => a.card.name.localeCompare(b.card.name) || a.printing.printing_id.localeCompare(b.printing.printing_id))
+  : [];
+const ownSet = set.origin === 'manual';
+const withKey = KEYS.find(k => k.name === 'with')!.aliases[1];
 const setKey = KEYS.find(k => k.name === 'set')!.aliases[0];
 const query = `${setKey}:${JSON.stringify(set.set_code ?? set.set_name)} unique:${UNITS.find(u => u === 'prints')}`;
 ---
 <Base title={set.set_name} canonical={setPath(set)}>
   <p class="eyebrow"><a href="/sets">All sets</a> / Set {set.set_code ?? 'without code'}</p><h1>{set.set_name}</h1>
-  <p class="intro">{set.cards} cards · {set.printings} printings</p><p class="muted">First released {set.released_at ?? 'date unknown'}. Browse by type, then alphabetically.</p>
+  <p class="intro">{set.cards} {set.cards === 1 ? 'card' : 'cards'} · {set.printings} {set.printings === 1 ? 'printing' : 'printings'}{alongside.length > 0 && <> · <a href="#released-with">{alongside.length} more released with it</a></>}</p>
+  {ownSet && <p class="notice">A set of the Kairos Archive's own. The official API does not serve these printings, so the registry records them by hand, and gives the set a code of letters so it can never be mistaken for one of the publisher's.</p>}<p class="muted">First released {set.released_at ?? 'date unknown'}. Browse by type, then alphabetically.</p>
   <RecordActions id={set.set_code} label="Set code" url={set.api_url} />
   <a href={`/search?q=${encodeURIComponent(query)}`}>Search every printing in this set →</a>
   <nav class="set-nav" aria-label="Card types in this set">{groups.map(g => <a href={`#${g.id}`}>{g.type} <span class="muted">{g.cards.length}</span></a>)}</nav>
+  {alongside.length > 0 && <section class="page-section" id="released-with"><div class="section-heading"><h2>Released with {set.set_name}</h2><span class="muted">{alongside.length} printings</span></div>
+    <p class="muted">Promos and curios filed outside the set that came out with it. <a href={`/search?q=${encodeURIComponent(`${withKey}:${set.set_code} -${setKey}:${set.set_code} unique:${UNITS.find(u => u === 'prints')}`)}`}>Search them →</a></p>
+    <div class="grid grid-after-heading">{alongside.map(a => <CardTile card={a.card} printing={a.printing} />)}</div></section>}
   {groups.map(g => <section class="page-section" id={g.id}><div class="section-heading"><h2>{g.type}</h2><span class="muted">{g.cards.length} cards</span></div><div class="grid grid-after-heading">{g.cards.map(c => <CardTile card={c} printing={members.get(c.codex_id)![0]} />)}</div></section>)}
 </Base>

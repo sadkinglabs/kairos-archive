@@ -310,6 +310,8 @@ export function directLookup(input: string): { kind: "card" | "printing" | "slug
   const q = input.trim();
   if (/^[cC]\d{6}$/.test(q)) return { kind: "card", value: q.toUpperCase() };
   if (/^[pP]\d{6}$/.test(q)) return { kind: "printing", value: q.toUpperCase() };
-  if (/^\d{3}-[a-z0-9_]+-[a-z]+-[a-z]+(-r)?$/.test(q)) return { kind: "slug", value: q };
+  // A slug starts with its set code: three digits, or three letters for a
+  // set of the registry's own (cur-...).
+  if (/^(\d{3}|[a-z]{3})-[a-z0-9_]+-[a-z]+-[a-z]+(-r)?$/.test(q)) return { kind: "slug", value: q };
   return null;
 }

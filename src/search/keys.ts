@@ -152,8 +152,11 @@ export const KEYS: KeyDef[] = [
     examples: ["slug:004-witch-b-s"] },
   // ---- printing keys
   { name: "set", aliases: ["s", "set"], scope: "printing", kind: "set", field: "set_code",
-    doc: "A set by code or name: s:006, s:6, s:gothic, set:\"arthurian legends\"; name prefixes work.",
+    doc: "A set by code or name: s:006, s:6, s:gothic, set:\"arthurian legends\"; name prefixes work. The registry's own sets have letter codes: s:cur is the curios. Promos are all in set 999 (s:promo); to find them by the release they came out with, use with:.",
     examples: ["s:alpha", "s:006 f:foil"] },
+  { name: "with", aliases: ["rw", "with"], scope: "printing", kind: "set", field: "released_with",
+    doc: "The set release a printing came out with, by code or name. A booster card came out with its own set; a promo or a curio with the release the registry recorded for it, so with:beta finds Beta's cards and the promos released with Beta. Promos with no recorded release match no with: at all.",
+    examples: ["with:beta", "with:004 -s:004"] },
   { name: "product", aliases: ["pro", "product"], scope: "printing", kind: "product", field: "product", values: PRODUCTS,
     doc: "The product line, leniently: pro:boxtopper, pro:\"box topper\", pro:box_topper, or the slug code pro:bt; prefixes work. (p: is deliberately unassigned - too close to power.)",
     examples: ["pro:bt", "pro:dust"] },
@@ -233,6 +236,7 @@ export const IS_FLAGS: FlagDef[] = [
   { name: "current", scope: "printing", doc: "printed_as_current: the printed values match the card's current face" },
   { name: "outdated", scope: "printing", doc: "printed_as_current false: the printing shows older values" },
   { name: "retired", scope: "printing", doc: "removed upstream; the registry keeps the record" },
+  { name: "manual", scope: "printing", doc: "recorded by hand: the official API does not serve this printing, so the registry keeps it from a photo or a public source" },
 ];
 
 /** has: flags */

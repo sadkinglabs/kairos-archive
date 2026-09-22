@@ -6,7 +6,7 @@
 import Base from "../../layouts/Base.astro";
 import CodeExample from "../../components/CodeExample.astro";
 import source from "../../fun/set-analyser.js?raw";
-import { loadRegistry, orderedSets } from "../../data/registry";
+import { isReleaseSet, loadRegistry, orderedSets } from "../../data/registry";
 
 const sections = source.split(/^(?=\/\/ ── )/m).map((chunk) => chunk.trim());
 const step = (n: number) => sections.find((s) => s.startsWith(`// ── ${n}.`)) ?? "";
@@ -19,7 +19,9 @@ console.log(report.notable);
 console.log(report.facts);`;
 const repo = "https://github.com/sadkinglabs/kairos-archive/blob/main/src/fun";
 const { registry } = await loadRegistry();
-const sets = orderedSets(registry.sets).filter((s) => s.set_code && s.set_code !== "999");
+// Playable releases only: not 999, where the publisher files every promo,
+// and not a set of the registry's own such as the curios.
+const sets = orderedSets(registry.sets).filter((s) => isReleaseSet(s.set_code));
 ---
 <Base title="Set analyser" canonical="/fun/set-analyser" description="Fetch a whole Sorcery set from the Kairos Archive query API and turn the records into a mana curve, element and type shares, notable cards and derived facts, with plain JavaScript.">
   <p class="eyebrow"><a href="/fun">Fun Zone</a></p>

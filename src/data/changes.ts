@@ -8,13 +8,20 @@ export interface Changes {
   from: string | null;
   to: string;
   schema_version: { from: number | null; to: number };
-  summary: Record<"cards_added" | "cards_changed" | "cards_removed" | "printings_added" | "printings_changed" | "printings_removed" | "sets_added" | "images_added" | "images_replaced" | "history_rows_added" | "identifiers_removed", number>;
+  summary: Record<"cards_added" | "cards_changed" | "cards_removed" | "printings_added" | "printings_changed" | "printings_removed" | "sets_added" | "images_added" | "images_replaced" | "history_rows_added" | "identifiers_removed", number>
+    /** From schema 12 on: absent in older documents, read as 0. */
+    & Partial<Record<"notes_added" | "notes_removed" | "manual_added" | "manual_confirmed" | "manual_withdrawn", number>>;
   cards: { added: string[]; changed: { codex_id: string; name: string; fields: string[] }[]; removed: string[] };
   printings: { added: string[]; changed: { printing_id: string; codex_id: string; fields: string[] }[]; removed: string[] };
   sets: { added: string[] };
   images: { added: string[]; replaced: string[] };
   history: { added: { codex_id: string; valid_from: string; source: string | null }[] };
+  /** From schema 12 on. A note names the card or printing it is on by id. */
+  notes?: { added: ChangedNote[]; removed: ChangedNote[] };
+  manual?: { added: string[]; confirmed: string[]; withdrawn: string[] };
 }
+
+export interface ChangedNote { id: string; text: string; source: string; recorded: string }
 
 /** "2 cards changed · 4 printings added · 0 identifiers removed": the
  * counts that are not zero, and the identifier count always. */
@@ -30,6 +37,11 @@ export function summaryParts(c: Changes): string[] {
   say(s.images_added, "image added", "images added");
   say(s.images_replaced, "image replaced", "images replaced");
   say(s.history_rows_added, "history row added", "history rows added");
+  say(s.notes_added ?? 0, "note added", "notes added");
+  say(s.notes_removed ?? 0, "note removed", "notes removed");
+  say(s.manual_added ?? 0, "record added by hand", "records added by hand");
+  say(s.manual_confirmed ?? 0, "manual record confirmed upstream", "manual records confirmed upstream");
+  say(s.manual_withdrawn ?? 0, "manual record withdrawn", "manual records withdrawn");
   parts.push(`${s.identifiers_removed} identifiers removed`);
   return parts;
 }

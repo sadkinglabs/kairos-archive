@@ -26,25 +26,44 @@ export interface Face {
   cost: number | null; attack: number | null; defense: number | null; power: number | null; life: number | null;
   thr_air: number; thr_earth: number; thr_fire: number; thr_water: number; rules_text: string;
 }
-export interface RegistryCard extends Face {
+/** A fact the official API does not say, with where it came from (schema 12). */
+export interface Note { text: string; source: string; recorded: string }
+/** Who stands behind a record (schema 12): the official API, or the
+ * registry, which recorded it by hand because the API does not serve it. */
+export type Origin = "api" | "manual";
+/** Where a hand-recorded record came from; null for a record the registry
+ * only ever observed upstream. Kept after upstream confirms it. */
+export interface Manual {
+  source: string; recorded: string; confirmed_at: string | null;
+  withdrawn: { on: string; reason: string } | null;
+}
+/** The schema 12 fields. Optional so the site builds from a release made
+ * before them (v3.3.x), where every record is official and has no notes. */
+interface Provenance { origin?: Origin; manual?: Manual | null; notes?: Note[] }
+export interface RegistryCard extends Face, Provenance {
   codex_id: string; name: string; back: Face | null; errata: boolean; set_codes: string[]; printing_ids: string[];
   default_printing_id: string | null; api_url: string; kairos_url: string;
   image_urls: Record<string, string> | null; image_status: "missing" | "lowres" | "ok";
 }
 export interface PrintingFace { artist: string | null; artist_slug: string | null; flavour_text: string | null; typeline: string | null; image_urls: Record<string, string> | null }
-export interface RegistryPrinting extends PrintingFace {
+export interface RegistryPrinting extends PrintingFace, Provenance {
   printing_id: string; codex_id: string; card_name: string; set_name: string; set_code: string | null; released_at: string | null;
+  /** The set release this printing belongs to (schema 12): its own set, or
+   * for a promo (999) or a curio (CUR), the one recorded by hand. */
+  released_with?: string | null;
   product: string | null; finish: string | null; slug: string; back: PrintingFace | null; image_hash: string | null;
   printed_as_current: boolean | null; retired_at: string | null; api_url: string; kairos_url: string;
   image_status: "missing" | "lowres" | "ok";
 }
-export interface RegistrySet { set_code: string | null; set_name: string; released_at: string | null; cards: number; printings: number; api_url: string | null; kairos_url: string | null }
+export interface RegistrySet { set_code: string | null; set_name: string; released_at: string | null; cards: number; printings: number; origin?: Origin; api_url: string | null; kairos_url: string | null }
 export interface HistoryRow extends Face {
   codex_id: string; valid_from: string; valid_to: string | null; back: Face | null;
   /** Where the face came from: "api" when the registry observed it in the
    * official API, "card" when a maintainer transcribed it from the printed
-   * card (schema 11; absent in older releases, which held only "api" rows). */
-  source?: "api" | "card";
+   * card (schema 11; absent in older releases, which held only "api" rows),
+   * "manual" for the face of a card the registry recorded by hand because
+   * the API does not serve it (schema 12). */
+  source?: "api" | "card" | "manual";
 }
 export interface Registry {
   header: { schema_version: number; source: string; sets: number; cards: number; printings: number; slug_history: number; name_history: number; card_history: number };
@@ -172,6 +191,21 @@ export function loadRegistry(): Promise<Loaded> {
 export { slugify, cardPath, printingPath } from "./paths";
 export const setPath = (set: { set_code: string | null }) => `/sets/${set.set_code ?? "none"}`;
 
+/** A set that is itself a release (001 Alpha, 002 Beta, ...), as opposed to
+ * 999, where the publisher files every promo, or a code of the registry's
+ * own (three capital letters, such as CUR for the curios). */
+export const isReleaseSet = (code: string | null | undefined): boolean =>
+  !!code && /^\d{3}$/.test(code) && code !== "999";
+
+/** A record the registry recorded by hand rather than read from the API. */
+export const isManual = (record: { origin?: Origin }): boolean => record.origin === "manual";
+
+/** The release a printing belongs to: the recorded one, or for a release
+ * built before the field existed, the printing's own set when that set is
+ * a release. */
+export const releasedWith = (p: { set_code: string | null; released_with?: string | null }): string | null =>
+  p.released_with !== undefined ? p.released_with : isReleaseSet(p.set_code) ? p.set_code : null;
+
 
 export function toSearchData(registry: Registry): SearchData {
   const hashById = new Map(registry.printings.map((p) => [p.printing_id, p.image_hash]));
@@ -190,6 +224,7 @@ export function toSearchData(registry: Registry): SearchData {
     released_at: p.released_at, product: p.product, finish: p.finish, artist: p.artist, artist_slug: p.artist_slug,
     typeline: p.typeline, flavour_text: p.flavour_text, printed_as_current: p.printed_as_current, retired_at: p.retired_at,
     image_status: p.image_status, image_hash: p.image_hash,
+    released_with: releasedWith(p), origin: p.origin ?? "api",
   }));
   return { cards, printings };
 }
@@ -244,11 +279,14 @@ export function rowInForce<T extends { valid_from: string }>(rows: T[], date: st
  * card was never observed: it runs from the day the first printing showing it
  * reached the public until the current face took over, so "as printed" is the
  * honest label and its dates are release dates, not detection dates. */
-export function historySource(row: { source?: "api" | "card" }): { fromCard: boolean; dated: string; label: string } {
+export function historySource(row: { source?: "api" | "card" | "manual" }): { fromCard: boolean; dated: string; label: string; heading: string } {
+  // A manual card's face was read from the card too, and dated the same
+  // way; it differs in that the official API has never served the card.
+  if (row.source === "manual") return { fromCard: true, dated: "in force from", heading: "Recorded by hand", label: "recorded by hand; the official API does not serve this card" };
   const fromCard = row.source === "card";
   return fromCard
-    ? { fromCard, dated: "in force from", label: "read from the printed card" }
-    : { fromCard, dated: "recorded on", label: "observed in the official API" };
+    ? { fromCard, dated: "in force from", heading: "Read from the printed card", label: "read from the printed card" }
+    : { fromCard, dated: "recorded on", heading: "Recorded on", label: "observed in the official API" };
 }
 
 /** What "Shows current values" says for one printing. null has two causes and

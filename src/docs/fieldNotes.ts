@@ -11,7 +11,7 @@ export const FIELD_NOTES: Record<string, string> = {
   "header.name_history": "How many rows the name_history section holds.",
   "header.card_history": "How many rows the card_history section holds.",
 
-  "set.set_code": "The official three-digit code. A label, not an order: 003 is unused.",
+  "set.set_code": "The set's code: three digits for the publisher's sets (a label, not an order: 003 is unused), three capital letters for a set of the registry's own, such as CUR.",
   "set.set_name": "The official display name.",
   "set.cards": "Distinct cards in the set.",
   "set.printings": "Printings in the set.",
@@ -28,7 +28,7 @@ export const FIELD_NOTES: Record<string, string> = {
   "printing.printing_id": "This printing's permanent ID.",
   "printing.codex_id": "The card this is a printing of.",
   "printing.set_name": "The set's official display name.",
-  "printing.set_code": "The set's official three-digit code.",
+  "printing.set_code": "The set's code: three digits for the publisher's, three capital letters for the registry's own.",
   "printing.artist": "The artist as credited; null when unrecorded.",
   "printing.flavour_text": "The flavour text as printed; empty or null when the card has none.",
   "printing.image_status": "How good the source of the front image was: missing, lowres or ok.",

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { changedFields, fetchWithRetry, historySource, orderedSets, rowInForce, setFace,
+import { changedFields, fetchWithRetry, historySource, isReleaseSet, orderedSets, releasedWith, rowInForce, setFace,
          SET_FACES, showsCurrentValues, type RegistryPrinting, type RegistrySet } from "./registry";
 
 describe("rowInForce", () => {
@@ -50,6 +50,22 @@ describe("historySource", () => {
   });
   it("labels a face transcribed from the printed card", () => {
     expect(historySource({ source: "card" })).toMatchObject({ fromCard: true, label: "read from the printed card" });
+  });
+  it("labels the face of a card recorded by hand, dated like a printed one", () => {
+    expect(historySource({ source: "manual" })).toMatchObject({ fromCard: true, dated: "in force from", heading: "Recorded by hand" });
+  });
+});
+
+describe("releasedWith and isReleaseSet", () => {
+  it("reads the recorded release, and derives it for a release made before the field", () => {
+    expect(releasedWith({ set_code: "999", released_with: "004" })).toBe("004");
+    expect(releasedWith({ set_code: "999", released_with: null })).toBeNull();
+    expect(releasedWith({ set_code: "002" })).toBe("002");      // v3.3.x: no field
+    expect(releasedWith({ set_code: "999" })).toBeNull();
+    expect(releasedWith({ set_code: "CUR" })).toBeNull();
+  });
+  it("counts only the publisher's release sets", () => {
+    expect(["001", "006", "999", "CUR", null].map(isReleaseSet)).toEqual([true, true, false, false, false]);
   });
 });
 

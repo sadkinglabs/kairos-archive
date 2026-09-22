@@ -6,7 +6,9 @@ import RecordActions from '../../../components/RecordActions.astro';
 import PrintingEntry from '../../../components/PrintingEntry.astro';
 import CardHistory from '../../../components/CardHistory.astro';
 import FacePrintings from '../../../components/FacePrintings.astro';
-import { cardPath, loadRegistry, setPath, slugify, views } from '../../../data/registry';
+import Provenance from '../../../components/Provenance.astro';
+import Notes from '../../../components/Notes.astro';
+import { cardPath, isManual, loadRegistry, releasedWith, setPath, slugify, views } from '../../../data/registry';
 import { officialCardUrl, officialSlugFromName } from '../../../presentation/officialCardUrl';
 import { embedColour, embedDescription } from '../../../presentation/embed';
 export async function getStaticPaths() {
@@ -17,8 +19,12 @@ export async function getStaticPaths() {
   // cards in this release, so a release where they part means their
   // normalisation changed or a slug stopped parsing - which would ship a
   // page of 404s, and fails the build instead.
+  // Only official slugs: a printing the registry recorded by hand carries
+  // our prediction of a slug, and the publisher has no page for it. A card
+  // with no official printing at all has no official link.
   const slugsFor = new Map<string, string[]>();
   for (const printing of registry.printings) {
+    if (isManual(printing)) continue;
     slugsFor.set(printing.codex_id, [...(slugsFor.get(printing.codex_id) ?? []), printing.slug]);
   }
   const parted = registry.cards.filter(card => {
@@ -43,6 +49,13 @@ const defaultPrinting = printings.find(p => p.printing_id === card.default_print
 const history = v.historyByCard.get(card.codex_id) ?? [];
 const names = v.namesByCard.get(card.codex_id) ?? [];
 const setsIn = registry.sets.filter(s => card.set_codes.includes(s.set_code ?? '')).map(s => ({ code: s.set_code, name: s.set_name, href: setPath(s) }));
+const setByCode = new Map(registry.sets.map(s => [s.set_code, s]));
+// The release a promo or curio came out with, when it is not its own set.
+const releaseOf = (p: typeof printings[number]) => {
+  const code = releasedWith(p);
+  const set = code && code !== p.set_code ? setByCode.get(code) : undefined;
+  return set ? { name: set.set_name, href: setPath(set) } : null;
+};
 
 ---
 <Base title={card.name} canonical={cardPath(card)} description={`${card.type ?? ''} · ${card.rules_text.slice(0, 140)}`} image={card.image_urls?.normal ?? null}
@@ -57,12 +70,14 @@ const setsIn = registry.sets.filter(s => card.set_codes.includes(s.set_code ?? '
         <summary><span class="label">Back face</span><span class="muted">{[card.back.type, ...card.back.subtypes].filter(Boolean).join(' · ')}</span></summary>
         <FaceBox face={card.back} printing={defaultPrinting?.back ?? null} />
       </details>}
+      <Provenance record={card} kind="card" />
       <RecordActions url={card.api_url} official={officialUrl} />
       <nav class="section-links" aria-label="On this card"><a href="#printings">{printings.length} printings ↓</a><a href="#history">History ↓</a></nav>
     </div>
   </div>
+  {(card.notes?.length ?? 0) > 0 && <section class="page-section"><Notes notes={card.notes} /></section>}
   <section id="printings" class="page-section"><div class="section-heading"><h2>Printings</h2><span class="muted">{printings.length} archived</span></div><p class="muted">Each set, product and finish has a permanent printing ID.</p>
-    <div class="printing-list">{printings.map(p => <PrintingEntry printing={p} card={card} history={history} names={names} />)}</div>
+    <div class="printing-list">{printings.map(p => <PrintingEntry printing={p} card={card} history={history} names={names} releasedWith={releaseOf(p)} />)}</div>
   </section>
   <section id="history" class="page-section"><h2>Card history</h2><FacePrintings history={history} printings={printings} /><CardHistory rows={history} names={names} /></section>
 </Base>

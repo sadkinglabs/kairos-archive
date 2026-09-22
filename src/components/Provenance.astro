@@ -1,0 +1,17 @@
+---
+/** Who stands behind a record, when it is not simply the official API:
+ * a card or printing the registry recorded by hand, one the API has
+ * since been confirmed to serve, or one withdrawn as wrong. Renders
+ * nothing for a record the registry only ever observed upstream, and
+ * nothing on a release built before schema 12. */
+import type { Manual, Origin } from '../data/registry';
+interface Props { record: { origin?: Origin; manual?: Manual | null }; kind: 'card' | 'printing' }
+const { record, kind } = Astro.props;
+const m = record.manual ?? null;
+---
+{m && <div class="notice provenance">
+  {m.withdrawn && <p><span class="badge older">Withdrawn</span> <strong>Withdrawn on {m.withdrawn.on}.</strong> {m.withdrawn.reason} The ID stays, so nothing that stored it breaks.</p>}
+  {record.origin === 'manual'
+    ? <p><span class="badge">Recorded by hand</span> The official API does not serve this {kind}, so the Kairos Archive records it from its own sources. <span class="source-note">Source: {m.source} · recorded {m.recorded}</span></p>
+    : <p><span class="badge ok">Confirmed</span> Recorded by hand on {m.recorded}, before the official API served this {kind}. The API has served it since {m.confirmed_at}, and the record kept its ID. <span class="source-note">Original source: {m.source}</span></p>}
+</div>}

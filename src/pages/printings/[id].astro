@@ -5,7 +5,9 @@ import RecordActions from '../../components/RecordActions.astro';
 import AsPrinted from '../../components/AsPrinted.astro';
 import ImageAddresses from '../../components/ImageAddresses.astro';
 import HistoryHelp from '../../components/HistoryHelp.astro';
-import { cardPath, loadRegistry, printingPath, setPath, showsCurrentValues, views } from '../../data/registry';
+import Provenance from '../../components/Provenance.astro';
+import Notes from '../../components/Notes.astro';
+import { cardPath, isManual, loadRegistry, printingPath, releasedWith, setPath, showsCurrentValues, views } from '../../data/registry';
 import { embedColour, embedDescription } from '../../presentation/embed';
 import { officialPrintingUrl } from '../../presentation/officialCardUrl';
 export async function getStaticPaths() {
@@ -19,6 +21,10 @@ const card = v.cardById.get(printing.codex_id)!;
 const slugs = v.slugsByPrinting.get(printing.printing_id) ?? [];
 const verdict = showsCurrentValues(printing);
 const history = v.historyByCard.get(card.codex_id) ?? [];
+const manual = isManual(printing);
+// The release a promo or curio came out with, when it is not its own set.
+const releaseCode = releasedWith(printing);
+const releaseSet = releaseCode && releaseCode !== printing.set_code ? registry.sets.find(s => s.set_code === releaseCode) ?? null : null;
 ---
 <Base title={`${card.name} (${printing.set_name}, ${printing.finish})`} canonical={printingPath(printing)} image={printing.image_urls?.normal ?? null}
   embed={embedDescription(card, [[printing.set_name, printing.product, printing.finish].filter(Boolean).join(' · '), printing.artist ? `Art by ${printing.artist}` : ''], { codex: card.codex_id, printing: printing.printing_id })} colour={embedColour(card.elements)}>
@@ -31,6 +37,7 @@ const history = v.historyByCard.get(card.codex_id) ?? [];
         : <span class:list={['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : '']} title={verdict.long}>{verdict.short}</span>}</p>
       <dl class="facts">
         <dt>Set</dt><dd><a href={setPath(printing)}>{printing.set_name}</a> <span class="muted">({printing.set_code ?? 'No code'})</span></dd>
+        {releaseSet && <><dt>Released with</dt><dd><a href={setPath(releaseSet)}>{releaseSet.set_name}</a></dd></>}
         <dt>Released</dt><dd>{printing.released_at ?? 'Unknown'}</dd>
         <dt>Product</dt><dd>{printing.product ?? 'Unrecorded'}</dd>
         <dt>Finish</dt><dd>{printing.finish ?? 'Unrecorded'}</dd>
@@ -39,12 +46,16 @@ const history = v.historyByCard.get(card.codex_id) ?? [];
         {printing.flavour_text && <><dt>Flavour</dt><dd>{printing.flavour_text}</dd></>}
         {printing.retired_at && <><dt>Retired</dt><dd>{printing.retired_at} (removed upstream; the record stays)</dd></>}
       </dl>
-      <RecordActions id={printing.printing_id} url={printing.api_url} label="Printing ID" official={officialPrintingUrl(printing)}
+      <Provenance record={printing} kind="printing" />
+      <Notes notes={printing.notes} />
+      <RecordActions id={printing.printing_id} url={printing.api_url} label="Printing ID" official={manual ? null : officialPrintingUrl(printing)}
         parent={{ label: 'Codex ID', id: card.codex_id, href: cardPath(card), text: 'Card record: current rules, printings and history →' }} />
       <details class="disclosure"><summary>Image addresses</summary><ImageAddresses urls={printing.image_urls} back={printing.back?.image_urls} name={card.name} heading={false} /></details>
       {printing.back && <section><h2>Back face</h2><dl class="facts"><dt>Artist</dt><dd>{printing.back.artist ?? 'Unrecorded'}</dd><dt>Typeline</dt><dd>{printing.back.typeline || '—'}</dd>{printing.back.flavour_text && <><dt>Flavour</dt><dd>{printing.back.flavour_text}</dd></>}</dl></section>}
     </div>
   </div>
   {printing.printed_as_current === false && <section class="page-section"><h2>As printed</h2><p class="muted">What this printing says, against what the card says now.</p><HistoryHelp /><AsPrinted printing={printing} card={card} history={history} names={v.namesByCard.get(card.codex_id) ?? []} /></section>}
-  <section class="page-section"><h2>Slug history</h2><p class="muted">The official API's slug for this printing, every one it has had. Slugs change; the printing ID does not.</p><ul>{slugs.map(s => <li><code>{s.slug}</code><span class="source-note"> · recorded on {s.valid_from}{s.valid_to ? ` · range ends ${s.valid_to}` : ' · current'}</span></li>)}</ul></section>
+  {manual
+    ? <section class="page-section"><h2>Slug</h2><p class="muted">The official API has no slug for this printing, because it does not serve it. The registry gives it a predicted slug in the publisher's own pattern, which may change if the API ever serves it. Slugs change; the printing ID does not.</p><ul><li><code>{printing.slug}</code><span class="source-note"> · predicted, not official</span></li></ul></section>
+    : <section class="page-section"><h2>Slug history</h2><p class="muted">The official API's slug for this printing, every one it has had. Slugs change; the printing ID does not.</p><ul>{slugs.map(s => <li><code>{s.slug}</code><span class="source-note"> · recorded on {s.valid_from}{s.valid_to ? ` · range ends ${s.valid_to}` : ' · current'}</span></li>)}</ul></section>}
 </Base>

@@ -9,6 +9,7 @@ const { source } = await loadRegistry();
 const releases = source.releases;
 const changes = await loadChanges(API_BASE, releases);
 const github = (tag: string) => `https://github.com/sadkinglabs/sorcery-registry/releases/tag/${tag}`;
+const recordHref = (id: string) => (id.startsWith('C') ? `/cards/${id}` : `/printings/${id}`);
 const withChanges = releases.filter((r) => changes.get(r.tag));
 ---
 <Docs title="Releases" description="Every release of the registry, newest first, and what changed in the shape of the data.">
@@ -43,7 +44,11 @@ const withChanges = releases.filter((r) => changes.get(r.tag));
       {(c.images.added.length > 0 || c.images.replaced.length > 0) && <details><summary>{s.images_added + s.images_replaced} {s.images_added + s.images_replaced === 1 ? 'image' : 'images'} added or replaced</summary>
         <ul class="ids">{c.images.replaced.map((id) => <li><a href={`/printings/${id}`}><code>{id}</code></a> replaced</li>)}{c.images.added.map((id) => <li><a href={`/printings/${id}`}><code>{id}</code></a></li>)}</ul></details>}
       {c.history.added.length > 0 && <details><summary>{s.history_rows_added} history {s.history_rows_added === 1 ? 'row' : 'rows'} added</summary>
-        <ul>{c.history.added.map((h) => <li><a href={`/cards/${h.codex_id}`}><code>{h.codex_id}</code></a> from {h.valid_from}{h.source === 'card' ? ', recorded from the printed card' : ''}</li>)}</ul></details>}
+        <ul>{c.history.added.map((h) => <li><a href={`/cards/${h.codex_id}`}><code>{h.codex_id}</code></a> from {h.valid_from}{h.source === 'card' ? ', recorded from the printed card' : h.source === 'manual' ? ', recorded by hand' : ''}</li>)}</ul></details>}
+      {c.notes && c.notes.added.length + c.notes.removed.length > 0 && <details><summary>{c.notes.added.length + c.notes.removed.length} {c.notes.added.length + c.notes.removed.length === 1 ? 'note' : 'notes'} added or removed</summary>
+        <ul>{c.notes.added.map((n) => <li><a href={recordHref(n.id)}><code>{n.id}</code></a>: {n.text} <span class="source-note">Source: {n.source}</span></li>)}{c.notes.removed.map((n) => <li><a href={recordHref(n.id)}><code>{n.id}</code></a> removed: <s>{n.text}</s></li>)}</ul></details>}
+      {c.manual && c.manual.added.length + c.manual.confirmed.length + c.manual.withdrawn.length > 0 && <details><summary>Records kept by hand</summary>
+        <ul class="ids">{c.manual.added.map((id) => <li><a href={recordHref(id)}><code>{id}</code></a> added by hand</li>)}{c.manual.confirmed.map((id) => <li><a href={recordHref(id)}><code>{id}</code></a> confirmed upstream</li>)}{c.manual.withdrawn.map((id) => <li><a href={recordHref(id)}><code>{id}</code></a> withdrawn</li>)}</ul></details>}
       {(c.cards.removed.length > 0 || c.printings.removed.length > 0) && <details open><summary>{s.identifiers_removed} identifiers removed</summary>
         <ul class="ids">{[...c.cards.removed, ...c.printings.removed].map((id) => <li><code>{id}</code></li>)}</ul></details>}
       {c.sets.added.length > 0 && <p>Sets added: {c.sets.added.map((code) => <a href={`/sets/${code}`}><code>{code}</code></a>)}</p>}

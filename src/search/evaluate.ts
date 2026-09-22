@@ -123,10 +123,16 @@ function elementMatch(card: Card, op: Op, value: string): boolean {
   return op === "!=" ? !has : has;
 }
 
-function setMatch(printing: Printing, value: string, setNames: Map<string, string>): boolean {
+/** A set named by code or name against a printing's set code (s:) or the
+ * release it belongs to (with:). Digits are the publisher's codes (s:6 is
+ * 006); three letters may be one of the registry's own (s:cur). */
+function setMatch(code: string | null, value: string, setNames: Map<string, string>): boolean {
   const v = value.trim().toLowerCase();
-  if (/^\d+$/.test(v)) return printing.set_code === v.padStart(3, "0");
-  const name = fold(printing.set_name);
+  if (code === null) return false;
+  if (/^\d+$/.test(v)) return code === v.padStart(3, "0");
+  if (/^[a-z]{3}$/.test(v) && code.toLowerCase() === v) return true;
+  const name = fold(setNames.get(code) ?? "");
+  if (!name) return false;
   if (name === v || name.startsWith(v)) return true;
   // a prefix that is unique among set names
   const candidates = [...setNames.values()].filter((n) => n.toLowerCase().startsWith(v));
@@ -163,7 +169,7 @@ function evalTerm(node: Extract<Node, { kind: "term" }>, card: Card, printing: P
   if (key.scope === "printing") {
     if (!printing) return false;
     switch (key.kind) {
-      case "set": return truth(setMatch(printing, value, ctx.setNames));
+      case "set": return truth(setMatch((printing as unknown as Record<string, string | null>)[key.field], value, ctx.setNames));
       case "product": return truth(productMatch(printing, value));
       case "finish": return truth(finishMatch(printing, value));
       case "date": return compareDates(printing.released_at, op, value);
@@ -208,6 +214,7 @@ function evalFlag(node: Extract<Node, { kind: "flag" }>, card: Card, printing: P
       case "current": return printing.printed_as_current === true;
       case "outdated": return printing.printed_as_current === false;
       case "retired": return printing.retired_at !== null;
+      case "manual": return printing.origin === "manual";
       case "image": return printing.image_status !== "missing";
       default: return false;
     }

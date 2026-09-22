@@ -32,7 +32,7 @@ const DEF_NAMES: Record<string, string> = {
   printingId: "printing ID, P plus six digits",
   date: "date, YYYY-MM-DD",
   threshold: "integer, 0 or more",
-  setCode: "set code, three digits",
+  setCode: "set code: three digits, or three letters for the registry's own",
   face: "face object: the gameplay fields of a card (see Card)",
 };
 
