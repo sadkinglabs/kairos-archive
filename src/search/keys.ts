@@ -152,7 +152,7 @@ export const KEYS: KeyDef[] = [
     examples: ["slug:004-witch-b-s"] },
   // ---- printing keys
   { name: "set", aliases: ["s", "set"], scope: "printing", kind: "set", field: "set_code",
-    doc: "A set by code or name: s:006, s:6, s:gothic, set:\"arthurian legends\"; name prefixes work. The registry's own sets have letter codes: s:cur is the curios. Promos are all in set 999 (s:promo); to find them by the release they came out with, use with:.",
+    doc: "A set by code or name: s:006, s:gothic, set:\"arthurian legends\"; name prefixes work. A code is a label, written in full: s:6 is not s:006. The registry's own sets have letter codes: s:cur is the curios. Promos are all in set 999 (s:promo); to find them by the release they came out with, use with:.",
     examples: ["s:alpha", "s:006 f:foil"] },
   { name: "with", aliases: ["rw", "with"], scope: "printing", kind: "set", field: "released_with",
     doc: "The set release a printing came out with, by code or name. A booster card came out with its own set; a promo or a curio with the release the registry recorded for it, so with:beta finds Beta's cards and the promos released with Beta. Promos with no recorded release match no with: at all.",

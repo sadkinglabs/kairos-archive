@@ -124,13 +124,12 @@ function elementMatch(card: Card, op: Op, value: string): boolean {
 }
 
 /** A set named by code or name against a printing's set code (s:) or the
- * release it belongs to (with:). Digits are the publisher's codes (s:6 is
- * 006); three letters may be one of the registry's own (s:cur). */
+ * release it belongs to (with:). A code is a label, compared as a string
+ * (s:006, s:cur): s:6 is not 006. */
 function setMatch(code: string | null, value: string, setNames: Map<string, string>): boolean {
   const v = value.trim().toLowerCase();
   if (code === null) return false;
-  if (/^\d+$/.test(v)) return code === v.padStart(3, "0");
-  if (/^[a-z]{3}$/.test(v) && code.toLowerCase() === v) return true;
+  if (code.toLowerCase() === v) return true;
   const name = fold(setNames.get(code) ?? "");
   if (!name) return false;
   if (name === v || name.startsWith(v)) return true;

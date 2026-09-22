@@ -55,7 +55,11 @@ export interface RegistryPrinting extends PrintingFace, Provenance {
   printed_as_current: boolean | null; retired_at: string | null; api_url: string; kairos_url: string;
   image_status: "missing" | "lowres" | "ok";
 }
-export interface RegistrySet { set_code: string | null; set_name: string; released_at: string | null; cards: number; printings: number; origin?: Origin; api_url: string | null; kairos_url: string | null }
+/** What a set is, as the registry records it (schema 12): a set release,
+ * the publisher's bucket for promos (999), or a set of the registry's own
+ * (CUR). A set code is a label; nothing is ever read from its characters. */
+export type SetKind = "release" | "promo" | "registry";
+export interface RegistrySet { set_code: string | null; set_name: string; released_at: string | null; cards: number; printings: number; kind?: SetKind; origin?: Origin; api_url: string | null; kairos_url: string | null }
 export interface HistoryRow extends Face {
   codex_id: string; valid_from: string; valid_to: string | null; back: Face | null;
   /** Where the face came from: "api" when the registry observed it in the
@@ -191,11 +195,22 @@ export function loadRegistry(): Promise<Loaded> {
 export { slugify, cardPath, printingPath } from "./paths";
 export const setPath = (set: { set_code: string | null }) => `/sets/${set.set_code ?? "none"}`;
 
-/** A set that is itself a release (001 Alpha, 002 Beta, ...), as opposed to
- * 999, where the publisher files every promo, or a code of the registry's
- * own (three capital letters, such as CUR for the curios). */
-export const isReleaseSet = (code: string | null | undefined): boolean =>
-  !!code && /^\d{3}$/.test(code) && code !== "999";
+/** Releases before v3.4.0 do not say what each set is. In every one of
+ * them, each set was a release except 999, the publisher's promo bucket:
+ * a fact about those releases, written down here, not a rule read from
+ * the codes. A release that carries `kind` is always believed instead. */
+const KINDS_BEFORE_SCHEMA_12: Record<string, SetKind> = { "999": "promo" };
+
+/** What each set is, by code. */
+export function setKinds(sets: readonly RegistrySet[]): Map<string, SetKind> {
+  const kinds = new Map<string, SetKind>();
+  for (const s of sets) if (s.set_code !== null) kinds.set(s.set_code, s.kind ?? KINDS_BEFORE_SCHEMA_12[s.set_code] ?? "release");
+  return kinds;
+}
+
+/** Whether a set is itself a release, as recorded. */
+export const isReleaseSet = (code: string | null | undefined, kinds: ReadonlyMap<string, SetKind>): boolean =>
+  !!code && kinds.get(code) === "release";
 
 /** A record the registry recorded by hand rather than read from the API. */
 export const isManual = (record: { origin?: Origin }): boolean => record.origin === "manual";
@@ -203,11 +218,12 @@ export const isManual = (record: { origin?: Origin }): boolean => record.origin 
 /** The release a printing belongs to: the recorded one, or for a release
  * built before the field existed, the printing's own set when that set is
  * a release. */
-export const releasedWith = (p: { set_code: string | null; released_with?: string | null }): string | null =>
-  p.released_with !== undefined ? p.released_with : isReleaseSet(p.set_code) ? p.set_code : null;
+export const releasedWith = (p: { set_code: string | null; released_with?: string | null }, kinds: ReadonlyMap<string, SetKind>): string | null =>
+  p.released_with !== undefined ? p.released_with : isReleaseSet(p.set_code, kinds) ? p.set_code : null;
 
 
 export function toSearchData(registry: Registry): SearchData {
+  const kinds = setKinds(registry.sets);
   const hashById = new Map(registry.printings.map((p) => [p.printing_id, p.image_hash]));
   const cards: Card[] = registry.cards.map((c) => ({
     codex_id: c.codex_id, name: c.name, type: c.type, category: c.category, rarity: c.rarity, slot: c.slot,
@@ -224,7 +240,7 @@ export function toSearchData(registry: Registry): SearchData {
     released_at: p.released_at, product: p.product, finish: p.finish, artist: p.artist, artist_slug: p.artist_slug,
     typeline: p.typeline, flavour_text: p.flavour_text, printed_as_current: p.printed_as_current, retired_at: p.retired_at,
     image_status: p.image_status, image_hash: p.image_hash,
-    released_with: releasedWith(p), origin: p.origin ?? "api",
+    released_with: releasedWith(p, kinds), origin: p.origin ?? "api",
   }));
   return { cards, printings };
 }

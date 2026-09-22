@@ -8,7 +8,7 @@ import CardHistory from '../../../components/CardHistory.astro';
 import FacePrintings from '../../../components/FacePrintings.astro';
 import Provenance from '../../../components/Provenance.astro';
 import Notes from '../../../components/Notes.astro';
-import { cardPath, isManual, loadRegistry, releasedWith, setPath, slugify, views } from '../../../data/registry';
+import { cardPath, isManual, loadRegistry, releasedWith, setKinds, setPath, slugify, views } from '../../../data/registry';
 import { officialCardUrl, officialSlugFromName } from '../../../presentation/officialCardUrl';
 import { embedColour, embedDescription } from '../../../presentation/embed';
 export async function getStaticPaths() {
@@ -50,9 +50,10 @@ const history = v.historyByCard.get(card.codex_id) ?? [];
 const names = v.namesByCard.get(card.codex_id) ?? [];
 const setsIn = registry.sets.filter(s => card.set_codes.includes(s.set_code ?? '')).map(s => ({ code: s.set_code, name: s.set_name, href: setPath(s) }));
 const setByCode = new Map(registry.sets.map(s => [s.set_code, s]));
+const kinds = setKinds(registry.sets);
 // The release a promo or curio came out with, when it is not its own set.
 const releaseOf = (p: typeof printings[number]) => {
-  const code = releasedWith(p);
+  const code = releasedWith(p, kinds);
   const set = code && code !== p.set_code ? setByCode.get(code) : undefined;
   return set ? { name: set.set_name, href: setPath(set) } : null;
 };

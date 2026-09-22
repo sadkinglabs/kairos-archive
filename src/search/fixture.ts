@@ -8,6 +8,9 @@ const card = (over: Partial<Card> & { codex_id: string; name: string }): Card =>
   ...over,
 });
 
+/** What each fixture set is, as the registry would record it. */
+const FIXTURE_KINDS: Record<string, string> = { "001": "release", "002": "release", "004": "release", "006": "release", "999": "promo", "CUR": "registry" };
+
 const printing = (over: Partial<Printing> & { printing_id: string; codex_id: string; slug: string }): Printing => {
   const made: Printing = {
     set_code: "001", set_name: "Alpha", released_at: "2023-06-22", product: "Booster", finish: "Standard",
@@ -17,7 +20,7 @@ const printing = (over: Partial<Printing> & { printing_id: string; codex_id: str
     ...over,
   };
   // A printing in a release set is released with it, as the registry says.
-  if (over.released_with === undefined && made.set_code && /^\d{3}$/.test(made.set_code) && made.set_code !== "999") {
+  if (over.released_with === undefined && made.set_code && FIXTURE_KINDS[made.set_code] === "release") {
     made.released_with = made.set_code;
   }
   return made;

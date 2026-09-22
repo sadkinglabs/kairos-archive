@@ -7,7 +7,7 @@ import ImageAddresses from '../../components/ImageAddresses.astro';
 import HistoryHelp from '../../components/HistoryHelp.astro';
 import Provenance from '../../components/Provenance.astro';
 import Notes from '../../components/Notes.astro';
-import { cardPath, isManual, loadRegistry, printingPath, releasedWith, setPath, showsCurrentValues, views } from '../../data/registry';
+import { cardPath, isManual, loadRegistry, printingPath, releasedWith, setKinds, setPath, showsCurrentValues, views } from '../../data/registry';
 import { embedColour, embedDescription } from '../../presentation/embed';
 import { officialPrintingUrl } from '../../presentation/officialCardUrl';
 export async function getStaticPaths() {
@@ -23,7 +23,7 @@ const verdict = showsCurrentValues(printing);
 const history = v.historyByCard.get(card.codex_id) ?? [];
 const manual = isManual(printing);
 // The release a promo or curio came out with, when it is not its own set.
-const releaseCode = releasedWith(printing);
+const releaseCode = releasedWith(printing, setKinds(registry.sets));
 const releaseSet = releaseCode && releaseCode !== printing.set_code ? registry.sets.find(s => s.set_code === releaseCode) ?? null : null;
 ---
 <Base title={`${card.name} (${printing.set_name}, ${printing.finish})`} canonical={printingPath(printing)} image={printing.image_urls?.normal ?? null}

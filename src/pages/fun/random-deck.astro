@@ -6,7 +6,7 @@
 import Base from "../../layouts/Base.astro";
 import CodeExample from "../../components/CodeExample.astro";
 import source from "../../fun/random-deck.js?raw";
-import { isReleaseSet, loadRegistry, orderedSets } from "../../data/registry";
+import { isReleaseSet, loadRegistry, orderedSets, setKinds } from "../../data/registry";
 
 /** The tutorial file, split at its "// ── N." headings. */
 const sections = source.split(/^(?=\/\/ ── )/m).map((chunk) => chunk.trim());
@@ -25,9 +25,10 @@ const repo = "https://github.com/sadkinglabs/kairos-archive/blob/main/src/fun";
 const elements = ["Air", "Earth", "Fire", "Water"];
 const split = { Artifact: 8, Aura: 6, Magic: 16, Minion: 30 };
 const { registry } = await loadRegistry();
-// Playable releases only: not 999, where the publisher files every promo,
-// and not a set of the registry's own such as the curios.
-const sets = orderedSets(registry.sets).filter((s) => isReleaseSet(s.set_code));
+// Playable releases only, as each set's recorded kind says: not the
+// publisher's promo bucket, and not a set of the registry's own.
+const kinds = setKinds(registry.sets);
+const sets = orderedSets(registry.sets).filter((s) => isReleaseSet(s.set_code, kinds));
 ---
 <Base title="Random deck" canonical="/fun/random-deck" description="A random Sorcery deck from the Kairos Archive query API, and a short tutorial: build a query, fetch the pages, use the card records with ordinary JavaScript.">
   <p class="eyebrow"><a href="/fun">Fun Zone</a></p>

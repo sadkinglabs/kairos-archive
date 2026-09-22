@@ -28,8 +28,9 @@ describe("sets of the registry's own", () => {
     expect(prints("s:CUR unique:prints")).toEqual(["P000009"]);
     expect(prints("s:curios unique:prints")).toEqual(["P000009"]);
   });
-  it("digits still mean the publisher's codes", () => {
-    expect(prints("s:4 unique:prints").sort()).toEqual(["P000006", "P000008"]);
+  it("a code is a label, written in full", () => {
+    expect(prints("s:004 unique:prints").sort()).toEqual(["P000006", "P000008"]);
+    expect(prints("s:4 unique:prints")).toEqual([]);
   });
 });
 

@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import CardTile from '../../components/CardTile.astro';
 import RecordActions from '../../components/RecordActions.astro';
-import { isReleaseSet, loadRegistry, releasedWith, setPath, views } from '../../data/registry';
+import { isReleaseSet, loadRegistry, releasedWith, setKinds, setPath, views } from '../../data/registry';
 import { KEYS, UNITS } from '../../search/keys';
 export async function getStaticPaths() {
   const { registry } = await loadRegistry();
@@ -21,12 +21,13 @@ const groupOf = (c: typeof cards[number]) => c.category === 'Token' ? 'Token' : 
 const groups = [...new Set(cards.map(groupOf))].sort().map((type, index) => ({ type, id: `type-${index}`, cards: cards.filter(c => groupOf(c) === type) }));
 // Promos and curios filed outside this set that came out with it: the
 // store-kit prizes, pledge cards and curios of this release.
-const alongside = isReleaseSet(set.set_code)
-  ? registry.printings.filter(p => p.set_code !== set.set_code && releasedWith(p) === set.set_code && !p.manual?.withdrawn)
+const kinds = setKinds(registry.sets);
+const alongside = isReleaseSet(set.set_code, kinds)
+  ? registry.printings.filter(p => p.set_code !== set.set_code && releasedWith(p, kinds) === set.set_code && !p.manual?.withdrawn)
       .map(p => ({ printing: p, card: v.cardById.get(p.codex_id)! }))
       .sort((a, b) => a.card.name.localeCompare(b.card.name) || a.printing.printing_id.localeCompare(b.printing.printing_id))
   : [];
-const ownSet = set.origin === 'manual';
+const ownSet = set.set_code !== null && kinds.get(set.set_code) === 'registry';
 const withKey = KEYS.find(k => k.name === 'with')!.aliases[1];
 const setKey = KEYS.find(k => k.name === 'set')!.aliases[0];
 const query = `${setKey}:${JSON.stringify(set.set_code ?? set.set_name)} unique:${UNITS.find(u => u === 'prints')}`;

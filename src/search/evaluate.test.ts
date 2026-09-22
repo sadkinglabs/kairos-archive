@@ -82,7 +82,8 @@ describe("card keys", () => {
 describe("printing keys bind to one printing", () => {
   it("set by code, number, name and name prefix", () => {
     expect(names("s:001")).toEqual(["Apprentice Wizard", "Polar Bears"]);
-    expect(names("s:1")).toEqual(["Apprentice Wizard", "Polar Bears"]);
+    expect(names("s:001")).toEqual(["Apprentice Wizard", "Polar Bears"]);
+    expect(names("s:1")).toEqual([]);   // a code is a label: 1 is not 001
     expect(names("s:gothic")).toEqual(["Broken Site"]);
     expect(names('set:"arthurian legends"')).toEqual(["Druid", "Witch"]);
     expect(names("s:arth")).toEqual(["Druid", "Witch"]);
