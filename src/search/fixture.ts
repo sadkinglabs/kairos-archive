@@ -8,12 +8,23 @@ const card = (over: Partial<Card> & { codex_id: string; name: string }): Card =>
   ...over,
 });
 
-const printing = (over: Partial<Printing> & { printing_id: string; codex_id: string; slug: string }): Printing => ({
-  set_code: "001", set_name: "Alpha", released_at: "2023-06-22", product: "Booster", finish: "Standard",
-  artist: "Ossi Hiekkala", artist_slug: "ossi_hiekkala", typeline: "An Ordinary Mortal", flavour_text: null,
-  printed_as_current: true, retired_at: null, image_status: "missing", image_hash: null,
-  ...over,
-});
+/** What each fixture set is, as the registry would record it. */
+const FIXTURE_KINDS: Record<string, string> = { "001": "release", "002": "release", "004": "release", "006": "release", "999": "promo", "CUR": "registry" };
+
+const printing = (over: Partial<Printing> & { printing_id: string; codex_id: string; slug: string }): Printing => {
+  const made: Printing = {
+    set_code: "001", set_name: "Alpha", released_at: "2023-06-22", product: "Booster", finish: "Standard",
+    artist: "Ossi Hiekkala", artist_slug: "ossi_hiekkala", typeline: "An Ordinary Mortal", flavour_text: null,
+    printed_as_current: true, retired_at: null, image_status: "missing", image_hash: null,
+    released_with: null, origin: "api",
+    ...over,
+  };
+  // A printing in a release set is released with it, as the registry says.
+  if (over.released_with === undefined && made.set_code && FIXTURE_KINDS[made.set_code] === "release") {
+    made.released_with = made.set_code;
+  }
+  return made;
+};
 
 export const CARDS: Card[] = [
   card({ codex_id: "C000001", name: "Apprentice Wizard", keywords: ["Spellcaster", "Genesis"], cost: 3, attack: 1, defense: 1, power: 1,

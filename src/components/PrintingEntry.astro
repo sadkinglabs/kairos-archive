@@ -4,11 +4,15 @@
  * image addresses) lives on that page, one click away; the entry says
  * only what a reader scanning the list needs, plus the as-printed
  * comparison for a printing the card has since outgrown. */
-import { printingPath, showsCurrentValues, type RegistryCard, type RegistryPrinting, type HistoryRow } from '../data/registry';
+import { isManual, printingPath, showsCurrentValues, type RegistryCard, type RegistryPrinting, type HistoryRow } from '../data/registry';
 import AsPrinted from './AsPrinted.astro';
 import { hasAsPrinted } from '../data/asPrinted';
-interface Props { printing: RegistryPrinting; card: RegistryCard; history: HistoryRow[]; names: { name: string; valid_from: string; valid_to: string | null }[] }
-const { printing: p, card, history, names } = Astro.props;
+interface Props {
+  printing: RegistryPrinting; card: RegistryCard; history: HistoryRow[]; names: { name: string; valid_from: string; valid_to: string | null }[];
+  /** The release a promo or curio came out with, when it is not its own set. */
+  releasedWith?: { name: string; href: string } | null;
+}
+const { printing: p, card, history, names, releasedWith = null } = Astro.props;
 const verdict = showsCurrentValues(p);
 const pillClass = ['badge', verdict.verdict === 'yes' ? 'ok' : verdict.verdict === 'no' ? 'older' : ''];
 const explained = history.length > 1 && verdict.verdict !== 'undated';
@@ -18,10 +22,10 @@ const explained = history.length > 1 && verdict.verdict !== 'undated';
     <a class="printing-thumb" href={printingPath(p)} tabindex="-1" aria-hidden="true">
       {p.image_urls ? <img class="card-img" src={p.image_urls.small} width="73" height="102" loading="lazy" alt="" /> : <div class="placeholder">No image</div>}
     </a>
-    <div class="printing-heading"><h3><a href={printingPath(p)}>{p.set_name}</a> <span class:list={['badge', p.finish ? `finish-${p.finish.toLowerCase()}` : '']}>{p.finish ?? 'Unspecified finish'}</span></h3><p>{p.product ?? 'Unspecified product'} <span aria-hidden="true">·</span> <span class="muted">{p.released_at ?? 'Release date unknown'}</span></p><p class="muted">Artist: {p.artist ?? 'unrecorded'}</p></div>
+    <div class="printing-heading"><h3><a href={printingPath(p)}>{p.set_name}</a> <span class:list={['badge', p.finish ? `finish-${p.finish.toLowerCase()}` : '']}>{p.finish ?? 'Unspecified finish'}</span></h3><p>{p.product ?? 'Unspecified product'} <span aria-hidden="true">·</span> <span class="muted">{p.released_at ?? 'Release date unknown'}</span></p><p class="muted">Artist: {p.artist ?? 'unrecorded'}</p>{releasedWith && <p class="muted">Released with <a href={releasedWith.href}>{releasedWith.name}</a></p>}{(p.notes?.length ?? 0) > 0 && <p class="muted"><a href={printingPath(p)}>{p.notes!.length === 1 ? 'A note' : `${p.notes!.length} notes`} on this printing →</a></p>}</div>
     <div class="printing-verdict">{explained
       ? <a class:list={pillClass} href="#face-printings-title" title="See which printings carry which values">{verdict.short}</a>
-      : <span class:list={pillClass} title={verdict.long}>{verdict.short}</span>}{p.retired_at && <span class="badge">Retired {p.retired_at}</span>}</div>
+      : <span class:list={pillClass} title={verdict.long}>{verdict.short}</span>}{p.retired_at && <span class="badge">Retired {p.retired_at}</span>}{isManual(p) && <span class="badge" title="The official API does not serve this printing; the Kairos Archive records it by hand.">Recorded by hand</span>}{p.manual?.withdrawn && <span class="badge older" title={p.manual.withdrawn.reason}>Withdrawn</span>}</div>
   </div>
   <div class="printing-links"><span class="muted">Printing ID</span><a href={printingPath(p)}><code>{p.printing_id}</code></a><button class="copy" data-copy={p.printing_id} aria-label={`Copy printing ID ${p.printing_id}`}>Copy</button>{p.printing_id === card.default_printing_id && <span class="muted">Shown above</span>}</div>
   {hasAsPrinted(p, card, history, names) && <details class="as-printed disclosure">

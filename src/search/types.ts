@@ -51,6 +51,11 @@ export interface Printing {
   retired_at: string | null;
   image_status: ImageStatus;
   image_hash: string | null;
+  /** The set release the printing belongs to: its own set, or for a promo
+   * or curio, the one the registry recorded; null when unknown. */
+  released_with: string | null;
+  /** "manual" when the registry recorded the printing by hand. */
+  origin: "api" | "manual";
 }
 
 export interface SearchData {

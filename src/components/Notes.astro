@@ -1,0 +1,13 @@
+---
+/** What the registry knows about a record that the official API does not
+ * say, each fact with where it came from and when it was written down.
+ * A note is a report, not an official record, so its source is always
+ * shown with it. Renders nothing when there are none. */
+import type { Note } from '../data/registry';
+interface Props { notes?: Note[]; heading?: boolean }
+const { notes = [], heading = true } = Astro.props;
+---
+{notes.length > 0 && <section class="notes" aria-label="Notes">
+  {heading && <h2>Notes</h2>}
+  <ul>{notes.map(n => <li>{n.text}<span class="source-note"> Source: {n.source} · recorded {n.recorded}</span></li>)}</ul>
+</section>}

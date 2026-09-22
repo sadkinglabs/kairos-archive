@@ -18,4 +18,13 @@ describe("summaryParts", () => {
     expect(isEmpty(none)).toBe(true);
     expect(isEmpty(base)).toBe(false);
   });
+  it("names notes and records kept by hand (schema 12)", () => {
+    const v340 = { ...base, from: "v3.3.3", to: "v3.4.0", summary: { ...base.summary, cards_changed: 0, printings_added: 0, images_replaced: 0,
+      printings_changed: 1, notes_added: 1, notes_removed: 0, manual_added: 4, manual_confirmed: 0, manual_withdrawn: 0 } };
+    expect(summaryParts(v340)).toEqual(["1 printing changed", "1 note added", "4 records added by hand", "0 identifiers removed"]);
+    // A notes-only release is a release with changes, and says which.
+    const notesOnly = { ...base, summary: { ...Object.fromEntries(Object.keys(base.summary).map((k) => [k, 0])) as Changes["summary"], notes_added: 1 } };
+    expect(isEmpty(notesOnly)).toBe(false);
+    expect(summaryParts(notesOnly)).toEqual(["1 note added", "0 identifiers removed"]);
+  });
 });

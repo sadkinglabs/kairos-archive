@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { changedFields, fetchWithRetry, historySource, orderedSets, rowInForce, setFace,
+import { changedFields, fetchWithRetry, historySource, isReleaseSet, orderedSets, releasedWith, rowInForce, setFace, setKinds,
          SET_FACES, showsCurrentValues, type RegistryPrinting, type RegistrySet } from "./registry";
 
 describe("rowInForce", () => {
@@ -50,6 +50,28 @@ describe("historySource", () => {
   });
   it("labels a face transcribed from the printed card", () => {
     expect(historySource({ source: "card" })).toMatchObject({ fromCard: true, label: "read from the printed card" });
+  });
+  it("labels the face of a card recorded by hand, dated like a printed one", () => {
+    expect(historySource({ source: "manual" })).toMatchObject({ fromCard: true, dated: "in force from", heading: "Recorded by hand" });
+  });
+});
+
+describe("releasedWith and isReleaseSet", () => {
+  const kinds = new Map([["001", "release"], ["002", "release"], ["999", "promo"], ["998", "promo"], ["CUR", "registry"]] as const);
+  it("reads the recorded release, and derives it from the set's kind for a release made before the field", () => {
+    expect(releasedWith({ set_code: "999", released_with: "004" }, kinds)).toBe("004");
+    expect(releasedWith({ set_code: "999", released_with: null }, kinds)).toBeNull();
+    expect(releasedWith({ set_code: "002" }, kinds)).toBe("002");      // v3.3.x: no field
+    expect(releasedWith({ set_code: "999" }, kinds)).toBeNull();
+    expect(releasedWith({ set_code: "CUR" }, kinds)).toBeNull();
+  });
+  it("a release is what is recorded, never what a code looks like", () => {
+    expect(["001", "998", "999", "CUR", "006", null].map((c) => isReleaseSet(c, kinds))).toEqual([true, false, false, false, false, false]);
+  });
+  it("believes a release's own kinds, and knows the old releases had one promo set", () => {
+    const sets = (over: Partial<RegistrySet>[]) => over.map((o) => ({ set_code: "001", set_name: "x", released_at: null, cards: 0, printings: 0, api_url: null, kairos_url: null, ...o }) as RegistrySet);
+    expect([...setKinds(sets([{ set_code: "001" }, { set_code: "999" }]))]).toEqual([["001", "release"], ["999", "promo"]]);
+    expect([...setKinds(sets([{ set_code: "998", kind: "promo" }, { set_code: "CUR", kind: "registry" }]))]).toEqual([["998", "promo"], ["CUR", "registry"]]);
   });
 });
 
