@@ -1,35 +1,41 @@
 ---
 import Base from "../layouts/Base.astro";
-import CardTile from "../components/CardTile.astro";
-import { loadRegistry, orderedSets, setPath, views, type RegistryPrinting } from "../data/registry";
+import { cardPath, loadRegistry, orderedSets, printingPath, setPath, views, type RegistryPrinting } from "../data/registry";
 
 // Tokens aren't a set of their own upstream, so give them a catalogue page
-// like /sets: every card whose category is Token, under each set that
-// printed it. Not under the set of its default printing alone - Rubble is
-// in five sets and was listed only under Arthurian Legends, which read as
-// a claim that it belongs to that set.
+// like /sets. Unlike everywhere else, a tile here is a printing, not a card,
+// and a two-faced printing shows both faces: Alpha has three Frog printings
+// (blue, green, red) under one Codex ID, and one tile per card per set read
+// as Alpha having one Frog. Each set lists every token printing it has.
 const { registry } = await loadRegistry();
 const v = views(registry);
 const tokens = registry.cards.filter((c) => c.category === "Token");
 const setByCode = new Map(registry.sets.map((s) => [s.set_code ?? "none", s]));
 
-interface Entry { card: typeof tokens[number]; printing: RegistryPrinting | null }
-interface Group { set: typeof registry.sets[number] | null; entries: Entry[] }
+type Urls = RegistryPrinting["image_urls"];
+// Ordered by card name, then printing id, then front before back.
+interface Tile { href: string; name: string; sub: string; urls: Urls; alt: string; order: [string, string, number] }
+interface Group { set: typeof registry.sets[number] | null; tiles: Tile[] }
 const groups = new Map<string, Group>();
+const add = (key: string, tile: Tile) => {
+  if (!groups.has(key)) groups.set(key, { set: setByCode.get(key) ?? null, tiles: [] });
+  groups.get(key)!.tiles.push(tile);
+};
+let printingCount = 0;
 for (const card of tokens) {
   const printings = v.printingsByCard.get(card.codex_id) ?? [];
-  const bySet = new Map<string, RegistryPrinting>();
-  for (const p of printings) {
-    const key = p.set_code ?? "none";
-    // One tile per set: the plainest printing of it, Standard over a foil.
-    const held = bySet.get(key);
-    if (!held || (held.finish !== "Standard" && p.finish === "Standard")) bySet.set(key, p);
+  if (printings.length === 0) {
+    add("none", { href: cardPath(card), name: card.name, sub: card.type ?? "", urls: card.image_urls, alt: card.name, order: [card.name, "", 0] });
+    continue;
   }
-  const places: [string, RegistryPrinting | null][] = bySet.size > 0 ? [...bySet] : [["none", null]];
-  for (const [key, printing] of places) {
-    const set = setByCode.get(key) ?? null;
-    if (!groups.has(key)) groups.set(key, { set, entries: [] });
-    groups.get(key)!.entries.push({ card, printing });
+  for (const p of printings) {
+    printingCount++;
+    const key = p.set_code ?? "none";
+    // The id tells apart printings that share everything else (the three
+    // Alpha Frogs); the finish is only worth the room when it is not Standard.
+    const sub = [p.product, p.finish === "Standard" ? null : p.finish].filter(Boolean).join(" · ");
+    add(key, { href: printingPath(p), name: card.name, sub: `${p.printing_id}${sub ? ` · ${sub}` : ""}`, urls: p.image_urls, alt: `${card.name}, ${p.printing_id}`, order: [card.name, p.printing_id, 0] });
+    if (p.back) add(key, { href: printingPath(p), name: `${card.name} (back)`, sub: p.printing_id, urls: p.back.image_urls, alt: `${card.name}, ${p.printing_id}, back face`, order: [card.name, p.printing_id, 1] });
   }
 }
 // Set order, so the promo bucket lands last here too; a token with no
@@ -37,15 +43,22 @@ for (const card of tokens) {
 const order = new Map(orderedSets(registry.sets).map((s, i) => [s.set_code ?? "none", i]));
 const sorted = [...groups.values()].sort((a, b) =>
   (order.get(a.set?.set_code ?? "none") ?? 999) - (order.get(b.set?.set_code ?? "none") ?? 999));
-for (const g of sorted) g.entries.sort((a, b) => a.card.name.localeCompare(b.card.name));
+for (const g of sorted) g.tiles.sort((a, b) =>
+  a.order[0].localeCompare(b.order[0]) || (a.order[1] < b.order[1] ? -1 : a.order[1] > b.order[1] ? 1 : 0) || a.order[2] - b.order[2]);
 ---
 <Base title="Tokens" canonical="/tokens">
   <h1>Tokens</h1>
-  <p class="muted">{tokens.length} token cards, listed under every set that printed them. <a href="/search?q=cat%3Atoken">Every token as a search</a>.</p>
+  <p class="muted">{printingCount} printings of {tokens.length} token cards, listed under the set of each printing. <a href="/search?q=cat%3Atoken">Every token as a search</a>.</p>
   {sorted.map((g) => (
     <section>
       <h2>{g.set ? <a href={setPath(g.set)}>{g.set.set_name}</a> : "No printing on record"} {g.set && <span class="muted">· {g.set.set_code}</span>}</h2>
-      <div class="grid">{g.entries.map((e) => <CardTile card={e.card} printing={e.printing} />)}</div>
+      <div class="grid">{g.tiles.map((t) => (
+        <a class="tile" href={t.href}>
+          {t.urls ? <img class="card-img" src={t.urls.normal} width="488" height="680" alt={t.alt} loading="lazy" decoding="async" /> : <div class="placeholder">{t.name}</div>}
+          <div class="name">{t.name}</div>
+          <div class="sub">{t.sub}</div>
+        </a>
+      ))}</div>
     </section>
   ))}
 </Base>
