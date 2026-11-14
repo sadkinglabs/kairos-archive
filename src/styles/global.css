@@ -207,6 +207,8 @@ pre.rules { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; backg
 .badge.ok { color: var(--ok); border: 1px solid currentColor; background: transparent; }
 a.badge { text-decoration: none; }
 a.badge.older:hover, a.badge.ok:hover { text-decoration: underline; }
+.badge.new-set { color: var(--accent); border: 1px solid currentColor; background: transparent; font-size: .8rem; padding: .3rem .8rem; }
+a.badge.new-set:hover { text-decoration: underline; }
 .record-block { margin: var(--box-gap) 0; padding: var(--box-pad); border: 1px solid var(--line); border-radius: 9px; background: var(--card); text-align: center; }
 .record-block.bare { border: 0; background: none; padding: 0; margin: .8rem 0; }
 .record-id { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .45rem; margin: 0; font-size: .83rem; }

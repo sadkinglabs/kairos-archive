@@ -6,6 +6,11 @@ import CardFan, { type FanCard } from '../components/CardFan.astro';
 import { cardPath, loadRegistry } from '../data/registry';
 import { createHash } from 'node:crypto';
 const { registry, source } = await loadRegistry();
+// The newest set release, announced for 60 days after it came out. The
+// pill links to the notes of the registry release this build is from.
+const newest = registry.sets.filter(s => s.kind === 'release' && s.released_at).sort((a, b) => b.released_at!.localeCompare(a.released_at!))[0];
+const newSet = newest && Date.now() - Date.parse(newest.released_at!) < 60 * 864e5 ? newest : null;
+const releaseNotes = `https://github.com/sadkinglabs/sorcery-registry/releases/${source.tag === 'local' ? 'latest' : `tag/${source.tag}`}`;
 // The fan's pool: cards whose default printing has full-size art, tokens
 // aside, in an order that changes with each release so a rebuild deals a
 // different build-time hand; the browser reshuffles per visit.
@@ -36,6 +41,7 @@ const entries = [
   <div class="home">
     <div class="fold">
     <section class="hero" aria-labelledby="home-heading">
+      {newSet && <a class="badge new-set" href={releaseNotes} data-track="release-notes">New set: {newSet.set_name} <span aria-hidden="true">→</span></a>}
       <h1 id="home-heading" class="statement">Search the Realm and its history.</h1>
       <SearchBox hero />
       <nav class="hero-links" aria-label="Ways in">
