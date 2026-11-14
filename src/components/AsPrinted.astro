@@ -8,7 +8,13 @@ import FaceDiff from './FaceDiff.astro';
 import ValueDiff from './ValueDiff.astro';
 interface Props { printing: RegistryPrinting; card: RegistryCard; history: HistoryRow[]; names: { name: string; valid_from: string; valid_to: string | null }[] }
 const { printing: p, card, history, names } = Astro.props;
-const row = p.printed_as_current === false && p.released_at ? rowInForce(history, p.released_at) : null;
+// A printing that shows older values was printed with the face in force on
+// its release date - unless it is a reprint that kept the old face after the
+// change (data/errata.json's outdated_printings), whose date falls in the
+// current row: then it shows the newest face before the current one.
+const inForce = p.printed_as_current === false && p.released_at ? rowInForce(history, p.released_at) : null;
+const earlier = [...history].filter(r => r.valid_to !== null).sort((a, b) => a.valid_from.localeCompare(b.valid_from)).at(-1) ?? null;
+const row = inForce && inForce.valid_to === null ? earlier : inForce;
 const nameRow = p.released_at ? rowInForce(names, p.released_at) : null;
 const nameChanged = Boolean(nameRow && nameRow.name !== card.name);
 ---
